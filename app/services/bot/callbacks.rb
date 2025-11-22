@@ -23,15 +23,58 @@ module Bot
       end
 
       def show_lists(bot, user, chat_id)
-        send_text(bot, chat_id, "Мои списки:")
+        lists = user.wishlists
+
+        if lists.empty?
+          send_text(
+            bot, chat_id, "У вас пока нет вишлистов. Создайте первый 👉",
+            Telegram::Bot::Types::InlineKeyboardMarkup.new(
+              inline_keyboard: [
+                [inline_btn("Создать список", "new_list")]
+              ]
+            )
+          )
+
+          return
+        end
+
+        buttons = lists.map do |list|
+          [ inline_btn(list.title, "open_list:#{list.id}") ]
+        end
+
+        keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: buttons)
+
+        send_text(bot, chat_id, "Мои списки:", keyboard)
       end
 
       def create_list_prompt(bot, user, chat_id)
+        user.start_creating_list!
+
         send_text(bot, chat_id, "Введите название списка:")
       end
 
       def open_list(bot, user, chat_id, list_id)
-        send_text(bot, chat_id, "Открываю список ID=#{list_id}")
+        wishlist  = user.wishlists.find(list_id)
+        items = wishlist.items.order(created_at: :asc)
+
+        if items.empty?
+          text = "Список «#{wishlist.title}» пуст.\nДобавьте первый подарок:"
+        else
+          text = "Список «#{wishlist.title}»:\n\n"
+          items.each do |item|
+            mark = item.reserved_by ? "🔒" : "🎁"
+            text << "#{mark} #{item.title}\n"
+          end
+        end
+
+        keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
+          inline_keyboard: [
+            [ inline_btn("Добавить подарок", "add_item:#{wishlist.id}") ],
+            [ inline_btn("Мои списки", "show_lists") ]
+          ]
+        )
+
+        send_text(bot, chat_id, text, keyboard)
       end
     end
   end

@@ -37,7 +37,7 @@ module Bot
       end
 
       def handle_chosen(bot, chosen)
-        # TODO: can be used for analytics
+        # INFO: can be used for analytics
       end
     end
   end

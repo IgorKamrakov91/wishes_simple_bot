@@ -15,4 +15,12 @@ class User < ApplicationRecord
       user.save!
     end
   end
+
+  def start_creating_list!
+    update!(bot_state: "creating_list", bot_payload: {})
+  end
+
+  def clear_state!
+    update!(bot_state: nil, bot_payload: nil)
+  end
 end

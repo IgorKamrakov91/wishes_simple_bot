@@ -1,19 +1,16 @@
 module Bot
   class Dispatcher
-    class << self
-      def dispatch(bot, update)
-        case update
-        when Telegram::Bot::Types::Message
-          Commands.handle(bot, update)
-        when Telegram::Bot::Types::CallbackQuery
-          Callbacks.handle(bot, update)
-        when Telegram::Bot::Types::InlineQuery
-          Inline.handle_query(bot, update)
-        when Telegram::Bot::Types::ChosenInlineResult
-          Inline.handle_chosen(bot, update)
-        else
-          Rails.logger.info "Unknown update type: #{update.inspect}"
-        end
+    def self.dispatch(bot, update)
+      if update.message
+        Commands.handle(bot, update.message)
+      elsif update.callback_query
+        Callbacks.handle(bot, update.callback_query)
+      elsif update.inline_query
+        Inline.handle_query(bot, update.inline_query)
+      elsif update.chosen_inline_result
+        Inline.handle_chosen(bot, update.chosen_inline_result)
+      else
+        Rails.logger.info "Unknown update type: #{update.inspect}"
       end
     end
   end
