@@ -2,225 +2,250 @@ module Bot
   class Callbacks
     extend Bot::Helpers
 
-    class << self
-      def handle(bot, callback)
-        data = callback.data
-        user = User.find_or_create_from_telegram(callback.from.to_h.symbolize_keys)
-        chat_id = callback.message&.chat&.id || callback.from.id
+    # Context object to encapsulate common parameters
+    class Context
+      include Bot::Helpers
 
-        case data
-        when "show_lists"
-          show_lists(bot, user, chat_id)
-        when "new_list"
-          create_list_prompt(bot, user, chat_id)
-        when /^rename_list:(\d+)$/
-          rename_list_prompt(bot, user, chat_id, $1.to_i)
-        when /^delete_list:(\d+)$/
-          delete_list(bot, user, chat_id, $1.to_i)
-        when /^add_item:(\d+)$/
-          wishlist_id = $1.to_i
-          add_item_prompt(bot, user, chat_id, wishlist_id)
-        when /^edit_item:(\d+)$/
-          edit_item_menu(bot, user, chat_id, $1.to_i)
-        when /^edit_item_field:(.+):(\d+)$/
-          field = $1
-          item_id = $2.to_i
-          edit_item_field_prompt(bot, user, chat_id, item_id, field)
-        when /^toggle_reserve:(\d+)$/
-          toggle_reserve(bot, user, chat_id, $1.to_i)
-        when /^delete_item:(\d+)$/
-          delete_item(bot, user, chat_id, $1.to_i)
-        when /^open_shared_list:(\d+)$/
-          open_shared_list(bot, user, chat_id, $1.to_i)
-        else
-          if data.start_with?("open_list:")
-            open_list(bot, user, chat_id, data.split(":")[1].to_i)
-          end
-        end
+      attr_reader :bot, :user, :chat_id
 
-        bot.api.answer_callback_query(callback_query_id: callback.id)
+      def initialize(bot, user, chat_id)
+        @bot = bot
+        @user = user
+        @chat_id = chat_id
       end
 
-      def show_lists(bot, user, chat_id)
-        lists = user.wishlists
+      def send_text(text, keyboard = nil)
+        super(bot, chat_id, text, keyboard)
+      end
+    end
+
+    CALLBACK_ROUTES = {
+      /^show_lists$/ => :show_lists,
+      /^new_list$/ => :create_list_prompt,
+      /^rename_list:(\d+)$/ => :rename_list_prompt,
+      /^delete_list:(\d+)$/ => :delete_list,
+      /^add_item:(\d+)$/ => :add_item_prompt,
+      /^edit_item:(\d+)$/ => :edit_item_menu,
+      /^edit_item_field:(.+):(\d+)$/ => :edit_item_field_prompt,
+      /^toggle_reserve:(\d+)$/ => :toggle_reserve,
+      /^delete_item:(\d+)$/ => :delete_item,
+      /^open_shared_list:(\d+)$/ => :open_shared_list,
+      /^open_list:(\d+)$/ => :open_list
+    }.freeze
+
+    class << self
+      def handle(bot, callback)
+        user = User.find_or_create_from_telegram(callback.from.to_h.symbolize_keys)
+        chat_id = callback.message&.chat&.id || callback.from.id
+        context = Context.new(bot, user, chat_id)
+
+        route_callback(context, callback.data)
+        bot.api.answer_callback_query(callback_query_id: callback.id)
+      rescue ActiveRecord::RecordNotFound => e
+        Rails.logger.error("Record not found in callback handler: #{e.message}")
+        context&.send_text("Произошла ошибка. Попробуйте еще раз.")
+        bot.api.answer_callback_query(callback_query_id: callback.id) rescue nil
+      rescue StandardError => e
+        Rails.logger.error("Error in callback handler: #{e.message}\n#{e.backtrace.join("\n")}")
+        context&.send_text("Произошла ошибка. Попробуйте еще раз.")
+        bot.api.answer_callback_query(callback_query_id: callback.id) rescue nil
+      end
+
+      private
+
+      def route_callback(context, data)
+        CALLBACK_ROUTES.each do |pattern, method_name|
+          if (match = pattern.match(data))
+            params = match.captures.map { |capture| capture =~ /^\d+$/ ? capture.to_i : capture }
+            send(method_name, context, *params)
+            return
+          end
+        end
+      end
+
+      def show_lists(context)
+        lists = context.user.wishlists
 
         if lists.empty?
-          send_text(
-            bot, chat_id, "У вас пока нет вишлистов. Создайте первый 👉",
-            Telegram::Bot::Types::InlineKeyboardMarkup.new(
-              inline_keyboard: [
-                [inline_btn("Создать список", "new_list")]
-              ]
-            )
+          context.send_text(
+            "У вас пока нет вишлистов. Создайте первый 👉",
+            build_keyboard([ [ context.inline_btn("Создать список", "new_list") ] ])
           )
-
           return
         end
 
-        buttons = lists.map do |list|
-          [inline_btn(list.title, "open_list:#{list.id}")]
-        end
-
-        keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: buttons)
-
-        send_text(bot, chat_id, "Мои списки:", keyboard)
+        buttons = lists.map { |list| [ context.inline_btn(list.title, "open_list:#{list.id}") ] }
+        context.send_text("Мои списки:", build_keyboard(buttons))
       end
 
-      def create_list_prompt(bot, user, chat_id)
-        user.start_creating_list!
-        send_text(bot, chat_id, "Введите название списка:")
+      def create_list_prompt(context)
+        context.user.start_creating_list!
+        context.send_text("Введите название списка:")
       end
 
-      def open_list(bot, user, chat_id, id)
-        wishlist = Wishlist.find(id)
-        is_owner = (wishlist.user_id == user.id)
+      def open_list(context, wishlist_id)
+        wishlist = Wishlist.find(wishlist_id)
+        is_owner = wishlist.user_id == context.user.id
 
-        # register opener as a viewer
-        add_user_to_list_viewers(user, wishlist) unless is_owner
+        add_user_to_list_viewers(context.user, wishlist) unless is_owner
 
-        if wishlist.items.empty?
-          text = "Список «#{wishlist.title}» пуст.\nДобавьте подарок:"
-        else
-          text = "🎉 Список «#{wishlist.title}»:\n\n"
+        text = build_list_text(wishlist)
+        buttons = build_list_buttons(context, wishlist, is_owner)
 
-          wishlist.items.each do |item|
-            mark = item.reserved_by ? "🔒 (#{item.reserved_by})" : "🎁"
-            text << "#{mark} #{item.title}\n"
-          end
-        end
-
-        buttons = []
-        buttons << [inline_btn("Добавить подарок", "add_item:#{wishlist.id}")] if is_owner
-        buttons << [inline_btn("Переименовать список", "rename_list:#{wishlist.id}")] if is_owner
-        buttons << [inline_btn("Удалить список", "delete_list:#{wishlist.id}")] if is_owner
-        wishlist.items.each do |i|
-          # Only an owner can edit/delete; everyone else only can reserve
-          row = []
-          row << inline_btn("🔒/🔓 #{i.title}", "toggle_reserve:#{i.id}")
-          if is_owner
-            row << inline_btn("✏️", "edit_item:#{i.id}")
-            row << inline_btn("🗑", "delete_item:#{i.id}")
-          end
-          buttons << row
-        end
-        buttons << [inline_btn("Мои списки", "show_lists")]
-        keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: buttons)
-
-        send_text(bot, chat_id, text, keyboard)
+        context.send_text(text, build_keyboard(buttons))
       end
 
-      def rename_list_prompt(bot, user, chat_id, wishlist_id)
-        user.start_renaming_list!(wishlist_id: wishlist_id)
-        send_text(bot, chat_id, "Введите новое название списка:")
+      def rename_list_prompt(context, wishlist_id)
+        context.user.start_renaming_list!(wishlist_id: wishlist_id)
+        context.send_text("Введите новое название списка:")
       end
 
-      def delete_list(bot, user, chat_id, wishlist_id)
-        wishlist = user.wishlists.find(wishlist_id)
+      def delete_list(context, wishlist_id)
+        wishlist = context.user.wishlists.find(wishlist_id)
         wishlist.destroy!
 
-        send_text(bot, chat_id, "Список удален!")
-        show_lists(bot, user, chat_id)
+        context.send_text("Список удален!")
+        show_lists(context)
       end
 
-      def add_item_prompt(bot, user, chat_id, wishlist_id)
-        user.start_adding_item!(wishlist_id: wishlist_id)
-        send_text(bot, chat_id, "Введите название подарка:")
+      def add_item_prompt(context, wishlist_id)
+        context.user.start_adding_item!(wishlist_id: wishlist_id)
+        context.send_text("Введите название подарка:")
       end
 
-      def edit_item_menu(bot, user, chat_id, item_id)
+      def edit_item_menu(context, item_id)
         item = Item.find(item_id)
 
-        keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
-          inline_keyboard: [
-            [inline_btn("Название", "edit_item_field:title:#{item.id}")],
-            [inline_btn("Описание", "edit_item_field:description:#{item.id}")],
-            [inline_btn("URL", "edit_item_field:url:#{item.id}")],
-            [inline_btn("Цена", "edit_item_field:price:#{item.id}")]
-          ]
-        )
+        buttons = [
+          [ context.inline_btn("Название", "edit_item_field:title:#{item.id}") ],
+          [ context.inline_btn("Описание", "edit_item_field:description:#{item.id}") ],
+          [ context.inline_btn("URL", "edit_item_field:url:#{item.id}") ],
+          [ context.inline_btn("Цена", "edit_item_field:price:#{item.id}") ]
+        ]
 
-        send_text(bot, chat_id, "Что хотите изменить для «#{item.title}»?", keyboard)
+        context.send_text("Что хотите изменить для «#{item.title}»?", build_keyboard(buttons))
       end
 
-      def edit_item_field_prompt(bot, user, chat_id, item_id, field)
-        user.update!(
+      def edit_item_field_prompt(context, field, item_id)
+        context.user.update!(
           bot_state: "editing_item",
           bot_payload: { item_id: item_id, field: field }
         )
 
-        send_text(bot, chat_id, "Введите новое значение поля «#{field}»:")
+        context.send_text("Введите новое значение поля «#{field}»:")
       end
 
-      def item_buttons(item)
-        [
-          inline_btn("✏️ #{item.title}", "edit_item:#{item.id}"),
-          inline_btn(item.reserved_by ? "🔓 снять резерв" : "🔒 забронировать", "toggle_reserve:#{item.id}"),
-          inline_btn("🗑 удалить", "delete_item:#{item.id}")
-        ]
-      end
-
-      def toggle_reserve(bot, user, chat_id, item_id)
+      def toggle_reserve(context, item_id)
         item = Item.find(item_id)
 
-        if item.reserved_by && item.reserved_by != user.telegram_id
-          send_text(bot, chat_id, "Этот подарок забронирован другим пользователем.")
+        if item.reserved_by && item.reserved_by != context.user.telegram_id
+          context.send_text("Этот подарок забронирован другим пользователем.")
           return
         end
-        if item.reserved_by == user.telegram_id
-          item.update!(reserved_by: nil)
 
-          notify_viewers(item.wishlist, "🔓 Резерв снят с «#{item.title}»")
-          send_text(bot, chat_id, "Вы сняли резерв с «#{item.title}»")
+        if item.reserved_by == context.user.telegram_id
+          unreserve_item(context, item)
         else
-          item.update!(reserved_by: user.telegram_id)
-
-          notify_viewers(item.wishlist, "🔒 «#{item.title}» забронирован пользователем @#{user.username}")
-          send_text(bot, chat_id, "Вы забронировали «#{item.title}»")
+          reserve_item(context, item)
         end
       end
 
-      def delete_item(bot, user, chat_id, item_id)
+      def delete_item(context, item_id)
         item = Item.find(item_id)
         wishlist = item.wishlist
+        item_title = item.title
 
         item.destroy!
 
-        notify_viewers(wishlist, "🗑 «#{item.title}» удален")
-        send_text(bot, chat_id, "Подарок удален!")
+        notify_viewers(wishlist, "🗑 «#{item_title}» удален")
+        context.send_text("Подарок удален!")
 
-        open_list(bot, user, chat_id, wishlist.id)
+        open_list(context, wishlist.id)
       end
 
-      def open_shared_list(bot, user, chat_id, wishlist_id)
+      def open_shared_list(context, wishlist_id)
         wishlist = Wishlist.find(wishlist_id)
-        wishlist.list_viewers.find_or_create_by!(user: user)
+        wishlist.list_viewers.find_or_create_by!(user: context.user)
 
-        open_list(bot, user, chat_id, wishlist_id)
+        open_list(context, wishlist_id)
       end
+
+      # Helper methods for building UI components
+
+      def build_keyboard(buttons)
+        Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: buttons)
+      end
+
+      def build_list_text(wishlist)
+        return "Список «#{wishlist.title}» пуст.\nДобавьте подарок:" if wishlist.items.empty?
+
+        text = "🎉 Список «#{wishlist.title}»:\n\n"
+        wishlist.items.each do |item|
+          mark = item.reserved_by ? "🔒 (#{item.reserved_by})" : "🎁"
+          text << "#{mark} #{item.title}\n"
+        end
+        text
+      end
+
+      def build_list_buttons(context, wishlist, is_owner)
+        buttons = []
+
+        if is_owner
+          buttons << [ context.inline_btn("Добавить подарок", "add_item:#{wishlist.id}") ]
+          buttons << [ context.inline_btn("Переименовать список", "rename_list:#{wishlist.id}") ]
+          buttons << [ context.inline_btn("Удалить список", "delete_list:#{wishlist.id}") ]
+        end
+
+        wishlist.items.each do |item|
+          row = [ context.inline_btn("🔒/🔓 #{item.title}", "toggle_reserve:#{item.id}") ]
+          if is_owner
+            row << context.inline_btn("✏️", "edit_item:#{item.id}")
+            row << context.inline_btn("🗑", "delete_item:#{item.id}")
+          end
+          buttons << row
+        end
+
+        buttons << [ context.inline_btn("Мои списки", "show_lists") ]
+        buttons
+      end
+
+      # Helper methods for item reservation
+
+      def reserve_item(context, item)
+        item.update!(reserved_by: context.user.telegram_id)
+        notify_viewers(item.wishlist, "🔒 «#{item.title}» забронирован пользователем @#{context.user.username}")
+        context.send_text("Вы забронировали «#{item.title}»")
+      end
+
+      def unreserve_item(context, item)
+        item.update!(reserved_by: nil)
+        notify_viewers(item.wishlist, "🔓 Резерв снят с «#{item.title}»")
+        context.send_text("Вы сняли резерв с «#{item.title}»")
+      end
+
+      # Notification and viewer management
 
       def notify_viewers(wishlist, message)
         return if wishlist.list_viewers.empty?
 
-        bot = Telegram::Bot::Client.new("8179126467:AAFWyk5lQ9cOZSAHvyaNGfBppR6udi2ohx8")
-        unique_viewers = wishlist.list_viewers.includes(:user).distinct
-        unique_viewers.each do |viewer|
+        bot = Telegram::Bot::Client.new(ENV.fetch("TELEGRAM_BOT_TOKEN"))
+        wishlist.list_viewers.includes(:user).distinct.each do |viewer|
           next unless viewer.user&.telegram_id.present?
 
-          begin
-            bot.api.send_message(
-              chat_id: viewer.user.telegram_id,
-              text: message
-            )
-          rescue Telegram::Bot::Exceptions::ResponseError => e
-            Rails.logger.error("Failed to send telegram notification: #{e.message}")
-          end
+          send_notification(bot, viewer.user.telegram_id, message)
         end
+      end
+
+      def send_notification(bot, chat_id, message)
+        bot.api.send_message(chat_id: chat_id, text: message)
+      rescue Telegram::Bot::Exceptions::ResponseError => e
+        Rails.logger.error("Failed to send telegram notification: #{e.message}")
       end
 
       def add_user_to_list_viewers(user, wishlist)
         return if wishlist.has_viewer?(user)
 
-        wishlist.list_viewers.create!(user: user, last_viewed_at: Time.now)
+        wishlist.list_viewers.create!(user: user, last_viewed_at: Time.current)
       end
     end
   end
