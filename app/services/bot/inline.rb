@@ -7,7 +7,7 @@ module Bot
         user = User.find_or_create_from_telegram(inline_query.from.to_h.symbolize_keys)
 
         lists = user.wishlists.where("title LIKE ?", "%#{inline_query.query}%")
-        results = lists.map { |list| build_result(list) }
+        results = lists.map { |list| inline_result_for_list(list) }
 
         bot.api.answer_inline_query(
           inline_query_id: inline_query.id,
@@ -16,7 +16,7 @@ module Bot
         )
       end
 
-      def build_result(list)
+      def inline_result_for_list(list)
         Telegram::Bot::Types::InlineQueryResultArticle.new(
           id: list.id.to_s,
           title: list.title,

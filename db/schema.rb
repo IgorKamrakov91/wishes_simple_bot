@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_22_121846) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_22_175150) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -30,10 +30,10 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_22_121846) do
   create_table "list_viewers", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "last_opened_at", null: false
-    t.bigint "telegram_id", null: false
     t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
     t.bigint "wishlist_id", null: false
-    t.index ["wishlist_id", "telegram_id"], name: "index_list_viewers_on_wishlist_id_and_telegram_id", unique: true
+    t.index ["user_id"], name: "index_list_viewers_on_user_id"
     t.index ["wishlist_id"], name: "index_list_viewers_on_wishlist_id"
   end
 
@@ -59,6 +59,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_22_121846) do
   end
 
   add_foreign_key "items", "wishlists"
+  add_foreign_key "list_viewers", "users"
   add_foreign_key "list_viewers", "wishlists"
   add_foreign_key "wishlists", "users"
 end

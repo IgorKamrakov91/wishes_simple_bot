@@ -20,6 +20,10 @@ module Bot
           return create_item(bot, user, chat_id, text)
         end
 
+        if user.bot_state == "editing_item"
+          return update_item_field(bot, user, chat_id, text)
+        end
+
         case text
         when "/start"
           handle_start(bot, user, chat_id)
@@ -35,8 +39,8 @@ module Bot
       def handle_start(bot, user, chat_id)
         keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
           inline_keyboard: [
-            [ inline_btn("Мои списки", "show_lists") ],
-            [ inline_btn("Создать список", "new_list") ]
+            [inline_btn("Мои списки", "show_lists")],
+            [inline_btn("Создать список", "new_list")]
           ]
         )
 
@@ -50,8 +54,8 @@ module Bot
 
         keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
           inline_keyboard: [
-            [ inline_btn("Добавить подарок", "add_item:#{wishlist.id}") ],
-            [ inline_btn("Мои списки", "show_lists") ]
+            [inline_btn("Добавить подарок", "add_item:#{wishlist.id}")],
+            [inline_btn("Мои списки", "show_lists")]
           ]
         )
 
@@ -79,12 +83,29 @@ module Bot
 
         keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
           inline_keyboard: [
-            [ inline_btn("Добавить еще подарок", "add_item:#{wishlist.id}") ],
-            [ inline_btn("Вернуться к списку", "open_list:#{wishlist.id}") ]
+            [inline_btn("Добавить еще подарок", "add_item:#{wishlist.id}")],
+            [inline_btn("Вернуться к списку", "open_list:#{wishlist.id}")]
           ]
         )
 
         send_text(bot, chat_id, "Подарок #{item.title} добавлен!", keyboard)
+      end
+
+      def update_item_field(bot, user, chat_id, text)
+        item = Item.find(user.bot_payload["item_id"])
+        field = user.bot_payload["field"]
+
+        if field == "price"
+          text = text.gsub(",", ".").to_f
+        end
+
+        item.update!(field => text)
+        # Callbacks.notify_viewers(item.wishlist, "✏️ Подарок «#{item.title}» обновлён (#{field})")
+
+        user.clear_state!
+
+        send_text(bot, chat_id, "Поле «#{field}» обновлено!")
+        Callbacks.open_list(bot, user, chat_id, item.wishlist_id)
       end
 
       def help_text
