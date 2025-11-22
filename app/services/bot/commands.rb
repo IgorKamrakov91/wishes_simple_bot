@@ -12,6 +12,14 @@ module Bot
           return create_list(bot, user, chat_id, text)
         end
 
+        if user.bot_state == "renaming_list"
+          return rename_list(bot, user, chat_id, text)
+        end
+
+        if user.bot_state == "adding_item"
+          return create_item(bot, user, chat_id, text)
+        end
+
         case text
         when "/start"
           handle_start(bot, user, chat_id)
@@ -27,8 +35,8 @@ module Bot
       def handle_start(bot, user, chat_id)
         keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
           inline_keyboard: [
-            [inline_btn("Мои списки", "show_lists")],
-            [inline_btn("Создать список", "new_list")]
+            [ inline_btn("Мои списки", "show_lists") ],
+            [ inline_btn("Создать список", "new_list") ]
           ]
         )
 
@@ -42,12 +50,41 @@ module Bot
 
         keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
           inline_keyboard: [
-            [inline_btn("Добавить подарок", "add_item:#{wishlist.id}")],
-            [inline_btn("Мои списки", "show_lists")]
+            [ inline_btn("Добавить подарок", "add_item:#{wishlist.id}") ],
+            [ inline_btn("Мои списки", "show_lists") ]
           ]
         )
 
         send_text(bot, chat_id, "Список #{wishlist.title} создан!", keyboard)
+      end
+
+      def rename_list(bot, user, chat_id, text)
+        wishlist_id = user.bot_payload["wishlist_id"]
+        wishlist = user.wishlists.find(wishlist_id)
+
+        wishlist.update!(title: text)
+        user.clear_state!
+
+        send_text(bot, chat_id, "Название списка изменено!")
+
+        Callbacks.open_list(bot, user, chat_id, wishlist_id)
+      end
+
+      def create_item(bot, user, chat_id, text)
+        wishlist_id = user.bot_payload["wishlist_id"]
+        wishlist = user.wishlists.find(wishlist_id)
+        item = wishlist.items.create!(title: text)
+
+        user.clear_state!
+
+        keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
+          inline_keyboard: [
+            [ inline_btn("Добавить еще подарок", "add_item:#{wishlist.id}") ],
+            [ inline_btn("Вернуться к списку", "open_list:#{wishlist.id}") ]
+          ]
+        )
+
+        send_text(bot, chat_id, "Подарок #{item.title} добавлен!", keyboard)
       end
 
       def help_text

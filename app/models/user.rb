@@ -20,6 +20,14 @@ class User < ApplicationRecord
     update!(bot_state: "creating_list", bot_payload: {})
   end
 
+  def start_renaming_list!(wishlist_id:)
+    update!(bot_state: "renaming_list", bot_payload: { wishlist_id: wishlist_id })
+  end
+
+  def start_adding_item!(wishlist_id:)
+    update!(bot_state: "adding_item", bot_payload: { wishlist_id: wishlist_id })
+  end
+
   def clear_state!
     update!(bot_state: nil, bot_payload: nil)
   end
