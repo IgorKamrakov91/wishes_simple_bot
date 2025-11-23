@@ -51,6 +51,30 @@ module Bot
         bot.api.answer_callback_query(callback_query_id: callback.id) rescue nil
       end
 
+      def open_list(*args)
+        # Support two calling conventions:
+        # 1) open_list(context, wishlist_id)
+        # 2) open_list(bot, user, chat_id, wishlist_id)
+        if args.size == 2 && args[0].is_a?(Context)
+          context, wishlist_id = args
+        elsif args.size == 4
+          bot, user, chat_id, wishlist_id = args
+          context = Context.new(bot, user, chat_id)
+        else
+          raise ArgumentError, "open_list expects (context, wishlist_id) or (bot, user, chat_id, wishlist_id)"
+        end
+
+        wishlist = Wishlist.find(wishlist_id)
+        is_owner = wishlist.user_id == context.user.id
+
+        add_user_to_list_viewers(context.user, wishlist) unless is_owner
+
+        text = build_list_text(wishlist)
+        buttons = build_list_buttons(context, wishlist, is_owner)
+
+        context.send_text(text, build_keyboard(buttons))
+      end
+
       private
 
       def route_callback(context, data)
@@ -69,30 +93,18 @@ module Bot
         if lists.empty?
           context.send_text(
             "У вас пока нет вишлистов. Создайте первый 👉",
-            build_keyboard([ [ context.inline_btn("Создать список", "new_list") ] ])
+            build_keyboard([[context.inline_btn("Создать список", "new_list")]])
           )
           return
         end
 
-        buttons = lists.map { |list| [ context.inline_btn(list.title, "open_list:#{list.id}") ] }
+        buttons = lists.map { |list| [context.inline_btn(list.title, "open_list:#{list.id}")] }
         context.send_text("Мои списки:", build_keyboard(buttons))
       end
 
       def create_list_prompt(context)
         context.user.start_creating_list!
         context.send_text("Введите название списка:")
-      end
-
-      def open_list(context, wishlist_id)
-        wishlist = Wishlist.find(wishlist_id)
-        is_owner = wishlist.user_id == context.user.id
-
-        add_user_to_list_viewers(context.user, wishlist) unless is_owner
-
-        text = build_list_text(wishlist)
-        buttons = build_list_buttons(context, wishlist, is_owner)
-
-        context.send_text(text, build_keyboard(buttons))
       end
 
       def rename_list_prompt(context, wishlist_id)
@@ -117,10 +129,10 @@ module Bot
         item = Item.find(item_id)
 
         buttons = [
-          [ context.inline_btn("Название", "edit_item_field:title:#{item.id}") ],
-          [ context.inline_btn("Описание", "edit_item_field:description:#{item.id}") ],
-          [ context.inline_btn("URL", "edit_item_field:url:#{item.id}") ],
-          [ context.inline_btn("Цена", "edit_item_field:price:#{item.id}") ]
+          [context.inline_btn("Название", "edit_item_field:title:#{item.id}")],
+          [context.inline_btn("Описание", "edit_item_field:description:#{item.id}")],
+          [context.inline_btn("URL", "edit_item_field:url:#{item.id}")],
+          [context.inline_btn("Цена", "edit_item_field:price:#{item.id}")]
         ]
 
         context.send_text("Что хотите изменить для «#{item.title}»?", build_keyboard(buttons))
@@ -177,35 +189,64 @@ module Bot
       end
 
       def build_list_text(wishlist)
-        return "Список «#{wishlist.title}» пуст.\nДобавьте подарок:" if wishlist.items.empty?
+        text = "🎉 *Список:* _#{wishlist.title}_\n\n"
 
-        text = "🎉 Список «#{wishlist.title}»:\n\n"
-        wishlist.items.each do |item|
-          mark = item.reserved_by ? "🔒 (#{item.reserved_by})" : "🎁"
-          text << "#{mark} #{item.title}\n"
+        if wishlist.items.empty?
+          text << "Пока пусто. Добавьте первый подарок!"
+          return text
         end
+
+        wishlist.items.each do |item|
+          icon = item.reserved_by ? "🔒" : "🎁"
+          text << "#{icon} *#{item.title}*\n"
+
+          if item.reserved_by
+            user = User.find_by(telegram_id: item.reserved_by)
+            text << "   🤵 @#{user&.username || user&.first_name}\n"
+          end
+
+          text << "   💬 #{item.description}\n" if item.description.present?
+          text << "   🔗 #{item.url}\n" if item.url.present?
+          text << "   💵 #{item.price}₽\n" if item.price.present?
+
+          text << "\n────────────\n\n"
+        end
+
         text
       end
 
       def build_list_buttons(context, wishlist, is_owner)
         buttons = []
 
-        if is_owner
-          buttons << [ context.inline_btn("Добавить подарок", "add_item:#{wishlist.id}") ]
-          buttons << [ context.inline_btn("Переименовать список", "rename_list:#{wishlist.id}") ]
-          buttons << [ context.inline_btn("Удалить список", "delete_list:#{wishlist.id}") ]
-        end
-
+        # Per-item buttons
         wishlist.items.each do |item|
-          row = [ context.inline_btn("🔒/🔓 #{item.title}", "toggle_reserve:#{item.id}") ]
-          if is_owner
-            row << context.inline_btn("✏️", "edit_item:#{item.id}")
-            row << context.inline_btn("🗑", "delete_item:#{item.id}")
+          row = []
+
+          # Reserve / unreserve button
+          if item.reserved_by.nil?
+            row << context.inline_btn("🟩 Забронировать", "toggle_reserve:#{item.id}")
+          elsif item.reserved_by == context.user.telegram_id
+            row << context.inline_btn("🟨 Снять резерв", "toggle_reserve:#{item.id}")
+          else
+            row << context.inline_btn("🔴 Занято", "noop")
           end
+
+          if is_owner
+            row << context.inline_btn("✏️ Редактировать", "edit_item:#{item.id}")
+            row << context.inline_btn("🗑 Удалить", "delete_item:#{item.id}")
+          end
+
           buttons << row
         end
 
-        buttons << [ context.inline_btn("Мои списки", "show_lists") ]
+        # List management buttons
+        if is_owner
+          buttons << [context.inline_btn("Добавить подарок", "add_item:#{wishlist.id}")]
+          buttons << [context.inline_btn("Переименовать список", "rename_list:#{wishlist.id}")]
+          buttons << [context.inline_btn("Удалить список", "delete_list:#{wishlist.id}")]
+        end
+
+        buttons << [context.inline_btn("Мои списки", "show_lists")]
         buttons
       end
 
@@ -215,12 +256,14 @@ module Bot
         item.update!(reserved_by: context.user.telegram_id)
         notify_viewers(item.wishlist, "🔒 «#{item.title}» забронирован пользователем @#{context.user.username}")
         context.send_text("Вы забронировали «#{item.title}»")
+        open_list(context, item.wishlist.id)
       end
 
       def unreserve_item(context, item)
         item.update!(reserved_by: nil)
         notify_viewers(item.wishlist, "🔓 Резерв снят с «#{item.title}»")
         context.send_text("Вы сняли резерв с «#{item.title}»")
+        open_list(context, item.wishlist.id)
       end
 
       # Notification and viewer management
