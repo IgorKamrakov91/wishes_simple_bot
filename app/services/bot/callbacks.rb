@@ -6,16 +6,29 @@ module Bot
     class Context
       include Bot::Helpers
 
-      attr_reader :bot, :user, :chat_id
+      attr_reader :bot, :user, :chat_id, :callback
 
-      def initialize(bot, user, chat_id)
+      def initialize(bot, user, chat_id, callback = nil)
         @bot = bot
         @user = user
         @chat_id = chat_id
+        @callback = callback
       end
 
       def send_text(text, keyboard = nil)
         super(bot, chat_id, text, keyboard)
+      end
+
+      def edit_message(text, keyboard = nil)
+        return unless callback&.message
+
+        bot.api.edit_message_text(
+          chat_id: chat_id,
+          message_id: callback.message.message_id,
+          text: text,
+          reply_markup: keyboard,
+          parse_mode: "Markdown"
+        )
       end
     end
 
@@ -36,8 +49,24 @@ module Bot
     class << self
       def handle(bot, callback)
         user = User.find_or_create_from_telegram(callback.from.to_h.symbolize_keys)
+
+        # Check if a callback is from an inline message
+        if callback.inline_message_id && callback.data.match?(/^open_shared_list:(\d+)$/)
+          wishlist_id = callback.data.match(/^open_shared_list:(\d+)$/)[1]
+
+          # Get bot username - API returns hash with 'result' key
+          response = bot.api.call("getMe")
+          bot_username = response["result"]["username"]
+
+          bot.api.answer_callback_query(
+            callback_query_id: callback.id,
+            url: "https://t.me/#{bot_username}?start=list_#{wishlist_id}"
+          )
+          return
+        end
+
         chat_id = callback.message&.chat&.id || callback.from.id
-        context = Context.new(bot, user, chat_id)
+        context = Context.new(bot, user, chat_id, callback)
 
         route_callback(context, callback.data)
         bot.api.answer_callback_query(callback_query_id: callback.id)
@@ -88,6 +117,25 @@ module Bot
         context.send_text("⚙️ Управление списком:", build_keyboard(list_buttons))
       end
 
+      def open_shared_list(*args)
+        # Support two calling conventions:
+        # 1) open_shared_list(context, wishlist_id)
+        # 2) open_shared_list(bot, user, chat_id, wishlist_id)
+        if args.size == 2 && args[0].is_a?(Context)
+          context, wishlist_id = args
+        elsif args.size == 4
+          bot, user, chat_id, wishlist_id = args
+          context = Context.new(bot, user, chat_id)
+        else
+          raise ArgumentError, "open_shared_list expects (context, wishlist_id) or (bot, user, chat_id, wishlist_id)"
+        end
+
+        wishlist = Wishlist.find(wishlist_id)
+        wishlist.list_viewers.find_or_create_by!(user: context.user)
+
+        open_list(context, wishlist_id)
+      end
+
       private
 
       def route_callback(context, data)
@@ -106,12 +154,18 @@ module Bot
         if lists.empty?
           context.send_text(
             "У вас пока нет вишлистов. Создайте первый 👉",
-            build_keyboard([[context.inline_btn("Создать список", "new_list")]])
+            build_keyboard([ [ context.inline_btn("Создать список", "new_list") ] ])
           )
           return
         end
 
-        buttons = lists.map { |list| [context.inline_btn(list.title, "open_list:#{list.id}")] }
+        buttons = lists.map do |list|
+          [
+            context.inline_btn(list.title, "open_list:#{list.id}"),
+            context.inline_btn("🔗 Поделиться", nil, switch_inline_query: "share_#{list.id}")
+          ]
+        end
+        buttons << [ context.inline_btn("➕ Создать новый список", "new_list") ]
         context.send_text("Мои списки:", build_keyboard(buttons))
       end
 
@@ -142,10 +196,10 @@ module Bot
         item = Item.find(item_id)
 
         buttons = [
-          [context.inline_btn("Название", "edit_item_field:title:#{item.id}")],
-          [context.inline_btn("Описание", "edit_item_field:description:#{item.id}")],
-          [context.inline_btn("URL", "edit_item_field:url:#{item.id}")],
-          [context.inline_btn("Цена", "edit_item_field:price:#{item.id}")]
+          [ context.inline_btn("Название", "edit_item_field:title:#{item.id}") ],
+          [ context.inline_btn("Описание", "edit_item_field:description:#{item.id}") ],
+          [ context.inline_btn("URL", "edit_item_field:url:#{item.id}") ],
+          [ context.inline_btn("Цена", "edit_item_field:price:#{item.id}") ]
         ]
 
         context.send_text("Что хотите изменить для «#{item.title}»?", build_keyboard(buttons))
@@ -162,17 +216,28 @@ module Bot
 
       def toggle_reserve(context, item_id)
         item = Item.find(item_id)
+        wishlist = item.wishlist
+        is_owner = wishlist.user_id == context.user.id
 
         if item.reserved_by && item.reserved_by != context.user.telegram_id
           context.send_text("Этот подарок забронирован другим пользователем.")
           return
         end
 
+        # Toggle reservation
         if item.reserved_by == context.user.telegram_id
-          unreserve_item(context, item)
+          item.update!(reserved_by: nil)
+          notify_viewers(wishlist, "🔓 Резерв снят с «#{item.title}»")
         else
-          reserve_item(context, item)
+          item.update!(reserved_by: context.user.telegram_id)
+          notify_viewers(wishlist, "🔒 «#{item.title}» / #{item.wishlist.title}, забронирован пользователем @#{context.user.username}")
         end
+
+        # Update the message with a new state
+        item.reload
+        item_text = build_item_text(item)
+        item_buttons = build_item_buttons(context, item, is_owner)
+        context.edit_message(item_text, build_keyboard(item_buttons))
       end
 
       def delete_item(context, item_id)
@@ -186,13 +251,6 @@ module Bot
         context.send_text("Подарок удален!")
 
         open_list(context, wishlist.id)
-      end
-
-      def open_shared_list(context, wishlist_id)
-        wishlist = Wishlist.find(wishlist_id)
-        wishlist.list_viewers.find_or_create_by!(user: context.user)
-
-        open_list(context, wishlist_id)
       end
 
       # Helper methods for building UI components
@@ -247,29 +305,13 @@ module Bot
         buttons = []
 
         if is_owner
-          buttons << [context.inline_btn("➕ Добавить подарок", "add_item:#{wishlist.id}")]
-          buttons << [context.inline_btn("✏️ Переименовать список", "rename_list:#{wishlist.id}")]
-          buttons << [context.inline_btn("🗑 Удалить список", "delete_list:#{wishlist.id}")]
+          buttons << [ context.inline_btn("➕ Добавить подарок", "add_item:#{wishlist.id}") ]
+          buttons << [ context.inline_btn("✏️ Переименовать список", "rename_list:#{wishlist.id}") ]
+          buttons << [ context.inline_btn("🗑 Удалить список", "delete_list:#{wishlist.id}") ]
         end
 
-        buttons << [context.inline_btn("📋 Мои списки", "show_lists")]
+        buttons << [ context.inline_btn("📋 Мои списки", "show_lists") ]
         buttons
-      end
-
-      # Helper methods for item reservation
-
-      def reserve_item(context, item)
-        item.update!(reserved_by: context.user.telegram_id)
-        notify_viewers(item.wishlist, "🔒 «#{item.title}» забронирован пользователем @#{context.user.username}")
-        context.send_text("Вы забронировали «#{item.title}»")
-        open_list(context, item.wishlist.id)
-      end
-
-      def unreserve_item(context, item)
-        item.update!(reserved_by: nil)
-        notify_viewers(item.wishlist, "🔓 Резерв снят с «#{item.title}»")
-        context.send_text("Вы сняли резерв с «#{item.title}»")
-        open_list(context, item.wishlist.id)
       end
 
       # Notification and viewer management

@@ -25,6 +25,9 @@ module Bot
         end
 
         case text
+        when /^\/start list_(\d+)$/
+          wishlist_id = text.match(/^\/start list_(\d+)$/)[1].to_i
+          handle_shared_list(bot, user, chat_id, wishlist_id)
         when "/start"
           handle_start(bot, user, chat_id)
         when "/help"
@@ -39,12 +42,24 @@ module Bot
       def handle_start(bot, user, chat_id)
         keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
           inline_keyboard: [
-            [inline_btn("Мои списки", "show_lists")],
-            [inline_btn("Создать список", "new_list")]
+            [ inline_btn("Мои списки", "show_lists") ],
+            [ inline_btn("Создать список", "new_list") ]
           ]
         )
 
         send_text(bot, chat_id, "Привет, #{user.first_name}!\nЯ помогу тебе вести вишлисты.", keyboard)
+      end
+
+      def handle_shared_list(bot, user, chat_id, wishlist_id)
+        wishlist = Wishlist.find_by(id: wishlist_id)
+
+        unless wishlist
+          send_text(bot, chat_id, "Список не найден.")
+          return
+        end
+
+        # Add user to viewers and open the list
+        Callbacks.open_shared_list(bot, user, chat_id, wishlist_id)
       end
 
       def create_list(bot, user, chat_id, text)
@@ -54,8 +69,8 @@ module Bot
 
         keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
           inline_keyboard: [
-            [inline_btn("Добавить подарок", "add_item:#{wishlist.id}")],
-            [inline_btn("Мои списки", "show_lists")]
+            [ inline_btn("Добавить подарок", "add_item:#{wishlist.id}") ],
+            [ inline_btn("Мои списки", "show_lists") ]
           ]
         )
 
@@ -83,8 +98,8 @@ module Bot
 
         keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
           inline_keyboard: [
-            [inline_btn("Добавить еще подарок", "add_item:#{wishlist.id}")],
-            [inline_btn("Вернуться к списку", "open_list:#{wishlist.id}")]
+            [ inline_btn("Добавить еще подарок", "add_item:#{wishlist.id}") ],
+            [ inline_btn("Вернуться к списку", "open_list:#{wishlist.id}") ]
           ]
         )
 

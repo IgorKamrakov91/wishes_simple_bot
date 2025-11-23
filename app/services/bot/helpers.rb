@@ -12,11 +12,12 @@ module Bot
       )
     end
 
-    def inline_btn(text, data)
-      Telegram::Bot::Types::InlineKeyboardButton.new(
-        text: text,
-        callback_data: data
-      )
+    def inline_btn(text, data = nil, **options)
+      params = { text: text }
+      params[:callback_data] = data if data
+      params.merge!(options)
+
+      Telegram::Bot::Types::InlineKeyboardButton.new(params)
     end
 
     def update_or_send(bot, callback, text, keyboard)
