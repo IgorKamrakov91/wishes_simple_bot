@@ -11,7 +11,7 @@ module Bot
           list_id = inline_query.query.match(/^share_(\d+)$/)[1].to_i
           list = user.wishlists.find_by(id: list_id)
 
-          results = list ? [inline_result_for_list(list, shared: true)] : []
+          results = list ? [ inline_result_for_list(list, shared: true) ] : []
         else
           # Regular search by title
           query = inline_query.query.to_s.strip

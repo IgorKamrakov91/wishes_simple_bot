@@ -8,6 +8,6 @@ class CreateListViewers < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :list_viewers, [:wishlist_id, :telegram_id], unique: true
+    add_index :list_viewers, [ :wishlist_id, :telegram_id ], unique: true
   end
 end
