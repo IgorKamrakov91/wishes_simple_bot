@@ -186,6 +186,8 @@ GEM
       logger
     mini_mime (1.1.5)
     minitest (5.26.2)
+    mocha (2.8.2)
+      ruby2_keywords (>= 0.0.5)
     msgpack (1.8.0)
     multipart-post (2.4.1)
     net-http (0.8.0)
@@ -320,6 +322,7 @@ GEM
     ruby-vips (2.2.5)
       ffi (~> 1.12)
       logger
+    ruby2_keywords (0.0.5)
     securerandom (0.4.1)
     solid_cable (3.0.12)
       actioncable (>= 7.2)
@@ -389,6 +392,7 @@ DEPENDENCIES
   dotenv-rails
   image_processing (~> 1.2)
   kamal
+  mocha (~> 2.0)
   pg (~> 1.1)
   puma (>= 5.0)
   rails (~> 8.1.1)
