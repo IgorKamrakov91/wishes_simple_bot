@@ -64,6 +64,7 @@ class BotCallbacksTest < ActiveSupport::TestCase
   end
 
   test "handle rescues from RecordNotFound" do
+    Bot::Context.any_instance.stubs(:callback_data).returns("show_lists")
     Bot::Callbacks::WishlistHandler.stubs(:new).raises(ActiveRecord::RecordNotFound)
     Bot::Context.any_instance.expects(:send_text).with("Произошла ошибка. Попробуйте еще раз.")
 
@@ -71,6 +72,7 @@ class BotCallbacksTest < ActiveSupport::TestCase
   end
 
   test "handle rescues from StandardError" do
+    Bot::Context.any_instance.stubs(:callback_data).returns("show_lists")
     Bot::Callbacks::WishlistHandler.stubs(:new).raises(StandardError)
     Bot::Context.any_instance.expects(:send_text).with("Произошла ошибка. Попробуйте еще раз.")
 
