@@ -12,10 +12,10 @@ module Bot
         item = Item.find(item_id)
 
         buttons = [
-          [context.inline_btn("Название", "edit_item_field:title:#{item.id}")],
-          [context.inline_btn("Описание", "edit_item_field:description:#{item.id}")],
-          [context.inline_btn("URL", "edit_item_field:url:#{item.id}")],
-          [context.inline_btn("Цена", "edit_item_field:price:#{item.id}")]
+          [ context.inline_btn("Название", "edit_item_field:title:#{item.id}") ],
+          [ context.inline_btn("Описание", "edit_item_field:description:#{item.id}") ],
+          [ context.inline_btn("URL", "edit_item_field:url:#{item.id}") ],
+          [ context.inline_btn("Цена", "edit_item_field:price:#{item.id}") ]
         ]
 
         context.send_text("Что хотите изменить для «#{item.title}»?", context.build_keyboard(buttons))

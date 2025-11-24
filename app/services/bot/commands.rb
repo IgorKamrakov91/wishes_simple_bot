@@ -35,8 +35,8 @@ module Bot
       def handle_start(context)
         keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
           inline_keyboard: [
-            [inline_btn("Мои списки", "show_lists")],
-            [inline_btn("Создать список", "new_list")]
+            [ inline_btn("Мои списки", "show_lists") ],
+            [ inline_btn("Создать список", "new_list") ]
           ]
         )
 

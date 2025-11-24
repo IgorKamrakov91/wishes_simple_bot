@@ -32,7 +32,7 @@ module Bot
     def create_list
       wishlist = user.wishlists.create!(title: text)
       user.clear_state!
-      keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [[inline_btn("Добавить подарок", "add_item:#{wishlist.id}")], [inline_btn("Мои списки", "show_lists")]])
+      keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn("Добавить подарок", "add_item:#{wishlist.id}") ], [ inline_btn("Мои списки", "show_lists") ] ])
       context.send_text("Список #{wishlist.title} создан!", keyboard)
     end
 
@@ -58,7 +58,7 @@ module Bot
       url = text == "-" ? nil : text
       item.update!(url: url)
       user.clear_state!
-      keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [[inline_btn("Добавить ещё", "add_item:#{wishlist_id}")], [inline_btn("Открыть список", "open_list:#{wishlist_id}")]])
+      keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn("Добавить ещё", "add_item:#{wishlist_id}") ], [ inline_btn("Открыть список", "open_list:#{wishlist_id}") ] ])
       context.send_text("Подарок успешно добавлен!", keyboard)
     end
 
@@ -69,7 +69,7 @@ module Bot
       item.update!(field => value)
       user.clear_state!
       wishlist_id = item.wishlist_id
-      keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [[inline_btn("Редактировать ещё", "edit_item:#{item.id}")], [inline_btn("Открыть список", "open_list:#{wishlist_id}")]])
+      keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn("Редактировать ещё", "edit_item:#{item.id}") ], [ inline_btn("Открыть список", "open_list:#{wishlist_id}") ] ])
       context.send_text("Поле «#{field}» обновлено!", keyboard)
     end
   end

@@ -9,7 +9,7 @@ module Bot
         if lists.empty?
           context.send_text(
             "У вас пока нет вишлистов. Создайте первый 👉",
-            context.build_keyboard([[context.inline_btn("Создать список", "new_list")]])
+            context.build_keyboard([ [ context.inline_btn("Создать список", "new_list") ] ])
           )
           return
         end
@@ -20,7 +20,7 @@ module Bot
             context.inline_btn("🔗 Поделиться", nil, switch_inline_query: "share_#{list.id}")
           ]
         end
-        buttons << [context.inline_btn("➕ Создать новый список", "new_list")]
+        buttons << [ context.inline_btn("➕ Создать новый список", "new_list") ]
         context.send_text("Мои списки:", context.build_keyboard(buttons))
       end
 

@@ -87,7 +87,7 @@ module Bot
         # The `chat` part of the source is not fully correct, but it works for `chat_id` retrieval.
         source = Telegram::Bot::Types::CallbackQuery.new(from: user, message: { chat: { id: chat_id } })
         context = Context.new(bot: bot, user: user, source: source)
-        [context, wishlist_id]
+        [ context, wishlist_id ]
       end
     end
   end
