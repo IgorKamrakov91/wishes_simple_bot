@@ -46,5 +46,9 @@ module Bot
         )
       end
     end
+
+    def build_keyboard(buttons)
+      Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: buttons)
+    end
   end
 end
