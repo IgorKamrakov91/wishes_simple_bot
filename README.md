@@ -3,7 +3,9 @@
 ## Description
 A Telegram bot for managing personal wishlists and sharing them with friends.
 
-## Features
+## Demo & Features
+https://t.me/PodarkiNeOtdarkiBot
+
 - Create and manage multiple wishlists.
 - Add items to your wishlists.
 - Share wishlists with other Telegram users, granting them viewing access.
