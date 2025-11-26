@@ -1,0 +1,8 @@
+{
+  "general": {
+    "previewFeatures": true
+  },
+  "ui": {
+    "showMemoryUsage": true
+  }
+}
