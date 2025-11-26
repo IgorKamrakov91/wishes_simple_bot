@@ -25,24 +25,21 @@ module Bot
         bot.api.edit_message_text(
           inline_message_id: callback.inline_message_id,
           text: text,
-          reply_markup: keyboard,
-          parse_mode: "Markdown"
+          reply_markup: keyboard
         )
       elsif callback.message
         bot.api.edit_message_text(
           chat_id: callback.message.chat.id,
           message_id: callback.message.message_id,
           text: text,
-          reply_markup: keyboard,
-          parse_mode: "Markdown"
+          reply_markup: keyboard
         )
       else
         # fallback
         bot.api.send_message(
           chat_id: callback.from.id,
           text: text,
-          reply_markup: keyboard,
-          parse_mode: "Markdown"
+          reply_markup: keyboard
         )
       end
     end

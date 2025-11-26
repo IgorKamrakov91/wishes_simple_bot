@@ -30,8 +30,7 @@ module Bot
         chat_id: chat_id,
         message_id: source.message.message_id,
         text: text,
-        reply_markup: keyboard,
-        parse_mode: "Markdown"
+        reply_markup: keyboard
       )
     end
 
