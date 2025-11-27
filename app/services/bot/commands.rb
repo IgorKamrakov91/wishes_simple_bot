@@ -14,6 +14,7 @@ module Bot
         end
 
         # Otherwise, handle as a command
+        Rails.logger.info "Bot::Commands received text: '#{context.text.inspect}'"
         case context.text
         when /^\/start list_(\d+)$/
           wishlist_id = context.text.match(/^\/start list_(\d+)$/)[1].to_i
@@ -52,7 +53,7 @@ module Bot
         end
 
         # Using the public interface of Callbacks service
-        Callbacks.open_shared_list(context, wishlist_id)
+        Callbacks::WishlistHandler.new(context).open_shared_list(wishlist_id)
       end
 
       def help_text

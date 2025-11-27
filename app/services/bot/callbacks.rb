@@ -29,9 +29,11 @@ module Bot
           response = bot.api.call("getMe")
           bot_username = response["result"]["username"]
 
+          url = "https://t.me/#{bot_username}?start=list_#{wishlist_id}"
+          Rails.logger.info "Bot::Callbacks answering callback with URL: '#{url}'"
           bot.api.answer_callback_query(
             callback_query_id: callback.id,
-            url: "https://t.me/#{bot_username}?start=list_#{wishlist_id}"
+            url: url
           )
           return
         end
