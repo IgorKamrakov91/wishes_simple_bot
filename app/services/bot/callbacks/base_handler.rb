@@ -3,6 +3,8 @@
 module Bot
   module Callbacks
     class BaseHandler
+      include Helpers
+
       attr_reader :context, :bot, :user, :chat_id
 
       def initialize(context)

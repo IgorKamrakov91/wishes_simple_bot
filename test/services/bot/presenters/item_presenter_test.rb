@@ -6,16 +6,16 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     @owner = User.create!(telegram_id: 1001, username: "owner_user", first_name: "Owner")
     @viewer = User.create!(telegram_id: 1002, username: "viewer_user", first_name: "Viewer")
     @reserver = User.create!(telegram_id: 1003, username: "reserver_user", first_name: "Reserver")
-    
+
     @wishlist = Wishlist.create!(user: @owner, title: "Owner's List")
     @item = Item.create!(
-      wishlist: @wishlist, 
-      title: "Apple 🍎", 
-      description: "A red apple", 
+      wishlist: @wishlist,
+      title: "Apple 🍎",
+      description: "A red apple",
       price: 50.0,
       url: "http://apple.com"
     )
-    
+
     @context = mock("Context")
     # Presenter uses context.inline_btn and context.build_keyboard, but primarily we are testing .text method here
     # The .text method doesn't use context, only .keyboard does.
@@ -69,11 +69,11 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     assert_match "Quote: &quot;Hello&quot;", text
     # URL: http://site.com?a=1&b=2 -> http://site.com?a=1&amp;b=2
     assert_match "http://site.com?a=1&amp;b=2", text
-    
+
     # Ensure raw characters are NOT present
     refute_match " <3", text
     refute_match "\"Hello\"", text
-    # The URL check is tricky because '&' is present in '&amp;', but we want to ensure standalone '&' isn't there 
+    # The URL check is tricky because '&' is present in '&amp;', but we want to ensure standalone '&' isn't there
     # surrounding the specific params.
     # A simpler check:
     assert text.include?("?a=1&amp;b=2")
