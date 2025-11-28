@@ -13,4 +13,13 @@ class Wishlist < ApplicationRecord
   def has_viewer?(user)
     list_viewers.exists?(user: user)
   end
+
+  def reserved_items_count
+    items.where.not(reserver_id: nil).count
+  end
+
+  def percentage_fulfilled
+    return 0 if items.empty?
+    (reserved_items_count.to_f / items.count.to_f * 100).round
+  end
 end

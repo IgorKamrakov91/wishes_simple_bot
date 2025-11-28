@@ -48,8 +48,11 @@ module Bot
 
         add_user_to_list_viewers(user, wishlist) unless is_owner
 
-        # Send header
-        context.send_text("🎉 Список: #{wishlist.title}\n")
+        percentage = wishlist.percentage_fulfilled
+        progress_bar = progress_bar_string(percentage)
+
+        # Send header with a progress bar
+        context.send_text("🎉 Список: #{wishlist.title}\n#{progress_bar} #{percentage}% Забронировано\n")
 
         # Send each item with its buttons
         if wishlist.items.empty?
