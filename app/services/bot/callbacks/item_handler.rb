@@ -51,7 +51,7 @@ module Bot
         # Update the message with a new state
         item.reload
         presenter = Presenters::ItemPresenter.new(item, user, context)
-        context.edit_message(presenter.text, presenter.keyboard)
+        context.edit_message(presenter.text, presenter.keyboard, parse_mode: "HTML")
       end
 
       def delete_item(item_id)

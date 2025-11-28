@@ -57,7 +57,7 @@ module Bot
         else
           wishlist.items.each do |item|
             presenter = Presenters::ItemPresenter.new(item, user, context)
-            context.send_text(presenter.text, presenter.keyboard)
+            context.send_text(presenter.text, presenter.keyboard, parse_mode: "HTML")
           end
         end
 
@@ -68,9 +68,6 @@ module Bot
 
       def open_shared_list(wishlist_id)
         wishlist = Wishlist.find(wishlist_id)
-        Rails.logger.info("Shared list opened: #{wishlist.inspect}")
-        # wishlist.list_viewers.find_or_create_by!(user: user)
-
         open_list(wishlist_id)
       end
 
