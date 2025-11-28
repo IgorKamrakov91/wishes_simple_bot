@@ -15,7 +15,7 @@ class Wishlist < ApplicationRecord
   end
 
   def reserved_items_count
-    items.where.not(reserver_id: nil).count
+    items.where.not(reserved_by: nil).count
   end
 
   def percentage_fulfilled
