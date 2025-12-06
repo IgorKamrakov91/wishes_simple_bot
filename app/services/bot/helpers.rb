@@ -55,7 +55,7 @@ module Bot
     def progress_bar_string(percentage, length = 10)
       filled_blocks = (percentage.to_f / 100 * length).round
       empty_blocks = length - filled_blocks
-      "[" + "▓" * filled_blocks + "░" * empty_blocks + "]"
+      "[" + "🟩" * filled_blocks + "⬜" * empty_blocks + "]"
     end
   end
 end

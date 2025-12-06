@@ -32,4 +32,9 @@ class User < ApplicationRecord
   def clear_state!
     update!(bot_state: nil, bot_payload: nil)
   end
+
+  def full_name
+    full_name = [ first_name, last_name ].map(&:presence).compact.join(" ")
+    full_name.presence || username.presence || "Anonymous"
+  end
 end

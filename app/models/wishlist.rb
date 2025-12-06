@@ -10,6 +10,10 @@ class Wishlist < ApplicationRecord
     user
   end
 
+  def owner_link
+    "<a href=\"tg://user?id=#{owner.telegram_id}\">#{owner.full_name}</a>"
+  end
+
   def has_viewer?(user)
     list_viewers.exists?(user: user)
   end

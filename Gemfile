@@ -54,3 +54,5 @@ group :development, :test do
 end
 
 gem "dockerfile-rails", ">= 1.7", group: :development
+
+gem "simplecov", "~> 0.22.0", group: :test, require: false

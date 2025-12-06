@@ -94,6 +94,7 @@ GEM
     debug (1.11.0)
       irb (~> 1.10)
       reline (>= 0.3.8)
+    docile (1.4.1)
     dockerfile-rails (1.7.10)
       rails (>= 3.0.0)
     dotenv (3.1.8)
@@ -326,6 +327,12 @@ GEM
       logger
     ruby2_keywords (0.0.5)
     securerandom (0.4.1)
+    simplecov (0.22.0)
+      docile (~> 1.1)
+      simplecov-html (~> 0.11)
+      simplecov_json_formatter (~> 0.1)
+    simplecov-html (0.13.2)
+    simplecov_json_formatter (0.1.4)
     solid_cable (3.0.12)
       actioncable (>= 7.2)
       activejob (>= 7.2)
@@ -400,6 +407,7 @@ DEPENDENCIES
   puma (>= 5.0)
   rails (~> 8.1.1)
   rubocop-rails-omakase
+  simplecov (~> 0.22.0)
   solid_cable
   solid_cache
   solid_queue

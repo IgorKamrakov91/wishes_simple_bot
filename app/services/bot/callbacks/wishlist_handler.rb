@@ -52,7 +52,7 @@ module Bot
         progress_bar = progress_bar_string(percentage)
 
         # Send header with a progress bar
-        context.send_text("🎉 Список: #{wishlist.title}\n#{progress_bar} #{percentage}% Забронировано\n")
+        context.send_text("🎉 Список #{wishlist.owner_link}: #{wishlist.title}\n#{progress_bar} #{percentage}% Забронировано\n", parse_mode: "HTML")
 
         # Send each item with its buttons
         if wishlist.items.empty?
@@ -70,7 +70,6 @@ module Bot
       end
 
       def open_shared_list(wishlist_id)
-        wishlist = Wishlist.find(wishlist_id)
         open_list(wishlist_id)
       end
 
