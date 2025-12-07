@@ -82,7 +82,7 @@ module Bot
       end
 
       def share_link(wishlist_id)
-        bot_username = ENV["BOT_USERNAME"] || "wishstest_bot"
+        bot_username = ENV["BOT_USERNAME"] || "PodarkiNeOtdarkiBot"
 
         "https://t.me/#{bot_username}?start=list_#{wishlist_id}"
       end
