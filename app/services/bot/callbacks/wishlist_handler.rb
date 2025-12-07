@@ -52,7 +52,15 @@ module Bot
         progress_bar = progress_bar_string(percentage)
 
         # Send header with a progress bar
-        context.send_text(I18n.t("bot.messages.list_header", owner: wishlist.owner_link, title: wishlist.title, progress_bar: progress_bar, percentage: percentage, share_link: share_link(wishlist.id)), parse_mode: "HTML")
+        context.send_text(
+          I18n.t("bot.messages.list_header",
+                 owner: wishlist.owner_link,
+                 title: wishlist.title,
+                 progress_bar: progress_bar,
+                 percentage: percentage,
+                 open_link: "<a href='#{share_link(wishlist.id)}'>#{I18n.t('bot.buttons.open_list')}</a>"),
+          parse_mode: "HTML"
+        )
 
         # Send each item with its buttons
         if wishlist.items.empty?
