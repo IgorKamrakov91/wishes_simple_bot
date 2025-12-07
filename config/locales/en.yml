@@ -33,7 +33,7 @@ en:
       enter_list_name: "Enter list name:"
       enter_new_list_name: "Enter new list name:"
       list_deleted: "List deleted!"
-      list_header: "🎉 List %{owner}: %{title}\n%{progress_bar} %{percentage}% Reserved\n"
+      list_header: "🎉 List %{owner}: %{title}\n%{progress_bar} %{percentage}% Reserved\n\n🔗 Link: %{share_link}"
       empty_list: "Empty so far. Add your first gift!"
       enter_item_name: "Enter item name:"
       what_to_edit: "What do you want to edit for «%{title}»?"

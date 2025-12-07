@@ -52,7 +52,7 @@ module Bot
         progress_bar = progress_bar_string(percentage)
 
         # Send header with a progress bar
-        context.send_text(I18n.t("bot.messages.list_header", owner: wishlist.owner_link, title: wishlist.title, progress_bar: progress_bar, percentage: percentage), parse_mode: "HTML")
+        context.send_text(I18n.t("bot.messages.list_header", owner: wishlist.owner_link, title: wishlist.title, progress_bar: progress_bar, percentage: percentage, share_link: share_link(wishlist.id)), parse_mode: "HTML")
 
         # Send each item with its buttons
         if wishlist.items.empty?
@@ -79,6 +79,12 @@ module Bot
         return if wishlist.has_viewer?(user)
 
         wishlist.list_viewers.create!(user: user)
+      end
+
+      def share_link(wishlist_id)
+        bot_username = ENV["BOT_USERNAME"] || "wishstest_bot"
+
+        "https://t.me/#{bot_username}?start=list_#{wishlist_id}"
       end
     end
   end

@@ -42,6 +42,7 @@ https://t.me/PodarkiNeOtdarkiBot
     Create a `.env` file (or set environment variables directly) with the following:
     ```
     TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
+    BOT_USERNAME=YOUR_BOT_USERNAME # Optional: used for generating deep links (default: wishes_simple_bot)
     DATABASE_URL=postgres://user:password@host:port/database_name
     RAILS_MASTER_KEY=YOUR_RAILS_MASTER_KEY # If using Rails encrypted credentials
     ```
