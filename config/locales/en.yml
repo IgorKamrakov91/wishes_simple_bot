@@ -1,31 +1,58 @@
-# Files in the config/locales directory are used for internationalization and
-# are automatically loaded by Rails. If you want to use locales other than
-# English, add the necessary files in this directory.
-#
-# To use the locales, use `I18n.t`:
-#
-#     I18n.t "hello"
-#
-# In views, this is aliased to just `t`:
-#
-#     <%= t("hello") %>
-#
-# To use a different locale, set it with `I18n.locale`:
-#
-#     I18n.locale = :es
-#
-# This would use the information in config/locales/es.yml.
-#
-# To learn more about the API, please read the Rails Internationalization guide
-# at https://guides.rubyonrails.org/i18n.html.
-#
-# Be aware that YAML interprets the following case-insensitive strings as
-# booleans: `true`, `false`, `on`, `off`, `yes`, `no`. Therefore, these strings
-# must be quoted to be interpreted as strings. For example:
-#
-#     en:
-#       "yes": yup
-#       enabled: "ON"
-
 en:
-  hello: "Hello world"
+  bot:
+    commands:
+      hello: "Hello, %{name}!\nI'll help you manage your wishlists."
+      help: |
+        Available commands:
+        /start — start
+        /my — my lists
+        (Main control is via buttons)
+      list_not_found: "List not found."
+    buttons:
+      my_lists: "My Lists"
+      create_list: "Create List"
+      share: "🔗 Share"
+      add_item: "➕ Add Item"
+      add_more: "Add Another"
+      rename_list: "✏️ Rename List"
+      delete_list: "🗑 Delete List"
+      open_list: "Open List"
+      back_to_lists: "📋 My Lists"
+      reserve: "🟩 Reserve"
+      unreserve: "🟨 Unreserve"
+      reserved: "🔴 Reserved"
+      edit: "✏️ Edit"
+      edit_more: "Edit More"
+      delete: "🗑 Delete"
+      title: "Title"
+      description: "Description"
+      url: "URL"
+      price: "Price"
+    messages:
+      no_lists: "You don't have any wishlists yet. Create your first one 👉"
+      enter_list_name: "Enter list name:"
+      enter_new_list_name: "Enter new list name:"
+      list_deleted: "List deleted!"
+      list_header: "🎉 List %{owner}: %{title}\n%{progress_bar} %{percentage}% Reserved\n"
+      empty_list: "Empty so far. Add your first gift!"
+      enter_item_name: "Enter item name:"
+      what_to_edit: "What do you want to edit for «%{title}»?"
+      enter_new_value: "Enter new value for «%{field}»:"
+      already_reserved: "This item is reserved by another user."
+      reserve_lifted: "🔓 Reservation lifted from «%{title}»"
+      reserved_by: "🔒 «%{title}» / %{list_title}, reserved by user %{user}"
+      item_deleted: "🗑 «%{title}» deleted"
+      item_deleted_success: "Item deleted!"
+      list_created: "List %{title} created!"
+      list_renamed: "List name changed!"
+      enter_item_url: "Enter URL for the item (or '-' to skip):"
+      item_added: "Item successfully added!"
+      field_updated: "Field «%{field}» updated!"
+      error: "An error occurred. Please try again."
+    presenters:
+      item:
+        reserved_icon: "🔒"
+        free_icon: "🎁"
+        price_currency: "$"
+      wishlist:
+        management: "⚙️ List Management:"

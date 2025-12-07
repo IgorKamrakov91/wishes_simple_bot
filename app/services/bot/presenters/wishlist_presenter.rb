@@ -15,12 +15,12 @@ module Bot
         buttons = []
 
         if owner?
-          buttons << [ context.inline_btn("➕ Добавить подарок", "add_item:#{wishlist.id}") ]
-          buttons << [ context.inline_btn("✏️ Переименовать список", "rename_list:#{wishlist.id}") ]
-          buttons << [ context.inline_btn("🗑 Удалить список", "delete_list:#{wishlist.id}") ]
+          buttons << [ context.inline_btn(I18n.t("bot.buttons.add_item"), "add_item:#{wishlist.id}") ]
+          buttons << [ context.inline_btn(I18n.t("bot.buttons.rename_list"), "rename_list:#{wishlist.id}") ]
+          buttons << [ context.inline_btn(I18n.t("bot.buttons.delete_list"), "delete_list:#{wishlist.id}") ]
         end
 
-        buttons << [ context.inline_btn("📋 Мои списки", "show_lists") ]
+        buttons << [ context.inline_btn(I18n.t("bot.buttons.back_to_lists"), "show_lists") ]
         buttons
       end
 

@@ -6,7 +6,7 @@ module Bot
       object_name :item
 
       def text
-        icon = item.reserved_by ? "🔒" : "🎁"
+        icon = item.reserved_by ? I18n.t("bot.presenters.item.reserved_icon") : I18n.t("bot.presenters.item.free_icon")
         text = +"#{icon} #{CGI.escapeHTML(item.title.to_s)}\n"
 
         if item.reserved_by
@@ -17,7 +17,7 @@ module Bot
 
         text << "💬 #{CGI.escapeHTML(item.description.to_s)}\n" if item.description.present?
         text << "🔗 #{CGI.escapeHTML(item.url.to_s)}\n" if item.url.present?
-        text << "💵 #{item.price}₽\n" if item.price.present?
+        text << "💵 #{item.price}#{I18n.t("bot.presenters.item.price_currency")}\n" if item.price.present?
 
         text
       end
@@ -34,11 +34,11 @@ module Bot
 
         # Reserve / unreserve button
         if item.reserved_by.nil?
-          row << context.inline_btn("🟩 Забронировать", "toggle_reserve:#{item.id}")
+          row << context.inline_btn(I18n.t("bot.buttons.reserve"), "toggle_reserve:#{item.id}")
         elsif item.reserved_by == user.telegram_id
-          row << context.inline_btn("🟨 Снять резерв", "toggle_reserve:#{item.id}")
+          row << context.inline_btn(I18n.t("bot.buttons.unreserve"), "toggle_reserve:#{item.id}")
         else
-          row << context.inline_btn("🔴 Занято", "noop")
+          row << context.inline_btn(I18n.t("bot.buttons.reserved"), "noop")
         end
 
         buttons << row
@@ -46,8 +46,8 @@ module Bot
         # Owner-only buttons
         if owner?
           buttons << [
-            context.inline_btn("✏️ Редактировать", "edit_item:#{item.id}"),
-            context.inline_btn("🗑 Удалить", "delete_item:#{item.id}")
+            context.inline_btn(I18n.t("bot.buttons.edit"), "edit_item:#{item.id}"),
+            context.inline_btn(I18n.t("bot.buttons.delete"), "delete_item:#{item.id}")
           ]
         end
 

@@ -8,8 +8,8 @@ module Bot
 
         if lists.empty?
           context.send_text(
-            "У вас пока нет вишлистов. Создайте первый 👉",
-            context.build_keyboard([ [ context.inline_btn("Создать список", "new_list") ] ])
+            I18n.t("bot.messages.no_lists"),
+            context.build_keyboard([ [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list") ] ])
           )
           return
         end
@@ -17,28 +17,28 @@ module Bot
         buttons = lists.map do |list|
           [
             context.inline_btn(list.title, "open_list:#{list.id}"),
-            context.inline_btn("🔗 Поделиться", nil, switch_inline_query: "share_#{list.id}")
+            context.inline_btn(I18n.t("bot.buttons.share"), nil, switch_inline_query: "share_#{list.id}")
           ]
         end
-        buttons << [ context.inline_btn("➕ Создать новый список", "new_list") ]
-        context.send_text("Мои списки:", context.build_keyboard(buttons))
+        buttons << [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list") ]
+        context.send_text(I18n.t("bot.buttons.my_lists"), context.build_keyboard(buttons))
       end
 
       def create_list_prompt
         user.start_creating_list!
-        context.send_text("Введите название списка:")
+        context.send_text(I18n.t("bot.messages.enter_list_name"))
       end
 
       def rename_list_prompt(wishlist_id)
         user.start_renaming_list!(wishlist_id: wishlist_id)
-        context.send_text("Введите новое название списка:")
+        context.send_text(I18n.t("bot.messages.enter_new_list_name"))
       end
 
       def delete_list(wishlist_id)
         wishlist = user.wishlists.find(wishlist_id)
         wishlist.destroy!
 
-        context.send_text("Список удален!")
+        context.send_text(I18n.t("bot.messages.list_deleted"))
         show_lists
       end
 
@@ -52,11 +52,11 @@ module Bot
         progress_bar = progress_bar_string(percentage)
 
         # Send header with a progress bar
-        context.send_text("🎉 Список #{wishlist.owner_link}: #{wishlist.title}\n#{progress_bar} #{percentage}% Забронировано\n", parse_mode: "HTML")
+        context.send_text(I18n.t("bot.messages.list_header", owner: wishlist.owner_link, title: wishlist.title, progress_bar: progress_bar, percentage: percentage), parse_mode: "HTML")
 
         # Send each item with its buttons
         if wishlist.items.empty?
-          context.send_text("Пока пусто. Добавьте первый подарок!")
+          context.send_text(I18n.t("bot.messages.empty_list"))
         else
           wishlist.items.each do |item|
             presenter = Presenters::ItemPresenter.new(item, user, context)
@@ -66,7 +66,7 @@ module Bot
 
         # Send list management buttons
         presenter = Presenters::WishlistPresenter.new(wishlist, user, context)
-        context.send_text("⚙️ Управление списком:", presenter.management_keyboard)
+        context.send_text(I18n.t("bot.presenters.wishlist.management"), presenter.management_keyboard)
       end
 
       def open_shared_list(wishlist_id)

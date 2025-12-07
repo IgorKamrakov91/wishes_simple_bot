@@ -44,11 +44,11 @@ module Bot
         bot.api.answer_callback_query(callback_query_id: callback.id)
       rescue ActiveRecord::RecordNotFound => e
         Rails.logger.error("Record not found in callback handler: #{e.message}")
-        context&.send_text("Произошла ошибка. Попробуйте еще раз.")
+        context&.send_text(I18n.t("bot.messages.error"))
         bot.api.answer_callback_query(callback_query_id: callback.id) rescue nil
       rescue StandardError => e
         Rails.logger.error("Error in callback handler: #{e.message}\n#{e.backtrace.join("\n")}")
-        context&.send_text("Произошла ошибка. Попробуйте еще раз.")
+        context&.send_text(I18n.t("bot.messages.error"))
         bot.api.answer_callback_query(callback_query_id: callback.id) rescue nil
       end
 

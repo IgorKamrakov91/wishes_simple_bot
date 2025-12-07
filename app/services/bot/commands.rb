@@ -36,19 +36,19 @@ module Bot
       def handle_start(context)
         keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
           inline_keyboard: [
-            [ inline_btn("Мои списки", "show_lists") ],
-            [ inline_btn("Создать список", "new_list") ]
+            [ inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists") ],
+            [ inline_btn(I18n.t("bot.buttons.create_list"), "new_list") ]
           ]
         )
 
-        context.send_text("Привет, #{context.user.first_name}!\nЯ помогу тебе вести вишлисты.", keyboard)
+        context.send_text(I18n.t("bot.commands.hello", name: context.user.first_name), keyboard)
       end
 
       def handle_shared_list(context, wishlist_id)
         wishlist = Wishlist.find_by(id: wishlist_id)
 
         unless wishlist
-          context.send_text("Список не найден.")
+          context.send_text(I18n.t("bot.commands.list_not_found"))
           return
         end
 
@@ -57,12 +57,7 @@ module Bot
       end
 
       def help_text
-        <<~TEXT
-          Доступные команды:
-          /start — начать
-          /my — мои списки
-          (Основное управление — через кнопки)
-        TEXT
+        I18n.t("bot.commands.help")
       end
     end
   end
