@@ -17,7 +17,8 @@ module Bot
         buttons = lists.map do |list|
           [
             context.inline_btn(list.title, "open_list:#{list.id}"),
-            context.inline_btn(I18n.t("bot.buttons.share"), nil, switch_inline_query: "share_#{list.id}")
+            # Copy the share link to clipboard instead of redirecting/opening via inline query
+            context.inline_btn(I18n.t("bot.buttons.share"), nil, copy_text: { text: share_link(list.id) })
           ]
         end
         buttons << [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list") ]

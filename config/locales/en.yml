@@ -11,7 +11,7 @@ en:
     buttons:
       my_lists: "My Lists"
       create_list: "Create List"
-      share: "🔗 Share"
+      share: "🔗 Copy Link"
       add_item: "➕ Add Item"
       add_more: "Add Another"
       rename_list: "✏️ Rename List"

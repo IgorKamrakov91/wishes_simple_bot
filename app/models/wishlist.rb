@@ -4,6 +4,8 @@ class Wishlist < ApplicationRecord
   has_many :list_viewers, dependent: :destroy
   has_many :viewers, through: :list_viewers, source: :user
 
+  scope :shared_with, ->(user) { joins(:list_viewers).where(list_viewers: { user_id: user.id }) }
+
   validates :title, presence: true
 
   def owner
