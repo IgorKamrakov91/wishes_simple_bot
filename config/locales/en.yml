@@ -10,6 +10,7 @@ en:
       list_not_found: "List not found."
     buttons:
       my_lists: "My Lists"
+      shared_lists: "Shared Lists"
       create_list: "Create List"
       share: "🔗 Copy Link"
       add_item: "➕ Add Item"
@@ -30,6 +31,7 @@ en:
       price: "Price"
     messages:
       no_lists: "You don't have any wishlists yet. Create your first one 👉"
+      no_shared_lists: "You don't have shared wishlists yet."
       enter_list_name: "Enter list name:"
       enter_new_list_name: "Enter new list name:"
       list_deleted: "List deleted!"

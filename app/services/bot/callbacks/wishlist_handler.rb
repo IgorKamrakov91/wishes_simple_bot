@@ -25,6 +25,29 @@ module Bot
         context.send_text(I18n.t("bot.buttons.my_lists"), context.build_keyboard(buttons))
       end
 
+      def show_shared_lists
+        lists = user.viewed_wishlists.includes(:user)
+
+        if lists.empty?
+          context.send_text(
+            I18n.t("bot.messages.no_shared_lists"),
+            context.build_keyboard([
+              [ context.inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists") ]
+            ])
+          )
+          return
+        end
+
+        buttons = lists.map do |list|
+          [
+            context.inline_btn("#{list.title} (#{list.user.full_name})", "open_list:#{list.id}")
+          ]
+        end
+        buttons << [ context.inline_btn(I18n.t("bot.buttons.back_to_lists"), "show_lists") ]
+        context.send_text(I18n.t("bot.buttons.shared_lists"), context.build_keyboard(buttons))
+      end
+
+
       def create_list_prompt
         user.start_creating_list!
         context.send_text(I18n.t("bot.messages.enter_list_name"))
