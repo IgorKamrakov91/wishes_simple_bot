@@ -1,5 +1,6 @@
 require "test_helper"
 require "mocha/minitest"
+require "telegram/bot"
 
 class BotWishlistHandlerTest < ActiveSupport::TestCase
   setup do
@@ -64,10 +65,10 @@ class BotWishlistHandlerTest < ActiveSupport::TestCase
     # Ensure copy_text is present and correctly formed, and switch_inline_query is not used
     expected_url = "https://t.me/TestBot?start=list_#{wishlist.id}"
 
-    # `copy_text` may be stored as a Hash in the Telegram type
+    # `copy_text` is a CopyTextButton object
     copy_text = share_btn.respond_to?(:copy_text) ? share_btn.copy_text : nil
     assert copy_text, "Share button should include copy_text payload"
-    assert_equal expected_url, copy_text["text"] || copy_text[:text]
+    assert_equal expected_url, copy_text.text
 
     # There must be no switch_inline_query
     if share_btn.respond_to?(:switch_inline_query)

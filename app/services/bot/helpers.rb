@@ -14,6 +14,11 @@ module Bot
     end
 
     def inline_btn(text, data = nil, **options)
+      # Handle copy_text option - convert hash to CopyTextButton object
+      if options[:copy_text].is_a?(Hash)
+        options[:copy_text] = Telegram::Bot::Types::CopyTextButton.new(options[:copy_text])
+      end
+
       params = { text: text }
       params[:callback_data] = data if data
       params.merge!(options)
