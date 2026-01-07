@@ -20,7 +20,10 @@ module Bot
           buttons << [ context.inline_btn(I18n.t("bot.buttons.delete_list"), "delete_list:#{wishlist.id}") ]
         end
 
-        buttons << [ context.inline_btn(I18n.t("bot.buttons.back_to_lists"), "show_lists") ]
+        buttons << [
+          context.inline_btn(I18n.t("bot.buttons.back_to_lists"), "show_lists"),
+          context.inline_btn(I18n.t("bot.buttons.shared_lists"), "show_shared_lists")
+        ]
         buttons
       end
 
