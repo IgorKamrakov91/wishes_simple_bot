@@ -39,7 +39,7 @@ gem "telegram-bot-ruby"
 gem "dotenv-rails"
 
 group :development, :test do
-  gem "mocha", "~> 2.0", require: false
+  gem "mocha", "~> 3.0", require: false
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
 
