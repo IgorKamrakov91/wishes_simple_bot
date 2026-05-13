@@ -61,7 +61,8 @@ module Bot
 
         item.destroy!
 
-        notify_viewers(wishlist, I18n.t("bot.messages.item_deleted", title: item_title))
+        # Disable notification about item deletion
+        # notify_viewers(wishlist, I18n.t("bot.messages.item_deleted", title: item_title))
 
         keyboard = context.build_keyboard([ [ context.inline_btn(I18n.t("bot.buttons.open_list"), "open_list:#{wishlist.id}") ] ])
         context.send_text(I18n.t("bot.messages.item_deleted_success"), keyboard)
