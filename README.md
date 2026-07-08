@@ -39,14 +39,15 @@ https://t.me/PodarkiNeOtdarkiBot
     ```
 
 4.  **Environment Variables:**
-    Create a `.env` file (or set environment variables directly) with the following:
+    Copy `.env.example` to `.env` and replace the placeholder values, or set the
+    same variables directly in your shell/deployment environment:
+    ```bash
+    cp .env.example .env
     ```
-    TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
-    BOT_USERNAME=YOUR_BOT_USERNAME # Optional: used for generating deep links (default: wishes_simple_bot)
-    DATABASE_URL=postgres://user:password@host:port/database_name
-    RAILS_MASTER_KEY=YOUR_RAILS_MASTER_KEY # If using Rails encrypted credentials
-    ```
-    *Replace placeholders with your actual values.*
+
+    Required values include `TELEGRAM_BOT_TOKEN` and `DATABASE_URL`. Optional
+    values such as `BOT_USERNAME`, `RAILS_MASTER_KEY`, and Puma runtime settings
+    are documented in `.env.example`.
 
 5.  **Run the application:**
     ```bash
