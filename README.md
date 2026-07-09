@@ -23,7 +23,7 @@ https://t.me/PodarkiNeOtdarkiBot
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/wishes_simple_bot.git
+    git clone https://github.com/IgorKamrakov91/wishes_simple_bot.git
     cd wishes_simple_bot
     ```
 
