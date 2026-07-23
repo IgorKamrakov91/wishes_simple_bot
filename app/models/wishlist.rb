@@ -1,3 +1,5 @@
+require "cgi"
+
 class Wishlist < ApplicationRecord
   belongs_to :user
   has_many :items, dependent: :destroy
@@ -13,7 +15,7 @@ class Wishlist < ApplicationRecord
   end
 
   def owner_link
-    "<a href=\"tg://user?id=#{owner.telegram_id}\">#{owner.full_name}</a>"
+    "<a href=\"tg://user?id=#{owner.telegram_id}\">#{CGI.escapeHTML(owner.full_name)}</a>"
   end
 
   def has_viewer?(user)
