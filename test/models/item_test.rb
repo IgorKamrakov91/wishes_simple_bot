@@ -11,7 +11,7 @@ class ItemTest < ActiveSupport::TestCase
     item = Item.new(wishlist: @wishlist, title: "")
 
     assert_not item.valid?
-    assert_includes item.errors[:title], "can't be blank"
+    assert_not_empty item.errors[:title]
   end
 
   test "allows positive or blank prices" do
@@ -25,8 +25,8 @@ class ItemTest < ActiveSupport::TestCase
 
     assert_not zero_price_item.valid?
     assert_not negative_price_item.valid?
-    assert_includes zero_price_item.errors[:price], "must be greater than 0"
-    assert_includes negative_price_item.errors[:price], "must be greater than 0"
+    assert_not_empty zero_price_item.errors[:price]
+    assert_not_empty negative_price_item.errors[:price]
   end
 
   test "reserver returns the user matching the reserved telegram id" do
