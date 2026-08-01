@@ -88,4 +88,35 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     assert_match "&lt;script&gt;", text
     refute_match "<script>", text
   end
+
+  test "keyboard lets viewers reserve unreserved items" do
+    @context.expects(:inline_btn).with(I18n.t("bot.buttons.reserve"), "toggle_reserve:#{@item.id}").returns(:reserve_button)
+    @context.expects(:build_keyboard).with([ [ :reserve_button ] ]).returns(:keyboard)
+
+    presenter = Bot::Presenters::ItemPresenter.new(@item, @viewer, @context)
+
+    assert_equal :keyboard, presenter.keyboard
+  end
+
+  test "keyboard lets the current reserver unreserve" do
+    @item.update!(reserved_by: @viewer.telegram_id)
+
+    @context.expects(:inline_btn).with(I18n.t("bot.buttons.unreserve"), "toggle_reserve:#{@item.id}").returns(:unreserve_button)
+    @context.expects(:build_keyboard).with([ [ :unreserve_button ] ]).returns(:keyboard)
+
+    presenter = Bot::Presenters::ItemPresenter.new(@item, @viewer, @context)
+
+    assert_equal :keyboard, presenter.keyboard
+  end
+
+  test "keyboard shows owner-only edit controls" do
+    @context.expects(:inline_btn).with(I18n.t("bot.buttons.reserve"), "toggle_reserve:#{@item.id}").returns(:reserve_button)
+    @context.expects(:inline_btn).with(I18n.t("bot.buttons.edit"), "edit_item:#{@item.id}").returns(:edit_button)
+    @context.expects(:inline_btn).with(I18n.t("bot.buttons.delete"), "delete_item:#{@item.id}").returns(:delete_button)
+    @context.expects(:build_keyboard).with([ [ :reserve_button ], [ :edit_button, :delete_button ] ]).returns(:keyboard)
+
+    presenter = Bot::Presenters::ItemPresenter.new(@item, @owner, @context)
+
+    assert_equal :keyboard, presenter.keyboard
+  end
 end
