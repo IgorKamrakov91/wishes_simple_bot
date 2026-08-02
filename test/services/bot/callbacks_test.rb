@@ -68,9 +68,6 @@ class BotCallbacksTest < ActiveSupport::TestCase
     Bot::Context.any_instance.expects(:send_text).never
     Bot::Callbacks::WishlistHandler.expects(:new).never
     Bot::Callbacks::ItemHandler.expects(:new).never
-    Bot::Context.any_instance.stubs(:send_text)
-    Bot::Callbacks::WishlistHandler.expects(:new).never
-    Bot::Callbacks::ItemHandler.expects(:new).never
 
     Bot::Callbacks.handle(@bot, build_callback("unknown_route"))
   end
