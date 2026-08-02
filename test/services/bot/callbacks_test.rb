@@ -14,7 +14,7 @@ class BotCallbacksTest < ActiveSupport::TestCase
     User.stubs(:find_or_create_from_telegram).returns(@user)
   end
 
-  def build_callback(data)
+  def build_callback(data, inline_message_id: nil)
     from_mock = mock("TelegramFrom")
     from_mock.stubs(:id).returns(@user.id)
     from_mock.stubs(:first_name).returns(@user.first_name)
@@ -25,9 +25,21 @@ class BotCallbacksTest < ActiveSupport::TestCase
     callback = mock("TelegramCallback")
     callback.stubs(:from).returns(from_mock)
     callback.stubs(:id).returns("some_callback_id")
-    callback.stubs(:inline_message_id).returns(nil)
+    callback.stubs(:inline_message_id).returns(inline_message_id)
     callback.stubs(:data).returns(data)
     callback
+  end
+
+  test "inline shared list callback opens a start link" do
+    @api_mock.expects(:call).with("getMe").returns({ "result" => { "username" => "WishBot" } })
+    @api_mock.expects(:answer_callback_query).with(
+      callback_query_id: "some_callback_id",
+      url: "https://t.me/WishBot?start=list_456"
+    )
+
+    Bot::Callbacks::WishlistHandler.expects(:new).never
+
+    Bot::Callbacks.handle(@bot, build_callback("open_shared_list:456", inline_message_id: "inline-1"))
   end
 
   test "handle routes to WishlistHandler for show_lists" do
