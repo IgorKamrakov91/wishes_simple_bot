@@ -23,8 +23,8 @@ module Bot
         user = User.find_or_create_from_telegram(callback.from.to_h.symbolize_keys)
 
         # Check if a callback is from an inline message
-        if callback.inline_message_id && callback.data.match?(/^open_shared_list:(\d+)$/)
-          wishlist_id = callback.data.match(/^open_shared_list:(\d+)$/)[1]
+        if callback.inline_message_id && (match = callback.data.match(/^open_shared_list:(\d+)$/))
+          wishlist_id = match[1]
 
           # Get bot username - API returns hash with 'result' key
           response = bot.api.call("getMe")
