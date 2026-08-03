@@ -27,7 +27,9 @@ class Wishlist < ApplicationRecord
   end
 
   def percentage_fulfilled
-    return 0 if items.empty?
-    (reserved_items_count.to_f / items.count.to_f * 100).round
+    total_items = items.count
+    return 0 if total_items.zero?
+
+    (reserved_items_count.to_f / total_items * 100).round
   end
 end
