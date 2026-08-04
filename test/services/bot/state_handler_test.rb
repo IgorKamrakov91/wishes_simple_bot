@@ -47,4 +47,36 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     assert_nil @user.reload.bot_state
     assert_nil @user.bot_payload
   end
+
+  test "editing item price normalizes commas without truncating cents" do
+    wishlist = Wishlist.create!(user: @user, title: "Birthday")
+    item = wishlist.items.create!(title: "Puzzle")
+    @user.update!(bot_state: "editing_item", bot_payload: { "item_id" => item.id, "field" => "price" })
+    context = context_for("12,50")
+    context.expects(:send_text).with(
+      I18n.t("bot.messages.field_updated", field: "price"),
+      kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
+    )
+
+    Bot::StateHandler.new(context).handle
+
+    assert_equal 12.50.to_d, item.reload.price
+    assert_nil @user.reload.bot_state
+    assert_nil @user.bot_payload
+  end
+
+  test "editing optional item fields treats dash as clearing the value" do
+    wishlist = Wishlist.create!(user: @user, title: "Birthday")
+    item = wishlist.items.create!(title: "Puzzle", url: "https://example.com")
+    @user.update!(bot_state: "editing_item", bot_payload: { "item_id" => item.id, "field" => "url" })
+    context = context_for("-")
+    context.expects(:send_text).with(
+      I18n.t("bot.messages.field_updated", field: "url"),
+      kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
+    )
+
+    Bot::StateHandler.new(context).handle
+
+    assert_nil item.reload.url
+  end
 end

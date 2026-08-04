@@ -65,12 +65,19 @@ module Bot
     def update_item_field
       item = Item.find(user.bot_payload["item_id"])
       field = user.bot_payload["field"]
-      value = (field == "price") ? text.gsub(",", ".").to_f : text
+      value = item_field_value(field, text)
       item.update!(field => value)
       user.clear_state!
       wishlist_id = item.wishlist_id
       keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn(I18n.t("bot.buttons.edit_more"), "edit_item:#{item.id}") ], [ inline_btn(I18n.t("bot.buttons.open_list"), "open_list:#{wishlist_id}") ] ])
       context.send_text(I18n.t("bot.messages.field_updated", field: field), keyboard)
+    end
+
+    def item_field_value(field, value)
+      normalized_value = value.to_s.strip
+      return nil if normalized_value == "-"
+
+      field == "price" ? normalized_value.tr(",", ".") : normalized_value
     end
   end
 end
