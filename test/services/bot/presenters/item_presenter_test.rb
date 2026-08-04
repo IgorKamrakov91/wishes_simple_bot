@@ -59,7 +59,7 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     presenter = Bot::Presenters::ItemPresenter.new(@item, @viewer, @context)
     text = presenter.text
 
-    assert_match /🤵 <tg-spoiler>Unknown user<\/tg-spoiler>/, text
+    assert_match /🤵 <tg-spoiler>#{I18n.t("bot.presenters.item.unknown_reserver")}<\/tg-spoiler>/, text
   end
 
   test "escapes HTML special characters in fields" do
