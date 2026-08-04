@@ -54,6 +54,14 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     assert_match /🤵 <tg-spoiler>Secret Santa<\/tg-spoiler>/, text
   end
 
+  test "renders reserved item with fallback label when reserver no longer exists" do
+    @item.update!(reserved_by: 999_999)
+    presenter = Bot::Presenters::ItemPresenter.new(@item, @viewer, @context)
+    text = presenter.text
+
+    assert_match /🤵 <tg-spoiler>Unknown user<\/tg-spoiler>/, text
+  end
+
   test "escapes HTML special characters in fields" do
     @item.update!(
       title: "Me & You <3",

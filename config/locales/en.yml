@@ -55,6 +55,7 @@ en:
       item:
         reserved_icon: "🔒"
         free_icon: "🎁"
+        unknown_reserver: "Unknown user"
         price_currency: "$"
       wishlist:
         management: "⚙️ List Management:"

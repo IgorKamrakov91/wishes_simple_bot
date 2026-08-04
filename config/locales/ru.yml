@@ -55,6 +55,7 @@ ru:
       item:
         reserved_icon: "🔒"
         free_icon: "🎁"
+        unknown_reserver: "Неизвестный пользователь"
         price_currency: "₽"
       wishlist:
         management: "⚙️ Управление списком:"
