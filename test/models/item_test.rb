@@ -42,4 +42,23 @@ class ItemTest < ActiveSupport::TestCase
     assert_not item.reserved?
     assert_nil item.reserver
   end
+
+  test "reservation helpers describe ownership and other users" do
+    item = Item.create!(wishlist: @wishlist, title: "Puzzle", reserved_by: @reserver.telegram_id)
+
+    assert item.reserved_by?(@reserver)
+    assert_not item.reserved_by?(@owner)
+    assert item.reserved_by_other?(@owner)
+    assert_not item.reserved_by_other?(@reserver)
+  end
+
+  test "reserve_for and release_reservation update reservation state" do
+    item = Item.create!(wishlist: @wishlist, title: "Puzzle")
+
+    item.reserve_for!(@reserver)
+    assert_equal @reserver.telegram_id, item.reload.reserved_by
+
+    item.release_reservation!
+    assert_nil item.reload.reserved_by
+  end
 end

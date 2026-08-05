@@ -31,7 +31,7 @@ module Bot
         # Reserve / unreserve button
         if item.reserved_by.nil?
           row << context.inline_btn(I18n.t("bot.buttons.reserve"), "toggle_reserve:#{item.id}")
-        elsif item.reserved_by == user.telegram_id
+        elsif item.reserved_by?(user)
           row << context.inline_btn(I18n.t("bot.buttons.unreserve"), "toggle_reserve:#{item.id}")
         else
           row << context.inline_btn(I18n.t("bot.buttons.reserved"), "noop")

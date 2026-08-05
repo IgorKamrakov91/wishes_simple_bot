@@ -34,17 +34,17 @@ module Bot
         item = Item.find(item_id)
         wishlist = item.wishlist
 
-        if item.reserved_by && item.reserved_by != user.telegram_id
+        if item.reserved_by_other?(user)
           context.send_text(I18n.t("bot.messages.already_reserved"))
           return
         end
 
         # Toggle reservation
-        if item.reserved_by == user.telegram_id
-          item.update!(reserved_by: nil)
+        if item.reserved_by?(user)
+          item.release_reservation!
           notify_viewers(wishlist, I18n.t("bot.messages.reserve_lifted", title: item.title, list_title: wishlist.title, list_owner: wishlist.owner.full_name))
         else
-          item.update!(reserved_by: user.telegram_id)
+          item.reserve_for!(user)
           notify_viewers(wishlist, I18n.t("bot.messages.reserved_by", title: item.title, list_title: wishlist.title, user: "@#{user.full_name}"))
         end
 
