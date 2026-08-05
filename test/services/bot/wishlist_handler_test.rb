@@ -75,4 +75,20 @@ class BotWishlistHandlerTest < ActiveSupport::TestCase
       assert_nil share_btn.switch_inline_query, "switch_inline_query should not be set"
     end
   end
+
+  test "open_list escapes html-sensitive list title in header" do
+    wishlist = Wishlist.create!(user: @user, title: "Party <script> & Friends")
+    context = build_context
+    header_text = nil
+
+    context.stubs(:send_text).with do |text, *args, **kwargs|
+      header_text = text if kwargs[:parse_mode] == "HTML" && text.include?(I18n.t("bot.buttons.open_list"))
+      true
+    end
+
+    Bot::Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
+
+    assert_includes header_text, "Party &lt;script&gt; &amp; Friends"
+    refute_includes header_text, "Party <script> & Friends"
+  end
 end

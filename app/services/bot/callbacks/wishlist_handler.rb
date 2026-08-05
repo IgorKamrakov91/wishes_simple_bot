@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "cgi"
+
 module Bot
   module Callbacks
     class WishlistHandler < BaseHandler
@@ -79,10 +81,10 @@ module Bot
         context.send_text(
           I18n.t("bot.messages.list_header",
                  owner: wishlist.owner_link,
-                 title: wishlist.title,
+                 title: CGI.escapeHTML(wishlist.title.to_s),
                  progress_bar: progress_bar,
                  percentage: percentage,
-                 open_link: "<a href='#{share_link(wishlist.id)}'>#{I18n.t('bot.buttons.open_list')}</a>"),
+                 open_link: open_list_link(wishlist.id)),
           parse_mode: "HTML"
         )
 
@@ -117,6 +119,13 @@ module Bot
         bot_username = ENV["BOT_USERNAME"] || "PodarkiNeOtdarkiBot"
 
         "https://t.me/#{bot_username}?start=list_#{wishlist_id}"
+      end
+
+      def open_list_link(wishlist_id)
+        url = CGI.escapeHTML(share_link(wishlist_id))
+        text = CGI.escapeHTML(I18n.t("bot.buttons.open_list"))
+
+        "<a href='#{url}'>#{text}</a>"
       end
     end
   end
