@@ -55,7 +55,7 @@ module Bot
     def create_item_url
       item = Item.find(user.bot_payload["item_id"])
       wishlist_id = user.bot_payload["wishlist_id"]
-      url = text == "-" ? nil : text
+      url = optional_text_value(text)
       item.update!(url: url)
       user.clear_state!
       keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn(I18n.t("bot.buttons.add_more"), "add_item:#{wishlist_id}") ], [ inline_btn(I18n.t("bot.buttons.open_list"), "open_list:#{wishlist_id}") ] ])
@@ -74,10 +74,15 @@ module Bot
     end
 
     def item_field_value(field, value)
-      normalized_value = value.to_s.strip
-      return nil if normalized_value == "-"
+      normalized_value = optional_text_value(value)
+      return nil if normalized_value.nil?
 
       field == "price" ? normalized_value.tr(",", ".") : normalized_value
+    end
+
+    def optional_text_value(value)
+      normalized_value = value.to_s.strip
+      normalized_value.presence unless normalized_value == "-"
     end
   end
 end

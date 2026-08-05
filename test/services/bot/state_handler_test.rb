@@ -48,6 +48,21 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     assert_nil @user.bot_payload
   end
 
+  test "adding item url state trims surrounding whitespace" do
+    wishlist = Wishlist.create!(user: @user, title: "Birthday")
+    item = wishlist.items.create!(title: "Puzzle")
+    @user.update!(bot_state: "adding_item_url", bot_payload: { "item_id" => item.id, "wishlist_id" => wishlist.id })
+    context = context_for("  https://example.com/gift  ")
+    context.expects(:send_text).with(
+      I18n.t("bot.messages.item_added"),
+      kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
+    )
+
+    Bot::StateHandler.new(context).handle
+
+    assert_equal "https://example.com/gift", item.reload.url
+  end
+
   test "editing item price normalizes commas without truncating cents" do
     wishlist = Wishlist.create!(user: @user, title: "Birthday")
     item = wishlist.items.create!(title: "Puzzle")
@@ -78,5 +93,20 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     Bot::StateHandler.new(context).handle
 
     assert_nil item.reload.url
+  end
+
+  test "editing optional item fields treats blank text as clearing the value" do
+    wishlist = Wishlist.create!(user: @user, title: "Birthday")
+    item = wishlist.items.create!(title: "Puzzle", description: "Old text")
+    @user.update!(bot_state: "editing_item", bot_payload: { "item_id" => item.id, "field" => "description" })
+    context = context_for("   ")
+    context.expects(:send_text).with(
+      I18n.t("bot.messages.field_updated", field: "description"),
+      kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
+    )
+
+    Bot::StateHandler.new(context).handle
+
+    assert_nil item.reload.description
   end
 end
