@@ -8,5 +8,7 @@ class TelegramController < ApplicationController
     end
 
     head :ok
+  rescue JSON::ParserError
+    head :bad_request
   end
 end
