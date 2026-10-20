@@ -4,12 +4,13 @@ module Bot
   module Callbacks
     class ItemHandler < BaseHandler
       def add_item_prompt(wishlist_id)
+        user.wishlists.find(wishlist_id)
         user.start_adding_item!(wishlist_id: wishlist_id)
         context.send_text(I18n.t("bot.messages.enter_item_name"))
       end
 
       def edit_item_menu(item_id)
-        item = Item.find(item_id)
+        item = user.items.find(item_id)
 
         buttons = [
           [ context.inline_btn(I18n.t("bot.buttons.title"), "edit_item_field:title:#{item.id}") ],
@@ -22,6 +23,7 @@ module Bot
       end
 
       def edit_item_field_prompt(field, item_id)
+        user.items.find(item_id)
         user.update!(
           bot_state: "editing_item",
           bot_payload: { item_id: item_id, field: field }
@@ -55,7 +57,7 @@ module Bot
       end
 
       def delete_item(item_id)
-        item = Item.find(item_id)
+        item = user.items.find(item_id)
         wishlist = item.wishlist
         item_title = item.title
 

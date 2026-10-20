@@ -53,8 +53,8 @@ module Bot
     end
 
     def create_item_url
-      item = Item.find(user.bot_payload["item_id"])
-      wishlist_id = user.bot_payload["wishlist_id"]
+      item = user.items.find(user.bot_payload["item_id"])
+      wishlist_id = item.wishlist_id
       url = optional_text_value(text)
       item.update!(url: url)
       user.clear_state!
@@ -63,7 +63,7 @@ module Bot
     end
 
     def update_item_field
-      item = Item.find(user.bot_payload["item_id"])
+      item = user.items.find(user.bot_payload["item_id"])
       field = user.bot_payload["field"]
       value = item_field_value(field, text)
       item.update!(field => value)
