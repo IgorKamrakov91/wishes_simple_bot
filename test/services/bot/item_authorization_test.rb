@@ -68,6 +68,45 @@ class BotItemAuthorizationTest < ActiveSupport::TestCase
     end
   end
 
+  test "edit prompts reject internal and unknown fields without changing state" do
+    @owner.start_creating_list!
+    context = context_for(@owner)
+    fields = [ "wishlist_id", "reserved_by", "id", "created_at", "unknown", nil ]
+    context.expects(:send_text).with(I18n.t("bot.messages.error")).times(fields.size)
+    handler = Bot::Callbacks::ItemHandler.new(context)
+
+    fields.each do |field|
+      handler.edit_item_field_prompt(field, @item.id)
+      assert_equal "creating_list", @owner.reload.bot_state
+      assert_equal({}, @owner.bot_payload)
+    end
+  end
+
+  test "stored edit states cannot update internal or unknown fields" do
+    other_list = @viewer.wishlists.create!(title: "Other list")
+    original_attributes = @item.attributes
+    fields = [ "wishlist_id", "reserved_by", "id", "created_at", "unknown", nil ]
+    context = context_for(@owner, other_list.id.to_s)
+    context.expects(:send_text).with(I18n.t("bot.messages.error")).times(fields.size)
+
+    fields.each do |field|
+      @owner.update!(bot_state: "editing_item", bot_payload: { "item_id" => @item.id, "field" => field })
+      Bot::StateHandler.new(context).handle
+      assert_equal original_attributes, @item.reload.attributes
+    end
+  end
+
+  test "all visible edit fields can be selected by the owner" do
+    context = context_for(@owner)
+    handler = Bot::Callbacks::ItemHandler.new(context)
+
+    %w[title description url price].each do |field|
+      context.expects(:send_text).with(I18n.t("bot.messages.enter_new_value", field: field))
+      handler.edit_item_field_prompt(field, @item.id)
+      assert_equal field, @owner.reload.bot_payload["field"]
+    end
+  end
+
   test "ownership is rechecked if an item moves after editing starts" do
     @owner.update!(bot_state: "editing_item", bot_payload: { "item_id" => @item.id, "field" => "title" })
     other_list = @viewer.wishlists.create!(title: "Other list")

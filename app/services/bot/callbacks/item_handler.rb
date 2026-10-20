@@ -24,6 +24,8 @@ module Bot
 
       def edit_item_field_prompt(field, item_id)
         user.items.find(item_id)
+        return context.send_text(I18n.t("bot.messages.error")) unless Item::EDITABLE_FIELDS.include?(field)
+
         user.update!(
           bot_state: "editing_item",
           bot_payload: { item_id: item_id, field: field }

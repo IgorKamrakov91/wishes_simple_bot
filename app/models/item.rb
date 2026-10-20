@@ -1,4 +1,6 @@
 class Item < ApplicationRecord
+  EDITABLE_FIELDS = %w[title description url price].freeze
+
   belongs_to :wishlist
 
   validates :title, presence: true

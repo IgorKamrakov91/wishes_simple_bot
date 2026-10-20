@@ -65,6 +65,8 @@ module Bot
     def update_item_field
       item = user.items.find(user.bot_payload["item_id"])
       field = user.bot_payload["field"]
+      return context.send_text(I18n.t("bot.messages.error")) unless Item::EDITABLE_FIELDS.include?(field)
+
       value = item_field_value(field, text)
       item.update!(field => value)
       user.clear_state!
