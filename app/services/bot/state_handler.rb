@@ -25,6 +25,8 @@ module Bot
       when "editing_item"
         update_item_field
       end
+    rescue ActiveRecord::RecordInvalid
+      context.send_text(I18n.t("bot.messages.error"))
     end
 
     private
