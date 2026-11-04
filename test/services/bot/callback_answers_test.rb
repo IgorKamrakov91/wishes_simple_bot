@@ -34,6 +34,14 @@ class BotCallbackAnswersTest < ActiveSupport::TestCase
     Bot::Callbacks.handle(@bot, callback("main_menu"))
   end
 
+  test "a network failure while answering doesn't fail the update" do
+    @api.expects(:edit_message_text)
+    @api.expects(:answer_callback_query).once.raises(Faraday::TimeoutError)
+    @api.expects(:send_message).never
+
+    assert_nothing_raised { Bot::Callbacks.handle(@bot, callback("main_menu")) }
+  end
+
   test "a failing button answers with a popup instead of a chat message" do
     Bot::Callbacks::WishlistHandler.any_instance.stubs(:main_menu).raises(StandardError, "boom")
     @api.expects(:send_message).never

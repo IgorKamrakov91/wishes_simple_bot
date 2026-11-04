@@ -37,12 +37,10 @@ module Bot
         # opens the list only for people who already have access to it.
         if callback.inline_message_id && (match = callback.data.match(/^open_shared_list:(\d+)$/))
           wishlist = Wishlist.accessible_to(user).find_by(id: match[1])
-          bot.api.answer_callback_query(**{
-            callback_query_id: callback.id,
-            url: wishlist && share_link(wishlist),
-            text: (I18n.t("bot.commands.link_outdated") unless wishlist),
-            show_alert: (true unless wishlist)
-          }.compact)
+          answer(bot, callback,
+                 url: wishlist && share_link(wishlist),
+                 text: (I18n.t("bot.commands.link_outdated") unless wishlist),
+                 show_alert: (true unless wishlist))
           return
         end
 
@@ -84,7 +82,7 @@ module Bot
       # anymore; the screen is already updated, so this is not the user's problem
       def answer(bot, callback, **options)
         bot.api.answer_callback_query(callback_query_id: callback.id, **options.compact)
-      rescue Telegram::Bot::Exceptions::ResponseError => e
+      rescue Telegram::Bot::Exceptions::ResponseError, Faraday::Error => e
         Rails.logger.warn("Could not answer callback query: #{e.message}")
       end
 
