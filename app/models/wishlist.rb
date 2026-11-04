@@ -1,6 +1,6 @@
 class Wishlist < ApplicationRecord
   belongs_to :user
-  has_many :items, dependent: :destroy
+  has_many :items, -> { order(:id) }, dependent: :destroy
   has_many :list_viewers, dependent: :destroy
   has_many :viewers, through: :list_viewers, source: :user
 
@@ -13,19 +13,20 @@ class Wishlist < ApplicationRecord
   end
 
   def owner_link
-    "<a href=\"tg://user?id=#{owner.telegram_id}\">#{owner.full_name}</a>"
+    "<a href=\"tg://user?id=#{owner.telegram_id}\">#{CGI.escapeHTML(owner.full_name)}</a>"
   end
 
   def has_viewer?(user)
     list_viewers.exists?(user: user)
   end
 
+  # Both work on the loaded association, so `includes(:items)` avoids extra queries
   def reserved_items_count
-    items.where.not(reserved_by: nil).count
+    items.count(&:reserved?)
   end
 
   def percentage_fulfilled
     return 0 if items.empty?
-    (reserved_items_count.to_f / items.count.to_f * 100).round
+    (reserved_items_count.to_f / items.size * 100).round
   end
 end

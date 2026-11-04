@@ -3,18 +3,24 @@ module Bot
     extend Bot::Helpers
 
     CALLBACK_ROUTES = {
+      /^main_menu$/ => "Callbacks::WishlistHandler#main_menu",
       /^show_lists$/ => "Callbacks::WishlistHandler#show_lists",
       /^show_shared_lists$/ => "Callbacks::WishlistHandler#show_shared_lists",
       /^new_list$/ => "Callbacks::WishlistHandler#create_list_prompt",
+      /^list_settings:(\d+)$/ => "Callbacks::WishlistHandler#list_settings",
       /^rename_list:(\d+)$/ => "Callbacks::WishlistHandler#rename_list_prompt",
+      /^confirm_delete_list:(\d+)$/ => "Callbacks::WishlistHandler#confirm_delete_list",
       /^delete_list:(\d+)$/ => "Callbacks::WishlistHandler#delete_list",
       /^open_list:(\d+)$/ => "Callbacks::WishlistHandler#open_list",
+      /^list_page:(\d+):(\d+)$/ => "Callbacks::WishlistHandler#open_list",
       /^open_shared_list:(\d+)$/ => "Callbacks::WishlistHandler#open_shared_list",
 
+      /^open_item:(\d+)$/ => "Callbacks::ItemHandler#show_item",
       /^add_item:(\d+)$/ => "Callbacks::ItemHandler#add_item_prompt",
       /^edit_item:(\d+)$/ => "Callbacks::ItemHandler#edit_item_menu",
       /^edit_item_field:(.+):(\d+)$/ => "Callbacks::ItemHandler#edit_item_field_prompt",
       /^toggle_reserve:(\d+)$/ => "Callbacks::ItemHandler#toggle_reserve",
+      /^confirm_delete_item:(\d+)$/ => "Callbacks::ItemHandler#confirm_delete_item",
       /^delete_item:(\d+)$/ => "Callbacks::ItemHandler#delete_item"
     }.freeze
 
@@ -42,7 +48,7 @@ module Bot
         context = Context.new(bot: bot, user: user, source: callback)
 
         route_callback(context)
-        bot.api.answer_callback_query(callback_query_id: callback.id)
+        bot.api.answer_callback_query(**{ callback_query_id: callback.id, text: context.notice }.compact)
       rescue ActiveRecord::RecordNotFound => e
         Rails.logger.error("Record not found in callback handler: #{e.message}")
         context&.send_text(I18n.t("bot.messages.error"))

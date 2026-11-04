@@ -32,8 +32,7 @@ module Bot
     def create_list
       wishlist = user.wishlists.create!(title: text)
       user.clear_state!
-      keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn(I18n.t("bot.buttons.add_item"), "add_item:#{wishlist.id}") ], [ inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists") ] ])
-      context.send_text(I18n.t("bot.messages.list_created", title: wishlist.title), keyboard)
+      Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
     end
 
     def rename_list
@@ -41,7 +40,7 @@ module Bot
       wishlist = user.wishlists.find(wishlist_id)
       wishlist.update!(title: text)
       user.clear_state!
-      context.send_text(I18n.t("bot.messages.list_renamed"))
+      Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
     end
 
     def create_item
@@ -65,12 +64,11 @@ module Bot
     def update_item_field
       item = Item.find(user.bot_payload["item_id"])
       field = user.bot_payload["field"]
-      value = (field == "price") ? text.gsub(",", ".").to_f : text
+      # "6 000,50" -> 6000.5
+      value = (field == "price") ? text.gsub(/[[:space:]]/, "").tr(",", ".").to_f : text
       item.update!(field => value)
       user.clear_state!
-      wishlist_id = item.wishlist_id
-      keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn(I18n.t("bot.buttons.edit_more"), "edit_item:#{item.id}") ], [ inline_btn(I18n.t("bot.buttons.open_list"), "open_list:#{wishlist_id}") ] ])
-      context.send_text(I18n.t("bot.messages.field_updated", field: field), keyboard)
+      Callbacks::ItemHandler.new(context).show_item(item.id)
     end
   end
 end

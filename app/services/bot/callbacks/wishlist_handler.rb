@@ -3,50 +3,63 @@
 module Bot
   module Callbacks
     class WishlistHandler < BaseHandler
-      def show_lists
-        lists = user.wishlists
+      def main_menu
+        text = I18n.t("bot.screens.main.text",
+                      name: escape_html(user.first_name.presence || user.full_name),
+                      lists: user.wishlists.count,
+                      items: Item.joins(:wishlist).where(wishlists: { user_id: user.id }).count,
+                      shared: user.viewed_wishlists.distinct.count)
 
-        if lists.empty?
-          context.send_text(
-            I18n.t("bot.messages.no_lists"),
-            context.build_keyboard([ [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list") ] ])
-          )
-          return
+        keyboard = context.build_keyboard([
+          [
+            context.inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists"),
+            context.inline_btn(I18n.t("bot.buttons.shared_lists"), "show_shared_lists")
+          ],
+          [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list") ]
+        ])
+
+        context.render(text, keyboard)
+      end
+
+      def show_lists
+        lists = user.wishlists.includes(:items).order(:id)
+
+        summaries = lists.map do |list|
+          "<b>#{escape_html(list.title)}</b>\n#{list_progress(list, :my_lists)}"
         end
+        text = [
+          "<b>#{I18n.t('bot.buttons.my_lists')}</b>",
+          summaries.presence&.join("\n\n") || I18n.t("bot.screens.my_lists.empty")
+        ].join("\n\n")
 
         buttons = lists.map do |list|
-          [
-            context.inline_btn(list.title, "open_list:#{list.id}"),
-            # Copy the share link to clipboard instead of redirecting/opening via inline query
-            context.inline_btn(I18n.t("bot.buttons.share"), nil, copy_text: { text: share_link(list.id) })
-          ]
+          [ context.inline_btn("#{list.title.truncate(40)} · #{list.items.size}", "open_list:#{list.id}") ]
         end
         buttons << [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list") ]
-        context.send_text(I18n.t("bot.buttons.my_lists"), context.build_keyboard(buttons))
+        buttons << [ context.inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ]
+
+        context.render(text, context.build_keyboard(buttons))
       end
 
       def show_shared_lists
-        lists = user.viewed_wishlists.includes(:user)
+        lists = user.viewed_wishlists.includes(:user, :items).distinct.order(:id)
 
-        if lists.empty?
-          context.send_text(
-            I18n.t("bot.messages.no_shared_lists"),
-            context.build_keyboard([
-              [ context.inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists") ]
-            ])
-          )
-          return
+        summaries = lists.map do |list|
+          "#{list.owner_link} · <b>#{escape_html(list.title)}</b>\n#{list_progress(list, :shared_lists)}"
         end
+        text = [
+          "<b>#{I18n.t('bot.buttons.shared_lists')}</b>",
+          summaries.presence&.join("\n\n") || I18n.t("bot.screens.shared_lists.empty")
+        ].join("\n\n")
 
         buttons = lists.map do |list|
-          [
-            context.inline_btn("#{list.title} (#{list.user.full_name})", "open_list:#{list.id}")
-          ]
+          owner_name = list.owner.first_name.presence || list.owner.full_name
+          [ context.inline_btn("#{owner_name} · #{list.title}".truncate(48), "open_list:#{list.id}") ]
         end
-        buttons << [ context.inline_btn(I18n.t("bot.buttons.back_to_lists"), "show_lists") ]
-        context.send_text(I18n.t("bot.buttons.shared_lists"), context.build_keyboard(buttons))
-      end
+        buttons << [ context.inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ]
 
+        context.render(text, context.build_keyboard(buttons))
+      end
 
       def create_list_prompt
         user.start_creating_list!
@@ -54,51 +67,52 @@ module Bot
       end
 
       def rename_list_prompt(wishlist_id)
+        user.wishlists.find(wishlist_id)
         user.start_renaming_list!(wishlist_id: wishlist_id)
         context.send_text(I18n.t("bot.messages.enter_new_list_name"))
+      end
+
+      def list_settings(wishlist_id)
+        wishlist = user.wishlists.find(wishlist_id)
+
+        keyboard = context.build_keyboard([
+          [ context.inline_btn(I18n.t("bot.buttons.rename_list"), "rename_list:#{wishlist.id}") ],
+          [ context.inline_btn(I18n.t("bot.buttons.delete_list"), "confirm_delete_list:#{wishlist.id}") ],
+          [ context.inline_btn(I18n.t("bot.buttons.back_to_list"), "open_list:#{wishlist.id}") ]
+        ])
+
+        context.render(I18n.t("bot.screens.list_settings.text", title: escape_html(wishlist.title)), keyboard)
+      end
+
+      def confirm_delete_list(wishlist_id)
+        wishlist = user.wishlists.find(wishlist_id)
+
+        keyboard = context.build_keyboard([
+          [
+            context.inline_btn(I18n.t("bot.buttons.confirm_delete"), "delete_list:#{wishlist.id}"),
+            context.inline_btn(I18n.t("bot.buttons.cancel"), "list_settings:#{wishlist.id}")
+          ]
+        ])
+
+        context.render(I18n.t("bot.screens.list_settings.confirm_delete", title: escape_html(wishlist.title)), keyboard)
       end
 
       def delete_list(wishlist_id)
         wishlist = user.wishlists.find(wishlist_id)
         wishlist.destroy!
 
-        context.send_text(I18n.t("bot.messages.list_deleted"))
+        context.notice = I18n.t("bot.messages.list_deleted")
         show_lists
       end
 
-      def open_list(wishlist_id)
-        wishlist = Wishlist.find(wishlist_id)
+      def open_list(wishlist_id, page = 0)
+        wishlist = Wishlist.includes(:items, :user).find(wishlist_id)
         is_owner = wishlist.user_id == user.id
 
         add_user_to_list_viewers(user, wishlist) unless is_owner
 
-        percentage = wishlist.percentage_fulfilled
-        progress_bar = progress_bar_string(percentage)
-
-        # Send header with a progress bar
-        context.send_text(
-          I18n.t("bot.messages.list_header",
-                 owner: wishlist.owner_link,
-                 title: wishlist.title,
-                 progress_bar: progress_bar,
-                 percentage: percentage,
-                 open_link: "<a href='#{share_link(wishlist.id)}'>#{I18n.t('bot.buttons.open_list')}</a>"),
-          parse_mode: "HTML"
-        )
-
-        # Send each item with its buttons
-        if wishlist.items.empty?
-          context.send_text(I18n.t("bot.messages.empty_list"))
-        else
-          wishlist.items.each do |item|
-            presenter = Presenters::ItemPresenter.new(item, user, context)
-            context.send_text(presenter.text, presenter.keyboard, parse_mode: "HTML")
-          end
-        end
-
-        # Send list management buttons
-        presenter = Presenters::WishlistPresenter.new(wishlist, user, context)
-        context.send_text(I18n.t("bot.presenters.wishlist.management"), presenter.management_keyboard)
+        presenter = Presenters::WishlistPresenter.new(wishlist, user, context, page: page)
+        context.render(presenter.text, presenter.keyboard)
       end
 
       def open_shared_list(wishlist_id)
@@ -107,16 +121,20 @@ module Bot
 
       private
 
+      def list_progress(list, screen)
+        return I18n.t("bot.screens.#{screen}.no_items") if list.items.empty?
+
+        stats = I18n.t("bot.screens.#{screen}.progress", reserved: list.reserved_items_count, total: list.items.size)
+        mine = list.items.count { |item| item.reserved_by == user.telegram_id }
+        stats += I18n.t("bot.screens.shared_lists.mine", number: mine) if screen == :shared_lists && mine.positive?
+
+        "#{progress_bar_string(list.percentage_fulfilled)} #{stats}"
+      end
+
       def add_user_to_list_viewers(user, wishlist)
         return if wishlist.has_viewer?(user)
 
         wishlist.list_viewers.create!(user: user)
-      end
-
-      def share_link(wishlist_id)
-        bot_username = ENV["BOT_USERNAME"] || "PodarkiNeOtdarkiBot"
-
-        "https://t.me/#{bot_username}?start=list_#{wishlist_id}"
       end
     end
   end

@@ -31,48 +31,84 @@ class BotWishlistHandlerTest < ActiveSupport::TestCase
     Bot::Context.new(bot: @bot, user: @user, source: source)
   end
 
-  test "show_lists builds share button with copy_text and updated label" do
-    # Create single wishlist for the user
+  def capture_render(context)
+    rendered = {}
+    context.stubs(:render).with do |text, keyboard, *|
+      rendered[:text] = text
+      rendered[:keyboard] = keyboard
+      true
+    end
+    rendered
+  end
+
+  test "show_lists shows progress and opens lists by button" do
+    wishlist = Wishlist.create!(user: @user, title: "Holidays")
+    Item.create!(wishlist: wishlist, title: "Gift", reserved_by: 1)
+    Item.create!(wishlist: wishlist, title: "Another gift")
+
+    context = build_context
+    rendered = capture_render(context)
+    Bot::Callbacks::WishlistHandler.new(context).show_lists
+
+    assert_match "<b>Holidays</b>\n▰▰▰▰▰▱▱▱▱▱ 1 из 2 забронировано", rendered[:text]
+
+    row = rendered[:keyboard].inline_keyboard.first
+    assert_equal "Holidays · 2", row.first.text
+    assert_equal "open_list:#{wishlist.id}", row.first.callback_data
+  end
+
+  test "open_list shows the share link as a copy button" do
     wishlist = Wishlist.create!(user: @user, title: "Holidays")
 
     context = build_context
+    rendered = capture_render(context)
+    Bot::Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
 
-    captured_keyboard = nil
-    # Intercept send_text to capture keyboard of the lists message
-    context.stubs(:send_text).with do |text, keyboard, *rest|
-      if text == I18n.t("bot.buttons.my_lists")
-        captured_keyboard = keyboard
-      end
-      true
-    end
+    share_btn = rendered[:keyboard].inline_keyboard.flatten.find(&:copy_text)
+    assert_equal I18n.t("bot.buttons.share"), share_btn.text
+    assert_equal "https://t.me/TestBot?start=list_#{wishlist.id}", share_btn.copy_text.text
+    assert_nil share_btn.switch_inline_query
+  end
 
-    handler = Bot::Callbacks::WishlistHandler.new(context)
-    handler.show_lists
+  test "open_list adds a guest to the list viewers" do
+    owner = User.create!(telegram_id: 20002, first_name: "Owner")
+    wishlist = Wishlist.create!(user: owner, title: "Birthday")
 
-    assert captured_keyboard, "Expected keyboard to be sent for my_lists"
+    context = build_context
+    capture_render(context)
+    Bot::Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
 
-    # Inline keyboard structure: rows of buttons
-    rows = captured_keyboard.inline_keyboard
-    assert rows.is_a?(Array), "inline_keyboard should be an Array"
+    assert wishlist.has_viewer?(@user)
+  end
 
-    # Find the row for our wishlist title and its share button
-    row = rows.find { |r| r[0].text == "Holidays" }
-    refute_nil row, "Expected a row with the wishlist title button"
+  test "delete_list asks for confirmation first" do
+    wishlist = Wishlist.create!(user: @user, title: "Holidays")
 
-    share_btn = row[1]
-    assert_equal I18n.t("bot.buttons.share"), share_btn.text, "Share button label should be updated"
+    context = build_context
+    rendered = capture_render(context)
+    Bot::Callbacks::WishlistHandler.new(context).confirm_delete_list(wishlist.id)
 
-    # Ensure copy_text is present and correctly formed, and switch_inline_query is not used
-    expected_url = "https://t.me/TestBot?start=list_#{wishlist.id}"
+    assert Wishlist.exists?(wishlist.id)
+    assert_equal "delete_list:#{wishlist.id}", rendered[:keyboard].inline_keyboard.first.first.callback_data
+  end
 
-    # `copy_text` is a CopyTextButton object
-    copy_text = share_btn.respond_to?(:copy_text) ? share_btn.copy_text : nil
-    assert copy_text, "Share button should include copy_text payload"
-    assert_equal expected_url, copy_text.text
+  test "delete_list removes the list and shows a toast" do
+    wishlist = Wishlist.create!(user: @user, title: "Holidays")
 
-    # There must be no switch_inline_query
-    if share_btn.respond_to?(:switch_inline_query)
-      assert_nil share_btn.switch_inline_query, "switch_inline_query should not be set"
+    context = build_context
+    capture_render(context)
+    Bot::Callbacks::WishlistHandler.new(context).delete_list(wishlist.id)
+
+    refute Wishlist.exists?(wishlist.id)
+    assert_equal I18n.t("bot.messages.list_deleted"), context.notice
+  end
+
+  test "guests cannot delete someone else's list" do
+    owner = User.create!(telegram_id: 20002, first_name: "Owner")
+    wishlist = Wishlist.create!(user: owner, title: "Birthday")
+
+    assert_raises(ActiveRecord::RecordNotFound) do
+      Bot::Callbacks::WishlistHandler.new(build_context).delete_list(wishlist.id)
     end
   end
 end
