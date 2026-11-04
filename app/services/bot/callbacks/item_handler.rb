@@ -90,7 +90,7 @@ module Bot
         show_item(item.id)
       end
 
-      def unreserve_item(item_id, reservation_version)
+      def unreserve_item(item_id, reservation_version, reservations_page = nil)
         item = Item.accessible_to(user).find(item_id)
         wishlist = item.wishlist
 
@@ -107,7 +107,11 @@ module Bot
           context.notice = I18n.t("bot.messages.reservation_changed")
         end
 
-        show_item(item.id)
+        if reservations_page
+          ReservationsHandler.new(context).show_reservations(reservations_page)
+        else
+          show_item(item.id)
+        end
       end
 
       # Old toggle buttons do not encode whether the user intended to reserve

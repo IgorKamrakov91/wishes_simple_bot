@@ -93,6 +93,10 @@ module Bot
 
         buttons << neighbours_row if neighbours_row.any?
         buttons << [ context.inline_btn(t("bot.buttons.back_to_list"), "list_page:#{wishlist.id}:#{WishlistPresenter.page_of(position)}") ]
+        unless owner?
+          page = reserved_by_me? ? ReservationsPresenter.page_for(item, user) : 0
+          buttons << [ context.inline_btn(t("bot.screens.reservations.back"), "show_reservations:#{page}") ]
+        end
         buttons
       end
 
