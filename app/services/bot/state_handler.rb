@@ -5,6 +5,10 @@ module Bot
     include Helpers
     include ActiveSupport::Delegation
 
+    # "ozon.ru/t/abc" without a scheme is still clearly a link
+    BARE_LINK = %r{\A[\w-]+(\.[\w-]+)+(/\S*)?\z}
+    CURRENCY_SUFFIX = /(₽|руб\.?|р\.?)\z/i
+
     attr_reader :context
     delegate :bot, :user, :chat_id, :text, to: :context
 
@@ -12,29 +16,45 @@ module Bot
       @context = context
     end
 
+    # Answers the pending input with the text the user sent
     def handle
-      case user.bot_state
-      when "creating_list"
-        create_list
-      when "renaming_list"
-        rename_list
-      when "adding_item"
-        create_item
-      when "adding_item_url"
-        create_item_url
-      when "editing_item"
-        update_item_field
+      # A photo or sticker has no text to use as the value
+      return reply_with_problem(I18n.t("bot.input_errors.text_only")) if context.try(:non_text_message?)
+
+      handling_input_errors do
+        case user.bot_state
+        when "creating_list"
+          create_list
+        when "renaming_list"
+          rename_list
+        when "adding_item"
+          create_item
+        when "adding_item_url"
+          save_item(item_field_value("url", text))
+        when "editing_item"
+          update_item_field
+        end
       end
-    rescue ActiveRecord::RecordInvalid
-      context.send_text(I18n.t("bot.messages.error"))
+    end
+
+    # "Save without a link" on the link step
+    def save_item_without_link
+      handling_input_errors { save_item(nil) }
+    end
+
+    private
+
+    def handling_input_errors
+      yield
+    rescue ActiveRecord::RecordInvalid => e
+      # The input stays active, so the user can just send a fixed value
+      reply_with_problem(error_message(e.record))
     rescue ActiveRecord::RecordNotFound
       # The list or gift was deleted while the user was typing
       user.clear_state!
       keyboard = build_keyboard([ [ inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ] ])
       context.send_text(I18n.t("bot.messages.input_target_gone"), keyboard)
     end
-
-    private
 
     def create_list
       wishlist = user.wishlists.create!(title: text)
@@ -54,7 +74,8 @@ module Bot
     # skipped: cancelling on the way publishes nothing.
     def create_item
       wishlist = user.wishlists.find(user.bot_payload["wishlist_id"])
-      return context.send_text(I18n.t("bot.messages.enter_item_name")) if text.blank?
+      # Check the name now rather than after the link step
+      wishlist.items.build(title: text).validate!
 
       # The letter prefix keeps the id a string: routing turns all-digit captures into numbers
       draft_id = "d#{SecureRandom.hex(4)}"
@@ -70,8 +91,7 @@ module Bot
 
     # Saving the gift and ending the input happen together under a lock on
     # the user, so two quick answers can't save the draft twice
-    def create_item_url
-      url = optional_text_value(text)
+    def save_item(url)
       wishlist_id = nil
 
       user.with_lock do
@@ -113,13 +133,47 @@ module Bot
       normalized_value = optional_text_value(value)
       return nil if normalized_value.nil?
 
-      # "6 000,50" -> "6000.50"
-      field == "price" ? normalized_value.gsub(/[[:space:]]/, "").tr(",", ".") : normalized_value
+      case field
+      when "price"
+        # "6 000,50 ₽" -> "6000.50"
+        normalized_value.gsub(/[[:space:]]/, "").sub(CURRENCY_SUFFIX, "").tr(",", ".")
+      when "url"
+        BARE_LINK.match?(normalized_value) ? "https://#{normalized_value}" : normalized_value
+      else
+        normalized_value
+      end
     end
 
     def optional_text_value(value)
       normalized_value = value.to_s.strip
       normalized_value.presence unless normalized_value == "-"
+    end
+
+    # Explains the first problem with the value in words
+    def error_message(record)
+      error = record.errors.first
+      return I18n.t("bot.messages.error") unless error
+
+      I18n.t("bot.input_errors.#{error.attribute}.#{error.type}",
+             count: error.options[:count],
+             default: I18n.t("bot.input_errors.invalid"))
+    end
+
+    def reply_with_problem(message)
+      keyboard = build_keyboard([ [ inline_btn(I18n.t("bot.buttons.cancel"), cancel_callback) ] ]) if cancel_callback
+      context.send_text(message, keyboard)
+    end
+
+    # Where Cancel leads for each kind of input
+    def cancel_callback
+      payload = user.bot_payload || {}
+
+      case user.bot_state
+      when "creating_list" then "show_lists"
+      when "renaming_list" then "list_settings:#{payload['wishlist_id']}"
+      when "adding_item", "adding_item_url" then "open_list:#{payload['wishlist_id']}"
+      when "editing_item" then "open_item:#{payload['item_id']}"
+      end
     end
   end
 end

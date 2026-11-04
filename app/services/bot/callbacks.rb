@@ -24,6 +24,7 @@ module Bot
       /^toggle_reserve:(\d+)$/ => "Callbacks::ItemHandler#toggle_reserve",
       /^confirm_delete_item:(\d+)$/ => "Callbacks::ItemHandler#confirm_delete_item",
       /^delete_item:(\d+)$/ => "Callbacks::ItemHandler#delete_item",
+      /^clear_item_field:(\w+):(\d+)$/ => "Callbacks::ItemHandler#clear_item_field",
       /^skip_item_url(?::(\w+))?$/ => "Callbacks::ItemHandler#skip_item_url"
     }.freeze
 
