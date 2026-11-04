@@ -136,6 +136,15 @@ en:
         not_a_number: "The price is a number in rubles, e.g. 2500 or 1499.90."
         greater_than: "The price must be greater than zero."
         less_than: "The price is too large."
+    profile:
+      description: "Wishlists right in Telegram.\n\nCreate a wishlist, add gifts with links and prices and send it to your friends. Friends reserve gifts so nobody gives the same thing twice.\n\nTap Start to create your first list."
+      short_description: "Wishlists in Telegram: collect gift ideas and send them to friends. They reserve gifts so there are no duplicates."
+      commands:
+        start: "Main menu"
+        my: "My lists"
+        new: "New list"
+        cancel: "Cancel input"
+        help: "Help"
     inline:
       open: "Open wishlist"
       card: "🎁 %{owner} is sharing the wishlist “%{title}”\n%{gifts}. Open it to pick a gift and reserve it: other guests will see it is taken."

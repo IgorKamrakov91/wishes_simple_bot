@@ -16,4 +16,10 @@ namespace :telegram do
     info = bot.api.get_webhook_info
     puts "Webhook set: #{info.url} (pending updates: #{info.pending_update_count})"
   end
+
+  desc "Set the bot's description, short description and command menu from the locales"
+  task set_profile: :environment do
+    Bot::Profile.apply(Telegram::Bot::Client.new(ENV.fetch("TELEGRAM_BOT_TOKEN")).api)
+    puts "Bot profile updated"
+  end
 end

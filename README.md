@@ -95,6 +95,11 @@ bin/kamal deploy
 ```
 Useful aliases: `bin/kamal logs`, `bin/kamal console`, `bin/kamal shell`.
 
+### Bot profile
+`bin/rails telegram:set_profile` sets the description shown before /start, the short description and
+the command menu from `bot.profile` in the locales (Russian by default, English for English users).
+The post-deploy hook runs it after the webhook; a failure there only prints a warning.
+
 ### If the bot stops answering after a deploy
 The new version rejects updates until the webhook is registered with its secret. The post-deploy hook
 does that; if the hook failed (the deploy itself still counts as done), register it by hand:
