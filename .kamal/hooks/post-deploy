@@ -6,3 +6,7 @@ set -e
 
 echo "Registering Telegram webhook..."
 bin/kamal app exec --reuse "bin/rails telegram:set_webhook"
+
+# Texts only: a failure here must not mark the deploy as failed
+echo "Updating the bot profile..."
+bin/kamal app exec --reuse "bin/rails telegram:set_profile" || echo "Warning: bot profile was not updated"
