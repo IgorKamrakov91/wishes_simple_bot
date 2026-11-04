@@ -1,0 +1,8 @@
+#!/bin/sh
+# Runs after every `kamal deploy`, `redeploy` and `rollback`, manual or from CI.
+# The app rejects updates without the webhook secret, so register it (with the
+# current URL and allowed_updates) as soon as the new version is live.
+set -e
+
+echo "Registering Telegram webhook..."
+bin/kamal app exec --reuse "bin/rails telegram:set_webhook"

@@ -65,10 +65,6 @@ jobs:
             echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
           } > .env.production
 
+      # .kamal/hooks/post-deploy registers the Telegram webhook afterwards
       - name: Deploy
         run: bin/kamal deploy
-
-      # The app rejects updates without the webhook secret, so register it
-      # right after the new version is live. Telegram retries rejected updates.
-      - name: Register Telegram webhook
-        run: bin/kamal app exec --reuse "bin/rails telegram:set_webhook"

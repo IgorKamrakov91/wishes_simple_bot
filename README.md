@@ -65,8 +65,13 @@ Telegram sends that token in the `X-Telegram-Bot-Api-Secret-Token` header, and t
 updates without it (401), so forged requests can't act on behalf of other users. The secret is derived
 from `TELEGRAM_BOT_TOKEN`; set `TELEGRAM_WEBHOOK_SECRET` to use your own value instead.
 
-Re-run the task whenever the URL, the bot token or the secret changes. In production the deploy
-workflow runs it after every deploy. Check the current state with `getWebhookInfo`.
+Re-run the task whenever the URL, the bot token or the secret changes. In production Kamal's
+`.kamal/hooks/post-deploy` runs it after every `kamal deploy`, `redeploy` and `rollback`, whether
+the deploy is manual or from GitHub Actions.
+
+`getWebhookInfo` shows the URL and `allowed_updates`, but not whether a secret is set. The real check
+is that the bot answers: if every update gets 401 (`last_error_message` in `getWebhookInfo`, 401s in
+the app log), the webhook was registered without the current secret.
 
 ## Deployment
 Production runs on a single VPS and is deployed with [Kamal](https://kamal-deploy.org) (`config/deploy.yml`):
@@ -89,6 +94,16 @@ To deploy from your machine instead (Docker must be running locally):
 bin/kamal deploy
 ```
 Useful aliases: `bin/kamal logs`, `bin/kamal console`, `bin/kamal shell`.
+
+### If the bot stops answering after a deploy
+The new version rejects updates until the webhook is registered with its secret. The post-deploy hook
+does that; if the hook failed (the deploy itself still counts as done), register it by hand:
+```bash
+bin/kamal app exec --reuse "bin/rails telegram:set_webhook"
+```
+Then send the bot a message to check it answers. Telegram retries rejected updates for a limited,
+unspecified time, so updates sent while the webhook was broken may be lost; if the gap was long, roll back
+with `bin/kamal rollback` instead of waiting.
 
 ## Usage
 Interact with the bot directly on Telegram.
