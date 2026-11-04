@@ -23,6 +23,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_200000) do
     t.datetime "updated_at", null: false
     t.string "url"
     t.bigint "wishlist_id", null: false
+    t.bigint "reservation_version", default: 0, null: false
     t.index ["reserved_by"], name: "index_items_on_reserved_by"
     t.index ["wishlist_id"], name: "index_items_on_wishlist_id"
   end

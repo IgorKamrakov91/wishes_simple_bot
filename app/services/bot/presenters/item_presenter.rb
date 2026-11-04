@@ -76,9 +76,9 @@ module Bot
 
         unless owner?
           if !item.reserved?
-            buttons << [ context.inline_btn(t("bot.buttons.reserve"), "toggle_reserve:#{item.id}", style: "success") ]
+            buttons << [ context.inline_btn(t("bot.buttons.reserve"), "reserve_item:#{item.id}:#{item.reservation_version}", style: "success") ]
           elsif reserved_by_me?
-            buttons << [ context.inline_btn(t("bot.buttons.unreserve"), "toggle_reserve:#{item.id}") ]
+            buttons << [ context.inline_btn(t("bot.buttons.unreserve"), "unreserve_item:#{item.id}:#{item.reservation_version}") ]
           end
         end
 

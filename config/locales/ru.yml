@@ -80,6 +80,7 @@ ru:
       cannot_reserve_own: "Свой подарок забронировать нельзя"
       reserved_notice: "Забронировано"
       unreserved_notice: "Бронь снята"
+      reservation_changed: "Карточка обновлена. Проверь статус и нажми нужную кнопку."
       reserve_lifted: "🔓 Резерв снят с «%{title}» / %{list_title} пользователя %{list_owner}"
       reserved_by: "🔒 «%{title}» / %{list_title}, забронирован пользователем %{user}. Владелец не видит это сообщение."
       item_deleted: "🗑 «%{title}» удален"

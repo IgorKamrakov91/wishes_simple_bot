@@ -44,7 +44,7 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
   test "guest sees reserve and store buttons but no owner actions" do
     presenter = presenter_for(@viewer)
 
-    assert_includes callbacks(presenter), "toggle_reserve:#{@item.id}"
+    assert_includes callbacks(presenter), "reserve_item:#{@item.id}:0"
     assert_equal "success", button_rows(presenter).first.first.style
     refute_includes callbacks(presenter), "edit_item:#{@item.id}"
     assert_equal "https://www.apple.com/iphone", button_rows(presenter)[1].first.url
@@ -54,7 +54,8 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
   test "owner can edit and delete but not reserve" do
     presenter = presenter_for(@owner)
 
-    refute_includes callbacks(presenter), "toggle_reserve:#{@item.id}"
+    refute_includes callbacks(presenter), "reserve_item:#{@item.id}:0"
+    assert button_rows(presenter).flatten.none? { |button| button.callback_data&.start_with?("unreserve_item:") }
     assert_includes callbacks(presenter), "edit_item:#{@item.id}"
     assert_includes callbacks(presenter), "confirm_delete_item:#{@item.id}"
     delete_button = button_rows(presenter).flatten.find { |b| b.callback_data == "confirm_delete_item:#{@item.id}" }
@@ -75,7 +76,7 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     presenter = presenter_for(@viewer)
 
     assert_match "<tg-spoiler>@reserver_user</tg-spoiler>", presenter.text
-    refute_includes callbacks(presenter), "toggle_reserve:#{@item.id}"
+    assert button_rows(presenter).flatten.none? { |button| button.callback_data&.match?(/\A(?:reserve_item|unreserve_item|toggle_reserve):/) }
   end
 
   test "guest falls back to the reserver's first name" do
@@ -86,11 +87,12 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
   end
 
   test "guest can cancel their own reservation" do
-    @item.update!(reserved_by: @viewer.telegram_id)
+    @item.reserve_for!(@viewer)
     presenter = presenter_for(@viewer)
 
     assert_match "Это твоя бронь", presenter.text
     assert_equal I18n.t("bot.buttons.unreserve"), button_rows(presenter).first.first.text
+    assert_includes callbacks(presenter), "unreserve_item:#{@item.id}:1"
   end
 
   test "link preview shows the shop page" do

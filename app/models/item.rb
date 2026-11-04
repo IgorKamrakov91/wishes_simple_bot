@@ -24,11 +24,23 @@ class Item < ApplicationRecord
     reserved? && !reserved_by?(user)
   end
 
-  def reserve_for!(user)
-    update!(reserved_by: user.telegram_id)
+  # Return whether this request changed the reservation. The version comes from
+  # the button's snapshot, so delayed requests cannot affect a newer booking.
+  def reserve_for!(user, expected_version: reservation_version)
+    change_reservation(nil, user.telegram_id, expected_version)
   end
 
-  def release_reservation!
-    update!(reserved_by: nil)
+  def release_for!(user, expected_version: reservation_version)
+    change_reservation(user.telegram_id, nil, expected_version)
+  end
+
+  private
+
+  def change_reservation(previous_reserver, next_reserver, expected_version)
+    changed = self.class.where(id: id, reserved_by: previous_reserver, reservation_version: expected_version)
+      .update_all(reserved_by: next_reserver, reservation_version: expected_version + 1, updated_at: Time.current) == 1
+
+    reload
+    changed
   end
 end

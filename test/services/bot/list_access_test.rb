@@ -85,8 +85,29 @@ class BotListAccessTest < ActiveSupport::TestCase
     handler = Bot::Callbacks::ItemHandler.new(context_for(@stranger))
 
     assert_raises(ActiveRecord::RecordNotFound) { handler.show_item(@item.id) }
+    assert_raises(ActiveRecord::RecordNotFound) { handler.reserve_item(@item.id, 0) }
     assert_raises(ActiveRecord::RecordNotFound) { handler.toggle_reserve(@item.id) }
     assert_nil @item.reload.reserved_by
+    assert_equal 0, @item.reservation_version
+  end
+
+  test "strangers cannot release another guest's reservation" do
+    @item.reserve_for!(@guest)
+    handler = Bot::Callbacks::ItemHandler.new(context_for(@stranger))
+
+    assert_raises(ActiveRecord::RecordNotFound) { handler.unreserve_item(@item.id, 1) }
+    assert_equal @guest.telegram_id, @item.reload.reserved_by
+    assert_equal 1, @item.reservation_version
+  end
+
+  test "a guest who no longer has list access cannot release even their own reservation" do
+    @item.reserve_for!(@guest)
+    @wishlist.list_viewers.where(user: @guest).delete_all
+    handler = Bot::Callbacks::ItemHandler.new(context_for(@guest))
+
+    assert_raises(ActiveRecord::RecordNotFound) { handler.unreserve_item(@item.id, 1) }
+    assert_equal @guest.telegram_id, @item.reload.reserved_by
+    assert_equal 1, @item.reservation_version
   end
 
   test "shared inline cards open the list through the share link" do

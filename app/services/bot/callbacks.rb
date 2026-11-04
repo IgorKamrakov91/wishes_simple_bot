@@ -19,6 +19,8 @@ module Bot
       /^add_item:(\d+)$/ => "Callbacks::ItemHandler#add_item_prompt",
       /^edit_item:(\d+)$/ => "Callbacks::ItemHandler#edit_item_menu",
       /^edit_item_field:(.+):(\d+)$/ => "Callbacks::ItemHandler#edit_item_field_prompt",
+      /^reserve_item:(\d+):(\d+)$/ => "Callbacks::ItemHandler#reserve_item",
+      /^unreserve_item:(\d+):(\d+)$/ => "Callbacks::ItemHandler#unreserve_item",
       /^toggle_reserve:(\d+)$/ => "Callbacks::ItemHandler#toggle_reserve",
       /^confirm_delete_item:(\d+)$/ => "Callbacks::ItemHandler#confirm_delete_item",
       /^delete_item:(\d+)$/ => "Callbacks::ItemHandler#delete_item",
