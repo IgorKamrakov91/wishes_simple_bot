@@ -66,6 +66,31 @@ class BotUrlFirstGiftsTest < ActiveSupport::TestCase
     assert_equal "https://ozon.ru/product/%D0%BA%D0%BD%D0%B8%D0%B3%D0%B0-123", item.web_uri.to_s
   end
 
+  test "dotted names at the first step remain names instead of becoming URLs" do
+    [ "Lego.Technic", "Nike.Air" ].each do |title|
+      @user.start_adding_item!(wishlist_id: @wishlist.id)
+      assert_no_difference("Item.count") { say(title) }
+      assert_equal "adding_item_url", @user.reload.bot_state
+      assert_equal title, @user.bot_payload["title"]
+
+      press("skip_item_url:#{@user.bot_payload['draft_id']}")
+      assert_equal title, @wishlist.items.last.title
+      assert_nil @wishlist.items.last.url
+    end
+  end
+
+  test "dotted names after a URL finish the gift without changing that URL" do
+    [ "Lego.Technic", "Nike.Air", "example.com/model" ].each do |title|
+      @user.start_adding_item!(wishlist_id: @wishlist.id)
+      say("https://example.com/gift")
+
+      assert_difference("Item.count", 1) { say(title) }
+      item = @wishlist.items.last
+      assert_equal [ title, "https://example.com/gift" ], [ item.title, item.url ]
+      assert_nil @user.reload.bot_state
+    end
+  end
+
   test "links longer than a title are accepted within the URL limit" do
     url = "https://example.com/#{'a' * 150}"
     say(url)
@@ -105,7 +130,7 @@ class BotUrlFirstGiftsTest < ActiveSupport::TestCase
 
   test "another link changes the draft URL and still asks for a name" do
     say("https://example.com/first")
-    assert_no_difference("Item.count") { say("example.com/second") }
+    assert_no_difference("Item.count") { say("https://example.com/second") }
     assert_equal "adding_item_title", @user.reload.bot_state
     assert_equal "https://example.com/second", @user.bot_payload["url"]
 

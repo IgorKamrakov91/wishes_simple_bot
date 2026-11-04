@@ -79,10 +79,8 @@ module Bot
         next unless %w[adding_item adding_item_title].include?(user.bot_state)
 
         wishlist = user.wishlists.find(user.bot_payload["wishlist_id"])
-        url = item_field_value("url", text)
-
-        if link_input?(url)
-          prompt = draft_with_url(wishlist, url)
+        if link_input?(text)
+          prompt = draft_with_url(wishlist, item_field_value("url", text))
         elsif user.bot_state == "adding_item_title"
           item = wishlist.items.create!(title: text, url: user.bot_payload["url"])
           user.clear_state!
@@ -146,8 +144,15 @@ module Bot
       show_saved_item(item) if item
     end
 
-    def link_input?(url)
-      url.present? && (Item.web_uri(url).present? || url.match?(%r{\A[a-z][a-z0-9+.-]*://}i))
+    def link_input?(value)
+      value = value.to_s.strip
+      return true if value.match?(%r{\Ahttps?://}i)
+      return false unless user.bot_state == "adding_item"
+
+      # Inspect the original input before URL-field normalization turns a
+      # dotted name such as Lego.Technic into an https URL. Bare links need
+      # a path, and are accepted only before we explicitly ask for a name.
+      value.match?(%r{\A[a-z][a-z0-9+.-]*://}i) || (BARE_LINK.match?(value) && value.include?("/"))
     end
 
     def show_saved_item(item)
