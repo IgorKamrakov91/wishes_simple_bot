@@ -51,24 +51,51 @@ module Bot
         StateHandler.new(context).handle
       end
 
-      def toggle_reserve(item_id)
+      def reserve_item(item_id, reservation_version)
         item = Item.accessible_to(user).find(item_id)
         wishlist = item.wishlist
 
         if wishlist.user_id == user.id
           context.notice = I18n.t("bot.messages.cannot_reserve_own")
-        elsif item.reserved_by_other?(user)
-          context.notice = I18n.t("bot.messages.already_reserved")
-        elsif item.reserved_by?(user)
-          item.release_reservation!
-          context.notice = I18n.t("bot.messages.unreserved_notice")
-          notify_viewers(wishlist, I18n.t("bot.messages.reserve_lifted", title: item.title, list_title: wishlist.title, list_owner: wishlist.owner.full_name))
-        else
-          item.reserve_for!(user)
+        elsif item.reserve_for!(user, expected_version: reservation_version)
           context.notice = I18n.t("bot.messages.reserved_notice")
           notify_viewers(wishlist, I18n.t("bot.messages.reserved_by", title: item.title, list_title: wishlist.title, user: "@#{user.full_name}"))
+        elsif item.reserved_by?(user)
+          context.notice = I18n.t("bot.messages.reserved_notice")
+        elsif item.reserved_by_other?(user)
+          context.notice = I18n.t("bot.messages.already_reserved")
+        else
+          context.notice = I18n.t("bot.messages.reservation_changed")
         end
 
+        show_item(item.id)
+      end
+
+      def unreserve_item(item_id, reservation_version)
+        item = Item.accessible_to(user).find(item_id)
+        wishlist = item.wishlist
+
+        if wishlist.user_id == user.id
+          context.notice = I18n.t("bot.messages.cannot_reserve_own")
+        elsif item.release_for!(user, expected_version: reservation_version)
+          context.notice = I18n.t("bot.messages.unreserved_notice")
+          notify_viewers(wishlist, I18n.t("bot.messages.reserve_lifted", title: item.title, list_title: wishlist.title, list_owner: wishlist.owner.full_name))
+        elsif !item.reserved?
+          context.notice = I18n.t("bot.messages.unreserved_notice")
+        elsif item.reserved_by_other?(user)
+          context.notice = I18n.t("bot.messages.already_reserved")
+        else
+          context.notice = I18n.t("bot.messages.reservation_changed")
+        end
+
+        show_item(item.id)
+      end
+
+      # Old toggle buttons do not encode whether the user intended to reserve
+      # or release. Refresh them into explicit actions without changing data.
+      def toggle_reserve(item_id)
+        item = Item.accessible_to(user).find(item_id)
+        context.notice = I18n.t("bot.messages.reservation_changed")
         show_item(item.id)
       end
 

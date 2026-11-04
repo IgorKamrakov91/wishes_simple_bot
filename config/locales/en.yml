@@ -80,6 +80,7 @@ en:
       cannot_reserve_own: "You can't reserve your own gift"
       reserved_notice: "Reserved"
       unreserved_notice: "Reservation cancelled"
+      reservation_changed: "Card refreshed. Check the status and use the current button."
       reserve_lifted: "🔓 Reservation lifted from «%{title}»"
       reserved_by: "🔒 «%{title}» / %{list_title}, reserved by user %{user}"
       item_deleted: "🗑 «%{title}» deleted"
