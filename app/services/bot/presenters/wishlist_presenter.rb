@@ -29,12 +29,15 @@ module Bot
 
         if owner?
           rows << [ context.inline_btn(t("bot.buttons.add_item"), "add_item:#{wishlist.id}", style: "primary") ]
+          rows << [ send_to_friend_button ]
           rows << [
             context.inline_btn(t("bot.buttons.share"), nil, copy_text: { text: share_link(wishlist) }),
             context.inline_btn(t("bot.buttons.list_settings"), "list_settings:#{wishlist.id}")
           ]
           rows << [ context.inline_btn(t("bot.buttons.back_to_lists"), "show_lists") ]
         else
+          # A guest without lists of their own is one tap away from making one
+          rows << [ context.inline_btn(t("bot.buttons.create_own_list"), "new_list") ] unless user.wishlists.exists?
           rows << [ context.inline_btn(t("bot.buttons.back_to_shared_lists"), "show_shared_lists") ]
         end
 
@@ -42,6 +45,16 @@ module Bot
       end
 
       private
+
+      # Opens the chat picker; the chosen chat gets the list card from Inline
+      def send_to_friend_button
+        context.inline_btn(t("bot.buttons.send_to_friend"), nil,
+                           switch_inline_query_chosen_chat: {
+                             query: Inline.share_query(wishlist),
+                             allow_user_chats: true,
+                             allow_group_chats: true
+                           })
+      end
 
       def header
         lines = []

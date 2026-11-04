@@ -16,6 +16,9 @@ en:
       list_not_found: "List not found."
       link_outdated: "This link is outdated. Ask the list owner to send you a new one."
     buttons:
+      create_first_list: "Create your first list"
+      create_own_list: "Create your own list"
+      send_to_friend: "Send to a friend"
       clear_field: "Remove value"
       my_lists: "My Lists"
       shared_lists: "Friends' Lists"
@@ -49,7 +52,11 @@ en:
       price: "Price"
     screens:
       main:
-        text: "<b>Hello, %{name}!</b>\nHere live your wishlists and the lists your friends shared with you.\n\nYour lists: <b>%{lists}</b> · gifts: <b>%{items}</b>\nFriends' lists: <b>%{shared}</b>"
+        welcome: "<b>Hi, %{name}!</b>\nI help you make a wishlist and share it with friends.\n\n1. Create a list and add gifts to it.\n2. Send the list to your friends.\n3. Friends reserve gifts so nobody gives the same thing twice."
+        greeting: "<b>Hi, %{name}!</b>\nYour wishlists and the lists friends shared with you live here."
+        own: "Your lists: <b>%{lists}</b> · gifts: <b>%{items}</b>"
+        shared: "Friends' lists: <b>%{shared}</b>"
+        own_hint: "Create your own list so friends know what to give you."
       my_lists:
         empty: "No lists yet. Create your first one!"
         no_items: "No gifts yet"
@@ -123,6 +130,12 @@ en:
         not_a_number: "The price is a number in rubles, e.g. 2500 or 1499.90."
         greater_than: "The price must be greater than zero."
         less_than: "The price is too large."
+    inline:
+      open: "Open wishlist"
+      card: "🎁 %{owner} is sharing the wishlist “%{title}”\n%{gifts}. Open it to pick a gift and reserve it: other guests will see it is taken."
+      gifts:
+        one: "%{count} gift"
+        other: "%{count} gifts"
     presenters:
       item:
         unknown_reserver: "Unknown user"
