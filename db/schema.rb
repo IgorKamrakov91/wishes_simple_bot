@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_22_175150) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_200000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -33,6 +33,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_22_175150) do
     t.bigint "user_id", null: false
     t.bigint "wishlist_id", null: false
     t.index ["user_id"], name: "index_list_viewers_on_user_id"
+    t.index ["wishlist_id", "user_id"], name: "index_list_viewers_on_wishlist_id_and_user_id", unique: true
     t.index ["wishlist_id"], name: "index_list_viewers_on_wishlist_id"
   end
 
@@ -54,6 +55,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_22_175150) do
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.string "share_token", null: false
+    t.index ["share_token"], name: "index_wishlists_on_share_token", unique: true
     t.index ["user_id"], name: "index_wishlists_on_user_id"
   end
 
