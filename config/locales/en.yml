@@ -16,6 +16,10 @@ en:
       list_not_found: "List not found."
       link_outdated: "This link is outdated. Ask the list owner to send you a new one."
     buttons:
+      prev_page: "← Previous"
+      next_page: "Next →"
+      prev_item: "← Previous"
+      next_item: "Next →"
       create_first_list: "Create your first list"
       create_own_list: "Create your own list"
       send_to_friend: "Send to a friend"
@@ -67,12 +71,14 @@ en:
         progress: "%{reserved} of %{total} picked"
         mine: " · your reservations: %{number}"
       list:
-        owner_progress: "Friends already picked %{reserved} of %{total}"
-        guest_progress: "%{reserved} of %{total} already picked"
+        owner_summary: "%{gifts} · reserved %{reserved}"
+        guest_summary: "%{gifts} · already picked %{reserved}"
+        page: "page %{page} of %{total}"
+        status_taken: "taken"
+        status_mine: "your reservation"
         owner_empty: "Empty so far. Add your first gift!"
         guest_empty: "Nothing here yet."
         hint: "Tap a gift to open its card."
-        legend: "✓ taken   ★ your reservation"
       list_settings:
         text: "<b>List settings</b>\n«%{title}»"
         confirm_delete: "Delete the list «%{title}» with all its gifts?\nThis can't be undone."
