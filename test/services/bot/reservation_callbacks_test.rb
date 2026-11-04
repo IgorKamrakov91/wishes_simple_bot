@@ -6,7 +6,8 @@ Telegram::Bot::Types::Update
 
 class BotReservationCallbacksTest < ActiveSupport::TestCase
   setup do
-    @owner = User.create!(telegram_id: 41001, first_name: "Owner")
+    # Reservation logic only; notifications have their own tests
+    @owner = User.create!(telegram_id: 41001, first_name: "Owner", notify_own_reservations: false)
     @guest = User.create!(telegram_id: 41002, first_name: "Guest")
     @other = User.create!(telegram_id: 41003, first_name: "Other")
     @wishlist = @owner.wishlists.create!(title: "Birthday")
@@ -21,7 +22,7 @@ class BotReservationCallbacksTest < ActiveSupport::TestCase
     @bot = mock("TelegramBot")
     @bot.stubs(:api).returns(@api)
     Telegram::Bot::Client.expects(:new).never
-    ReservedGiftDeletedJob.expects(:perform_later).never
+    NotificationJob.expects(:perform_later).never
   end
 
   test "replayed reserve keeps the booking without notifying viewers" do

@@ -16,6 +16,7 @@ en:
       list_not_found: "List not found."
       link_outdated: "This link is outdated. Ask the list owner to send you a new one."
     buttons:
+      settings: "Settings"
       prev_page: "← Previous"
       next_page: "Next →"
       prev_item: "← Previous"
@@ -55,6 +56,14 @@ en:
       url: "Link"
       price: "Price"
     screens:
+      settings:
+        text: "<b>Settings</b>\nReservation notifications. They never say who reserved a gift."
+        notify_own_reservations: "Reservations in my lists: %{state}"
+        notify_friend_reservations: "Reservations in friends' lists: %{state}"
+        "on": "on"
+        "off": "off"
+        turned_on: "Notifications on"
+        turned_off: "Notifications off"
       main:
         welcome: "<b>Hi, %{name}!</b>\nI help you make a wishlist and share it with friends.\n\n1. Create a list and add gifts to it.\n2. Send the list to your friends.\n3. Friends reserve gifts so nobody gives the same thing twice."
         greeting: "<b>Hi, %{name}!</b>\nYour wishlists and the lists friends shared with you live here."
@@ -116,8 +125,10 @@ en:
       not_available: "This list or gift was deleted or is no longer available."
       private_chat_only: "Manage lists and reserve gifts in a private chat with the bot."
     notifications:
-      item_deleted: "The gift “%{title}” you reserved in “%{list}” (%{owner}) was deleted. Your reservation is no longer active."
-      list_deleted: "The list “%{list}” (%{owner}) with your reservations was deleted. Those reservations are no longer active."
+      own_reserved: "Someone reserved “%{title}” in your list “%{list}”. We don’t say who."
+      own_released: "The reservation of “%{title}” in your list “%{list}” was released, it is free again."
+      friend_reserved: "“%{title}” was reserved in the list “%{list}” (%{owner})."
+      friend_released: "“%{title}” is free again in the list “%{list}” (%{owner})."
     input_hints:
       price: "A number in rubles, e.g. 2500 or 1499.90"
       url: "A link to the product, e.g. https://ozon.ru/…"

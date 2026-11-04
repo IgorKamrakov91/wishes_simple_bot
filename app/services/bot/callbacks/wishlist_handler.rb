@@ -31,7 +31,8 @@ module Bot
             context.inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists"),
             context.inline_btn(I18n.t("bot.buttons.shared_lists"), "show_shared_lists")
           ],
-          [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", style: "primary") ]
+          [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", style: "primary") ],
+          [ context.inline_btn(I18n.t("bot.buttons.settings"), "settings") ]
         ])
 
         context.render(lines.join("\n\n"), keyboard)
@@ -115,7 +116,7 @@ module Bot
 
       def delete_list(wishlist_id)
         wishlist = user.wishlists.find(wishlist_id)
-        ReservationDeletion.destroy_list!(wishlist)
+        wishlist.destroy!
 
         context.notice = I18n.t("bot.messages.list_deleted")
         show_lists
