@@ -2,22 +2,24 @@ require "test_helper"
 require "mocha/minitest"
 
 class BotProfileTest < ActiveSupport::TestCase
-  test "sets Russian texts by default and English ones for English users" do
+  test "sets Russian texts for everyone and removes the English ones" do
     api = mock("TelegramApi")
     calls = []
-    %i[set_my_commands set_my_description set_my_short_description].each do |method|
+    %i[set_my_commands set_my_description set_my_short_description delete_my_commands].each do |method|
       api.stubs(method).with { |params| calls << [ method, params ]; true }
     end
 
-    Bot::Profile.apply(api)
+    I18n.with_locale(:en) { Bot::Profile.apply(api) }
 
-    default_commands = calls.find { |method, params| method == :set_my_commands && !params.key?(:language_code) }.last
-    assert_equal %w[start my new cancel help], default_commands[:commands].map { |c| c[:command] }
-    assert_equal "Главное меню", default_commands[:commands].first[:description]
+    default = calls.reject { |_, params| params.key?(:language_code) }.to_h
+    assert_equal %w[start my new cancel help], default[:set_my_commands][:commands].map { |c| c[:command] }
+    assert_equal "Главное меню", default[:set_my_commands][:commands].first[:description]
+    assert_match "Вишлисты", default[:set_my_short_description][:short_description]
 
     english = calls.select { |_, params| params[:language_code] == "en" }.to_h
-    assert_equal "Main menu", english[:set_my_commands][:commands].first[:description]
-    assert_match "Wishlists", english[:set_my_short_description][:short_description]
+    assert english.key?(:delete_my_commands)
+    assert_equal "", english[:set_my_description][:description]
+    assert_equal "", english[:set_my_short_description][:short_description]
   end
 
   test "texts fit Telegram's limits" do
