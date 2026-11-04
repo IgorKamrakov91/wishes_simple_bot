@@ -48,7 +48,7 @@ ru:
         progress: "%{reserved} из %{total} выбрали"
         mine: " · твоих броней: %{number}"
       list:
-        owner_progress: "%{reserved} из %{total} подарков уже выбрали друзья"
+        owner_progress: "Друзья уже выбрали %{reserved} из %{total}"
         guest_progress: "%{reserved} из %{total} уже выбрали"
         owner_empty: "Пока пусто. Добавь первый подарок!"
         guest_empty: "Здесь пока пусто."

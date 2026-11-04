@@ -72,6 +72,9 @@ class BotPresentersWishlistPresenterTest < ActiveSupport::TestCase
     presenter = presenter_for(@owner)
 
     assert_match I18n.t("bot.screens.list.owner_empty"), presenter.text
-    assert_equal "add_item:#{@wishlist.id}", rows(presenter).first.first.callback_data
+    add_button = rows(presenter).first.first
+    assert_equal "add_item:#{@wishlist.id}", add_button.callback_data
+    assert_equal "primary", add_button.style
+    assert_includes presenter.keyboard.to_json, %("style":"primary")
   end
 end
