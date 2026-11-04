@@ -49,7 +49,7 @@ class BotPresentersWishlistPresenterTest < ActiveSupport::TestCase
     buttons = rows(presenter).flatten
 
     share = buttons.find(&:copy_text)
-    assert_equal "https://t.me/TestBot?start=list_#{@wishlist.id}", share.copy_text.text
+    assert_equal "https://t.me/TestBot?start=l_#{@wishlist.share_token}", share.copy_text.text
     assert buttons.any? { |b| b.callback_data == "list_settings:#{@wishlist.id}" }
     assert_equal "✓ Taken · 1 900 ₽", buttons.first.text
     assert_match "▰▰▰▰▰▱▱▱▱▱ <b>50%</b>", presenter.text

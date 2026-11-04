@@ -3,6 +3,8 @@ class Item < ApplicationRecord
 
   belongs_to :wishlist
 
+  scope :accessible_to, ->(user) { where(wishlist_id: Wishlist.accessible_to(user).select(:id)) }
+
   validates :title, presence: true
   validates :price, numericality: { greater_than: 0, allow_nil: true, default: 0 }
 

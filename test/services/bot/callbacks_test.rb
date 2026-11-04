@@ -30,16 +30,20 @@ class BotCallbacksTest < ActiveSupport::TestCase
     callback
   end
 
-  test "inline shared list callback opens a start link" do
-    @api_mock.expects(:call).with("getMe").returns({ "result" => { "username" => "WishBot" } })
+  test "inline shared list callback opens the share link" do
+    previous_username = ENV["BOT_USERNAME"]
+    ENV["BOT_USERNAME"] = "WishBot"
+    wishlist = Wishlist.create!(user: @user, title: "Birthday")
     @api_mock.expects(:answer_callback_query).with(
       callback_query_id: "some_callback_id",
-      url: "https://t.me/WishBot?start=list_456"
+      url: "https://t.me/WishBot?start=l_#{wishlist.share_token}"
     )
 
     Bot::Callbacks::WishlistHandler.expects(:new).never
 
-    Bot::Callbacks.handle(@bot, build_callback("open_shared_list:456", inline_message_id: "inline-1"))
+    Bot::Callbacks.handle(@bot, build_callback("open_shared_list:#{wishlist.id}", inline_message_id: "inline-1"))
+  ensure
+    ENV["BOT_USERNAME"] = previous_username
   end
 
   test "handle routes to WishlistHandler for show_lists" do

@@ -34,18 +34,13 @@ module Bot
 
         # Check if a callback is from an inline message
         if callback.inline_message_id && (match = callback.data.match(/^open_shared_list:(\d+)$/))
-          wishlist_id = match[1]
-
-          # Get bot username - API returns hash with 'result' key
-          response = bot.api.call("getMe")
-          bot_username = response["result"]["username"]
-
-          url = "https://t.me/#{bot_username}?start=list_#{wishlist_id}"
-          Rails.logger.info "Bot::Callbacks answering callback with URL: '#{url}'"
-          bot.api.answer_callback_query(
+          # The button sits in a message the owner shared, so it hands out the share link
+          wishlist = Wishlist.find_by(id: match[1])
+          bot.api.answer_callback_query(**{
             callback_query_id: callback.id,
-            url: url
-          )
+            url: wishlist && share_link(wishlist),
+            text: (I18n.t("bot.commands.list_not_found") unless wishlist)
+          }.compact)
           return
         end
 
