@@ -31,6 +31,7 @@ module Bot
             context.inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists"),
             context.inline_btn(I18n.t("bot.buttons.shared_lists"), "show_shared_lists")
           ],
+          [ context.inline_btn(I18n.t("bot.screens.reservations.title"), "show_reservations") ],
           [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", style: "primary") ],
           [ context.inline_btn(I18n.t("bot.buttons.settings"), "settings") ]
         ])
