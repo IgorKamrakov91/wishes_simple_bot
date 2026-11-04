@@ -60,10 +60,12 @@ class BotItemAuthorizationTest < ActiveSupport::TestCase
   test "stored item states cannot mutate a shared list owner's item" do
     [ [ "adding_item_url", {} ], [ "editing_item", { "field" => "title" } ] ].each do |state, payload|
       @viewer.update!(bot_state: state, bot_payload: payload.merge("item_id" => @item.id, "wishlist_id" => @wishlist.id))
+      context = context_for(@viewer)
+      context.expects(:send_text).with(I18n.t("bot.messages.input_target_gone"), anything)
 
-      assert_raises(ActiveRecord::RecordNotFound) do
-        Bot::StateHandler.new(context_for(@viewer)).handle
-      end
+      Bot::StateHandler.new(context).handle
+
+      assert_nil @viewer.reload.bot_state
       assert_equal "Puzzle", @item.reload.title
       assert_equal "https://example.com", @item.url
     end
@@ -113,9 +115,11 @@ class BotItemAuthorizationTest < ActiveSupport::TestCase
     other_list = @viewer.wishlists.create!(title: "Other list")
     @item.update!(wishlist: other_list)
 
-    assert_raises(ActiveRecord::RecordNotFound) do
-      Bot::StateHandler.new(context_for(@owner)).handle
-    end
+    context = context_for(@owner)
+    context.expects(:send_text).with(I18n.t("bot.messages.input_target_gone"), anything)
+
+    Bot::StateHandler.new(context).handle
+
     assert_equal "Puzzle", @item.reload.title
   end
 end

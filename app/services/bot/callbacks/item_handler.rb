@@ -44,11 +44,16 @@ module Bot
         )
       end
 
-      # Finishes adding a gift without a link
-      def skip_item_url
-        return unless user.bot_state == "adding_item_url"
-
-        StateHandler.new(context).handle
+      # Saves the gift being added without a link. The button carries the
+      # draft id, so a button left from an earlier gift can't save this one.
+      def skip_item_url(draft_id = nil)
+        user.with_lock do
+          if current_draft?(draft_id.to_s.presence)
+            StateHandler.new(context).handle
+          else
+            context.notice = I18n.t("bot.messages.button_outdated")
+          end
+        end
       end
 
       def reserve_item(item_id, reservation_version)
@@ -125,6 +130,16 @@ module Bot
 
         context.notice = I18n.t("bot.messages.item_deleted_success")
         WishlistHandler.new(context).open_list(wishlist.id, page)
+      end
+
+      private
+
+      # Read under the lock taken in skip_item_url
+      def current_draft?(draft_id)
+        payload = user.bot_payload || {}
+        return false unless user.bot_state == "adding_item_url"
+
+        draft_id ? payload["draft_id"] == draft_id : payload.key?("item_id")
       end
     end
   end
