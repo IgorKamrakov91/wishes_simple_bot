@@ -9,10 +9,14 @@ module Bot
         user = User.find_or_create_from_telegram(message.from.to_h.symbolize_keys)
         context = Context.new(bot: bot, user: user, source: message)
 
-        # If user is in a state, delegate to the state handler
         if user.bot_state.present?
-          StateHandler.new(context).handle
-          return
+          # A command means the user gave up on the pending input
+          unless context.text.start_with?("/")
+            StateHandler.new(context).handle
+            return
+          end
+
+          user.clear_state!
         end
 
         # Otherwise, handle as a command

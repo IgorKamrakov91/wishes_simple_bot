@@ -106,7 +106,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     item = wishlist.items.create!(title: "Puzzle")
     @user.update!(bot_state: "adding_item_url", bot_payload: { "item_id" => item.id, "wishlist_id" => wishlist.id })
     context = context_for("-")
-    context.expects(:send_text).with(
+    context.expects(:render).with(
       I18n.t("bot.messages.item_added"),
       kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
     )
@@ -123,7 +123,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     item = wishlist.items.create!(title: "Puzzle")
     @user.update!(bot_state: "adding_item_url", bot_payload: { "item_id" => item.id, "wishlist_id" => wishlist.id })
     context = context_for("  https://example.com/gift  ")
-    context.expects(:send_text).with(
+    context.expects(:render).with(
       I18n.t("bot.messages.item_added"),
       kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
     )

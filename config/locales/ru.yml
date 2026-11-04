@@ -30,6 +30,7 @@ ru:
       delete: "Удалить"
       confirm_delete: "Да, удалить"
       cancel: "Отмена"
+      skip: "Пропустить"
     fields:
       title: "Название"
       description: "Описание"
@@ -83,7 +84,7 @@ ru:
       item_deleted: "🗑 «%{title}» удален"
       item_deleted_success: "Подарок удалён"
       confirm_delete_item: "Удалить «%{title}»?\nЭто нельзя отменить."
-      enter_item_url: "Введи ссылку на подарок (или '-', чтобы пропустить):"
+      enter_item_url: "Пришли ссылку на подарок или нажми «Пропустить»:"
       item_added: "Подарок добавлен!"
       error: "Произошла ошибка. Попробуйте еще раз."
     presenters:

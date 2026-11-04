@@ -65,13 +65,13 @@ module Bot
 
       def create_list_prompt
         user.start_creating_list!
-        context.send_text(I18n.t("bot.messages.enter_list_name"))
+        context.render(I18n.t("bot.messages.enter_list_name"), cancel_keyboard("show_lists"))
       end
 
       def rename_list_prompt(wishlist_id)
         user.wishlists.find(wishlist_id)
         user.start_renaming_list!(wishlist_id: wishlist_id)
-        context.send_text(I18n.t("bot.messages.enter_new_list_name"))
+        context.render(I18n.t("bot.messages.enter_new_list_name"), cancel_keyboard("list_settings:#{wishlist_id}"))
       end
 
       def list_settings(wishlist_id)
