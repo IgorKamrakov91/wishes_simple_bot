@@ -5,7 +5,9 @@ module Bot
     CALLBACK_ROUTES = {
       /^main_menu$/ => "Callbacks::WishlistHandler#main_menu",
       /^show_lists$/ => "Callbacks::WishlistHandler#show_lists",
+      /^show_lists:(\d+)$/ => "Callbacks::WishlistHandler#show_lists",
       /^show_shared_lists$/ => "Callbacks::WishlistHandler#show_shared_lists",
+      /^show_shared_lists:(\d+)$/ => "Callbacks::WishlistHandler#show_shared_lists",
       /^new_list$/ => "Callbacks::WishlistHandler#create_list_prompt",
       /^list_settings:(\d+)$/ => "Callbacks::WishlistHandler#list_settings",
       /^rename_list:(\d+)$/ => "Callbacks::WishlistHandler#rename_list_prompt",

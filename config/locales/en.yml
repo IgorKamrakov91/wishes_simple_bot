@@ -92,6 +92,9 @@ en:
         guest_free: "Available. If you reserve it, other guests will see it's taken, and %{owner} won't know who picked it."
         guest_mine: "<b>★ This is your reservation.</b> Other guests see it's taken."
         guest_taken: "✓ Already picked by: %{user}"
+      collections:
+        choose: "Choose a list:"
+        page: "Page %{page} of %{total}"
     messages:
       field_cleared: "Removed"
       current_value: "Now"

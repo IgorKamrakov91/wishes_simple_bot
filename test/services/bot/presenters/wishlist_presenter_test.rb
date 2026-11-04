@@ -68,7 +68,7 @@ class BotPresentersWishlistPresenterTest < ActiveSupport::TestCase
     assert_match "2 подарка · уже выбрали 2", presenter.text
     assert_match "tg://user?id=3001", presenter.text
     assert buttons.none?(&:copy_text)
-    assert_equal "show_shared_lists", buttons.last.callback_data
+    assert_equal "show_shared_lists:0", buttons.last.callback_data
   end
 
   test "empty list invites the owner to add a gift" do
