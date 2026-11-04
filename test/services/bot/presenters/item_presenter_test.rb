@@ -49,6 +49,7 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     refute_includes callbacks(presenter), "edit_item:#{@item.id}"
     assert_equal "https://www.apple.com/iphone", button_rows(presenter)[1].first.url
     assert_match "Owner в боте увидит только, что подарок занят, но не кем", presenter.text
+    refute callbacks(presenter).any? { |callback| callback.start_with?("show_reservations:") }
   end
 
   test "owner can edit and delete but not reserve" do
@@ -93,6 +94,19 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     assert_match "Это твоя бронь", presenter.text
     assert_equal I18n.t("bot.buttons.unreserve"), button_rows(presenter).first.first.text
     assert_includes callbacks(presenter), "unreserve_item:#{@item.id}:1"
+    assert_includes callbacks(presenter), "show_reservations:0"
+  end
+
+  test "guest can reach other accessible reservations but not revoked or legacy owned bookings" do
+    other_list = @owner.wishlists.create!(title: "Other list")
+    other_list.admit!(@viewer)
+    other_list.items.create!(title: "Book", reserved_by: @viewer.telegram_id)
+    assert_includes callbacks(presenter_for(@viewer)), "show_reservations:0"
+
+    other_list.list_viewers.where(user: @viewer).delete_all
+    own_list = @viewer.wishlists.create!(title: "My list")
+    own_list.items.create!(title: "Legacy booking", reserved_by: @viewer.telegram_id)
+    refute callbacks(presenter_for(@viewer)).any? { |callback| callback.start_with?("show_reservations:") }
   end
 
   test "link preview shows the shop page" do
@@ -141,7 +155,7 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     second = Item.create!(wishlist: @wishlist, title: "Pear")
     third = Item.create!(wishlist: @wishlist, title: "Plum")
 
-    *, neighbours, back, _reservations = button_rows(presenter_for(@viewer, second))
+    *, neighbours, back = button_rows(presenter_for(@viewer, second))
 
     assert_equal [ "open_item:#{@item.id}", "open_item:#{third.id}" ], neighbours.map(&:callback_data)
     assert_equal [ I18n.t("bot.buttons.prev_item"), I18n.t("bot.buttons.next_item") ], neighbours.map(&:text)
@@ -151,10 +165,10 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
   test "the first and last gifts have no placeholder buttons" do
     second = Item.create!(wishlist: @wishlist, title: "Pear")
 
-    *, neighbours, _back, _reservations = button_rows(presenter_for(@viewer, @item))
+    *, neighbours, _back = button_rows(presenter_for(@viewer, @item))
     assert_equal [ "open_item:#{second.id}" ], neighbours.map(&:callback_data)
 
-    *, neighbours, _back, _reservations = button_rows(presenter_for(@viewer, second))
+    *, neighbours, _back = button_rows(presenter_for(@viewer, second))
     assert_equal [ "open_item:#{@item.id}" ], neighbours.map(&:callback_data)
     assert button_rows(presenter_for(@viewer, second)).flatten.none? { |b| b.callback_data == "noop" }
   end
