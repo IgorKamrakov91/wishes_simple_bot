@@ -1,3 +1,6 @@
+# The gem is not required by Bundler (its name differs from its entry file)
+require "telegram/bot"
+
 namespace :telegram do
   desc "Register the webhook with its secret token (needs TELEGRAM_WEBHOOK_URL)"
   task set_webhook: :environment do
