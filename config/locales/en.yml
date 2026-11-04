@@ -24,6 +24,8 @@ en:
         /new — new list
         /cancel — cancel input
         /help — this help
+
+        Questions and suggestions: @ikamrakov
       list_not_found: "List not found."
       link_outdated: "This link is outdated. Ask the list owner to send you a new one."
     buttons:
