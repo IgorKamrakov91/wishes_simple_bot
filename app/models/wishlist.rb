@@ -34,6 +34,9 @@ class Wishlist < ApplicationRecord
     return if user_id == user.id
 
     list_viewers.find_or_create_by!(user: user)
+  rescue ActiveRecord::RecordNotUnique
+    # Opened twice at once: the other request already let the guest in
+    list_viewers.find_by!(user: user)
   end
 
   # Both work on the loaded association, so `includes(:items)` avoids extra queries

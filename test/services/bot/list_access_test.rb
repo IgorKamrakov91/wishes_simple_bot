@@ -89,6 +89,22 @@ class BotListAccessTest < ActiveSupport::TestCase
     assert_nil @item.reload.reserved_by
   end
 
+  test "shared inline cards open the list through the share link" do
+    result = Bot::Inline.inline_result_for_list(@wishlist, shared: true)
+    button = result.reply_markup.inline_keyboard.flatten.first
+
+    assert_match "start=l_#{@wishlist.share_token}", button.url
+    assert_nil button.callback_data
+  end
+
+  test "admit! survives a guest opening the link twice at once" do
+    ListViewer.where(wishlist: @wishlist, user: @stranger).delete_all
+    @wishlist.list_viewers.expects(:find_or_create_by!).raises(ActiveRecord::RecordNotUnique)
+    @wishlist.list_viewers.create!(user: @stranger)
+
+    assert_nothing_raised { @wishlist.admit!(@stranger) }
+  end
+
   test "strangers cannot page through a list" do
     handler = Bot::Callbacks::WishlistHandler.new(context_for(@stranger))
 

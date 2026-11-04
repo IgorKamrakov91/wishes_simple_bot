@@ -32,14 +32,16 @@ module Bot
       def handle(bot, callback)
         user = User.find_or_create_from_telegram(callback.from.to_h.symbolize_keys)
 
-        # Check if a callback is from an inline message
+        # Buttons in inline messages sent before share tokens carry a list id.
+        # Callback data comes from the client and proves nothing, so the id
+        # opens the list only for people who already have access to it.
         if callback.inline_message_id && (match = callback.data.match(/^open_shared_list:(\d+)$/))
-          # The button sits in a message the owner shared, so it hands out the share link
-          wishlist = Wishlist.find_by(id: match[1])
+          wishlist = Wishlist.accessible_to(user).find_by(id: match[1])
           bot.api.answer_callback_query(**{
             callback_query_id: callback.id,
             url: wishlist && share_link(wishlist),
-            text: (I18n.t("bot.commands.list_not_found") unless wishlist)
+            text: (I18n.t("bot.commands.link_outdated") unless wishlist),
+            show_alert: (true unless wishlist)
           }.compact)
           return
         end

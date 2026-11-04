@@ -41,7 +41,7 @@ module Bot
               [
                 Telegram::Bot::Types::InlineKeyboardButton.new(
                   text: "Открыть вишлист",
-                  callback_data: "open_shared_list:#{list.id}")
+                  url: share_link(list))
               ]
             ]
           )

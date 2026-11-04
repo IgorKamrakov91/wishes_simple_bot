@@ -46,6 +46,19 @@ class BotCallbacksTest < ActiveSupport::TestCase
     ENV["BOT_USERNAME"] = previous_username
   end
 
+  test "an inline callback with someone else's list id reveals no link and lets nobody in" do
+    owner = User.create!(telegram_id: 51001, first_name: "Owner")
+    wishlist = owner.wishlists.create!(title: "Private")
+    @api_mock.expects(:answer_callback_query).with do |params|
+      params[:url].nil? && params[:text] == I18n.t("bot.commands.link_outdated") &&
+        params.values.none? { |value| value.to_s.include?(wishlist.share_token) }
+    end
+
+    Bot::Callbacks.handle(@bot, build_callback("open_shared_list:#{wishlist.id}", inline_message_id: "inline-1"))
+
+    refute wishlist.has_viewer?(@user)
+  end
+
   test "handle routes to WishlistHandler for show_lists" do
     Bot::Context.any_instance.stubs(:callback_data).returns("show_lists")
     Bot::Context.any_instance.stubs(:send_text)
