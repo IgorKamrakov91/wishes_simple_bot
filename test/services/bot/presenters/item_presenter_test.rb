@@ -141,8 +141,21 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     second = Item.create!(wishlist: @wishlist, title: "Pear")
     third = Item.create!(wishlist: @wishlist, title: "Plum")
 
-    nav = button_rows(presenter_for(@viewer, second)).last
+    *, neighbours, back = button_rows(presenter_for(@viewer, second))
 
-    assert_equal [ "open_item:#{@item.id}", "list_page:#{@wishlist.id}:0", "open_item:#{third.id}" ], nav.map(&:callback_data)
+    assert_equal [ "open_item:#{@item.id}", "open_item:#{third.id}" ], neighbours.map(&:callback_data)
+    assert_equal [ I18n.t("bot.buttons.prev_item"), I18n.t("bot.buttons.next_item") ], neighbours.map(&:text)
+    assert_equal [ "list_page:#{@wishlist.id}:0" ], back.map(&:callback_data)
+  end
+
+  test "the first and last gifts have no placeholder buttons" do
+    second = Item.create!(wishlist: @wishlist, title: "Pear")
+
+    *, neighbours, _back = button_rows(presenter_for(@viewer, @item))
+    assert_equal [ "open_item:#{second.id}" ], neighbours.map(&:callback_data)
+
+    *, neighbours, _back = button_rows(presenter_for(@viewer, second))
+    assert_equal [ "open_item:#{@item.id}" ], neighbours.map(&:callback_data)
+    assert button_rows(presenter_for(@viewer, second)).flatten.none? { |b| b.callback_data == "noop" }
   end
 end

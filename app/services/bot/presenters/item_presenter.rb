@@ -91,22 +91,21 @@ module Bot
           ]
         end
 
-        buttons << navigation_row
+        buttons << neighbours_row if neighbours_row.any?
+        buttons << [ context.inline_btn(t("bot.buttons.back_to_list"), "list_page:#{wishlist.id}:#{WishlistPresenter.page_of(position)}") ]
         buttons
       end
 
-      def navigation_row
-        back = context.inline_btn(t("bot.buttons.back_to_list"), "list_page:#{wishlist.id}:#{WishlistPresenter.page_of(position)}")
-        return [ back ] if item_ids.size < 2
-
-        previous_id = item_ids[position - 1] if position.positive?
-        next_id = item_ids[position + 1]
-
-        [
-          previous_id ? context.inline_btn("‹", "open_item:#{previous_id}") : context.inline_btn("·", "noop"),
-          back,
-          next_id ? context.inline_btn("›", "open_item:#{next_id}") : context.inline_btn("·", "noop")
-        ]
+      # Previous and next gifts with words, and no placeholder buttons
+      def neighbours_row
+        @neighbours_row ||= begin
+          previous_id = item_ids[position - 1] if position.positive?
+          next_id = item_ids[position + 1]
+          [
+            (context.inline_btn(t("bot.buttons.prev_item"), "open_item:#{previous_id}") if previous_id),
+            (context.inline_btn(t("bot.buttons.next_item"), "open_item:#{next_id}") if next_id)
+          ].compact
+        end
       end
 
       # Only http(s) links can go into a URL button, anything else is shown as text

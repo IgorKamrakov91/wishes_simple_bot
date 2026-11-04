@@ -16,6 +16,10 @@ ru:
       list_not_found: "Список не найден."
       link_outdated: "Эта ссылка устарела. Попроси владельца списка прислать новую."
     buttons:
+      prev_page: "← Предыдущие"
+      next_page: "Следующие →"
+      prev_item: "← Предыдущий"
+      next_item: "Следующий →"
       create_first_list: "Создать первый список"
       create_own_list: "Создать свой список"
       send_to_friend: "Отправить другу"
@@ -67,12 +71,14 @@ ru:
         progress: "%{reserved} из %{total} выбрали"
         mine: " · твоих броней: %{number}"
       list:
-        owner_progress: "Друзья уже выбрали %{reserved} из %{total}"
-        guest_progress: "%{reserved} из %{total} уже выбрали"
+        owner_summary: "%{gifts} · забронировано %{reserved}"
+        guest_summary: "%{gifts} · уже выбрали %{reserved}"
+        page: "страница %{page} из %{total}"
+        status_taken: "занято"
+        status_mine: "твоя бронь"
         owner_empty: "Пока пусто. Добавь первый подарок!"
         guest_empty: "Здесь пока пусто."
         hint: "Нажми на подарок, чтобы открыть карточку."
-        legend: "✓ занято   ★ твоя бронь"
       list_settings:
         text: "<b>Настройки списка</b>\n«%{title}»"
         confirm_delete: "Удалить список «%{title}» вместе со всеми подарками?\nЭто нельзя отменить."

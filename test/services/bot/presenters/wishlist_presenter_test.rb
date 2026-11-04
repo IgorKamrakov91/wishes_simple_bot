@@ -29,11 +29,12 @@ class BotPresentersWishlistPresenterTest < ActiveSupport::TestCase
 
     first_page = rows(presenter_for(@owner))
     assert_equal (1..5).map { |i| "Gift #{i}" }, first_page.first(5).map { |row| row.first.text }
-    assert_equal [ "·", "1 / 2", "›" ], first_page[5].map(&:text)
+    assert_equal [ I18n.t("bot.buttons.next_page") ], first_page[5].map(&:text)
+    assert_match I18n.t("bot.screens.list.page", page: 1, total: 2), presenter_for(@owner).text
 
     second_page = rows(presenter_for(@owner, page: 1))
     assert_equal [ "Gift 6", "Gift 7" ], second_page.first(2).map { |row| row.first.text }
-    assert_equal [ "‹", "2 / 2", "·" ], second_page[2].map(&:text)
+    assert_equal [ I18n.t("bot.buttons.prev_page") ], second_page[2].map(&:text)
   end
 
   test "clamps a page that no longer exists" do
@@ -51,8 +52,9 @@ class BotPresentersWishlistPresenterTest < ActiveSupport::TestCase
     share = buttons.find(&:copy_text)
     assert_equal "https://t.me/TestBot?start=l_#{@wishlist.share_token}", share.copy_text.text
     assert buttons.any? { |b| b.callback_data == "list_settings:#{@wishlist.id}" }
-    assert_equal "✓ Taken · 1 900 ₽", buttons.first.text
-    assert_match "▰▰▰▰▰▱▱▱▱▱ <b>50%</b>", presenter.text
+    assert_equal "Taken · 1 900 ₽ · занято", buttons.first.text
+    assert_match "2 подарка · забронировано 1", presenter.text
+    refute_match "%", presenter.text
   end
 
   test "guest sees owner, own reservations and no owner actions" do
@@ -62,7 +64,8 @@ class BotPresentersWishlistPresenterTest < ActiveSupport::TestCase
     presenter = presenter_for(@guest)
     buttons = rows(presenter).flatten
 
-    assert_equal [ "★ Mine", "✓ Theirs" ], buttons.first(2).map(&:text)
+    assert_equal [ "Mine · твоя бронь", "Theirs · занято" ], buttons.first(2).map(&:text)
+    assert_match "2 подарка · уже выбрали 2", presenter.text
     assert_match "tg://user?id=3001", presenter.text
     assert buttons.none?(&:copy_text)
     assert_equal "show_shared_lists", buttons.last.callback_data

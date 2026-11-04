@@ -25,7 +25,7 @@ module Bot
 
       def keyboard
         rows = page_items.map { |item| [ context.inline_btn(item_label(item), "open_item:#{item.id}") ] }
-        rows << pager_row if total_pages > 1
+        rows << pager_row if total_pages > 1 && pager_row.any?
 
         if owner?
           rows << [ context.inline_btn(t("bot.buttons.add_item"), "add_item:#{wishlist.id}", style: "primary") ]
@@ -60,51 +60,47 @@ module Bot
         lines = []
         lines << wishlist.owner_link unless owner?
         lines << "<b>#{escape_html(wishlist.title)}</b>"
-        lines << progress_line if items.any?
+        lines << summary_line if items.any?
         lines.join("\n")
       end
 
-      def progress_line
+      # Plain words: a reservation is not a received gift, so no percentages
+      def summary_line
+        gifts = t("bot.inline.gifts", count: items.size)
         reserved = wishlist.reserved_items_count
-        bar = progress_bar_string(wishlist.percentage_fulfilled)
-
-        if owner?
-          "#{bar} <b>#{wishlist.percentage_fulfilled}%</b>\n" +
-            t("bot.screens.list.owner_progress", reserved: reserved, total: items.size)
-        else
-          "#{bar} " + t("bot.screens.list.guest_progress", reserved: reserved, total: items.size)
-        end
+        key = owner? ? "owner_summary" : "guest_summary"
+        line = t("bot.screens.list.#{key}", gifts: gifts, reserved: reserved)
+        line += " · #{t('bot.screens.list.page', page: page + 1, total: total_pages)}" if total_pages > 1
+        line
       end
 
       def body
         if items.empty?
           owner? ? t("bot.screens.list.owner_empty") : t("bot.screens.list.guest_empty")
-        elsif owner?
-          t("bot.screens.list.hint")
         else
-          "#{t('bot.screens.list.legend')}\n#{t('bot.screens.list.hint')}"
+          t("bot.screens.list.hint")
         end
       end
 
+      # The status is a word at the end, so it reads the same with a screen
+      # reader and without colors or symbols
       def item_label(item)
-        label = +"#{item_marker(item)}#{item.title.to_s.truncate(TITLE_LIMIT)}"
+        label = +item.title.to_s.truncate(TITLE_LIMIT)
         label << " · #{format_price(item.price)}" if item.price.present?
+        label << " · #{item_status(item)}" if item.reserved?
         label
       end
 
-      def item_marker(item)
-        return "" unless item.reserved?
-        return "★ " if !owner? && item.reserved_by?(user)
-
-        "✓ "
+      def item_status(item)
+        !owner? && item.reserved_by?(user) ? t("bot.screens.list.status_mine") : t("bot.screens.list.status_taken")
       end
 
+      # Only the steps that exist; the page number is in the text
       def pager_row
-        [
-          page.positive? ? context.inline_btn("‹", "list_page:#{wishlist.id}:#{page - 1}") : context.inline_btn("·", "noop"),
-          context.inline_btn("#{page + 1} / #{total_pages}", "noop"),
-          page < total_pages - 1 ? context.inline_btn("›", "list_page:#{wishlist.id}:#{page + 1}") : context.inline_btn("·", "noop")
-        ]
+        @pager_row ||= [
+          (context.inline_btn(t("bot.buttons.prev_page"), "list_page:#{wishlist.id}:#{page - 1}") if page.positive?),
+          (context.inline_btn(t("bot.buttons.next_page"), "list_page:#{wishlist.id}:#{page + 1}") if page < total_pages - 1)
+        ].compact
       end
 
       def items
