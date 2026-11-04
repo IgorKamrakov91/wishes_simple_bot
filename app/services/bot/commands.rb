@@ -11,7 +11,8 @@ module Bot
         user = User.find_or_create_from_telegram(message.from.to_h.symbolize_keys)
         context = Context.new(bot: bot, user: user, source: message)
 
-        if user.bot_state.present?
+        had_input = user.bot_state.present?
+        if had_input
           # A command means the user gave up on the pending input
           unless context.text.start_with?("/")
             StateHandler.new(context).handle
@@ -42,13 +43,34 @@ module Bot
           context.send_text(help_text)
         when "/my"
           Callbacks.show_lists(context)
+        when "/new"
+          Callbacks::WishlistHandler.new(context).create_list_prompt
+        when "/cancel"
+          reply_with_menu(context, I18n.t(had_input ? "bot.commands.cancelled" : "bot.commands.nothing_to_cancel"))
         else
-          # Ignoring other messages
-          Rails.logger.info "Ignoring message from #{user.id}: #{context.text}"
+          handle_unrecognized(context)
         end
       end
 
       private
+
+      # Never stay silent in a private chat; in groups only commands get answers
+      def handle_unrecognized(context)
+        return unless context.source.chat&.type == "private"
+
+        key = if context.text.start_with?("/") then "unknown_command"
+        elsif context.text.empty? then "text_only"
+        else "unrecognized_text"
+        end
+        reply_with_menu(context, I18n.t("bot.commands.#{key}"))
+      end
+
+      def reply_with_menu(context, text)
+        keyboard = build_keyboard([
+          [ inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists"), inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ]
+        ])
+        context.send_text(text, keyboard)
+      end
 
       def handle_start(context)
         Callbacks::WishlistHandler.new(context).main_menu

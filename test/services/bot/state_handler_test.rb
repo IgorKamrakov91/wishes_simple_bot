@@ -31,7 +31,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
   test "blank list title reports an error and allows retry" do
     @user.start_creating_list!
     context = context_for("   ")
-    context.expects(:send_text).with(I18n.t("bot.messages.error"))
+    context.expects(:send_text).with(I18n.t("bot.input_errors.title.blank"), anything)
 
     assert_no_difference("Wishlist.count") do
       Bot::StateHandler.new(context).handle
@@ -51,7 +51,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     @user.start_renaming_list!(wishlist_id: wishlist.id)
     payload = @user.bot_payload
     context = context_for("   ")
-    context.expects(:send_text).with(I18n.t("bot.messages.error"))
+    context.expects(:send_text).with(I18n.t("bot.input_errors.title.blank"), anything)
 
     Bot::StateHandler.new(context).handle
 
@@ -65,7 +65,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     payload = { "wishlist_id" => wishlist.id }
     @user.update!(bot_state: "adding_item", bot_payload: payload)
     context = context_for("   ")
-    context.expects(:send_text).with(I18n.t("bot.messages.enter_item_name"))
+    context.expects(:send_text).with(I18n.t("bot.input_errors.title.blank"), anything)
 
     assert_no_difference("Item.count") do
       Bot::StateHandler.new(context).handle
@@ -81,9 +81,13 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     payload = { "item_id" => item.id, "field" => "price" }
     @user.update!(bot_state: "editing_item", bot_payload: payload)
 
-    [ "not a price", "0", "-5" ].each do |value|
+    {
+      "not a price" => "bot.input_errors.price.not_a_number",
+      "0" => "bot.input_errors.price.greater_than",
+      "-5" => "bot.input_errors.price.greater_than"
+    }.each do |value, message|
       context = context_for(value)
-      context.expects(:send_text).with(I18n.t("bot.messages.error"))
+      context.expects(:send_text).with(I18n.t(message), anything)
 
       Bot::StateHandler.new(context).handle
 

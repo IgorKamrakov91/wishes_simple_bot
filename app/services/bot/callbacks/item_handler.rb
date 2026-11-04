@@ -38,10 +38,24 @@ module Bot
           bot_payload: { item_id: item.id, field: field }
         )
 
-        context.render(
-          I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.#{field}")),
-          cancel_keyboard("open_item:#{item.id}")
-        )
+        current = item.public_send(field)
+        rows = []
+        if current.present? && Item::OPTIONAL_FIELDS.include?(field)
+          rows << [ context.inline_btn(I18n.t("bot.buttons.clear_field"), "clear_item_field:#{field}:#{item.id}") ]
+        end
+        rows << [ context.inline_btn(I18n.t("bot.buttons.cancel"), "open_item:#{item.id}") ]
+
+        context.render(edit_prompt_text(field, current), context.build_keyboard(rows))
+      end
+
+      # Removes an optional value, in place of typing "-"
+      def clear_item_field(field, item_id)
+        item = user.items.find(item_id)
+        return unless Item::OPTIONAL_FIELDS.include?(field)
+
+        item.update!(field => nil)
+        context.notice = I18n.t("bot.messages.field_cleared")
+        show_item(item.id)
       end
 
       # Saves the gift being added without a link. The button carries the
@@ -49,7 +63,7 @@ module Bot
       def skip_item_url(draft_id = nil)
         user.with_lock do
           if current_draft?(draft_id.to_s.presence)
-            StateHandler.new(context).handle
+            StateHandler.new(context).save_item_without_link
           else
             context.notice = I18n.t("bot.messages.button_outdated")
           end
@@ -140,6 +154,17 @@ module Bot
         return false unless user.bot_state == "adding_item_url"
 
         draft_id ? payload["draft_id"] == draft_id : payload.key?("item_id")
+      end
+
+      def edit_prompt_text(field, current)
+        lines = [ I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.#{field}")) ]
+        hint = I18n.t("bot.input_hints.#{field}", default: nil)
+        lines << "<i>#{hint}</i>" if hint
+        if current.present?
+          shown = field == "price" ? format_price(current) : current.to_s.truncate(200)
+          lines << "\n#{I18n.t('bot.messages.current_value')}: #{escape_html(shown)}"
+        end
+        lines.join("\n")
       end
     end
   end

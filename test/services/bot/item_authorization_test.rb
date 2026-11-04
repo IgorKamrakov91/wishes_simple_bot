@@ -37,7 +37,7 @@ class BotItemAuthorizationTest < ActiveSupport::TestCase
   test "owners can start adding and editing items" do
     context = context_for(@owner)
     context.expects(:render).with(I18n.t("bot.messages.enter_item_name"), :cancel_keyboard)
-    context.expects(:render).with(I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.title")), :cancel_keyboard)
+    context.expects(:render).with(regexp_matches(/\A#{Regexp.escape(I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.title")))}/), :cancel_keyboard)
     handler = Bot::Callbacks::ItemHandler.new(context)
 
     handler.add_item_prompt(@wishlist.id)
@@ -104,7 +104,7 @@ class BotItemAuthorizationTest < ActiveSupport::TestCase
     handler = Bot::Callbacks::ItemHandler.new(context)
 
     %w[title description url price].each do |field|
-      context.expects(:render).with(I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.#{field}")), :cancel_keyboard)
+      context.expects(:render).with(regexp_matches(/\A#{Regexp.escape(I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.#{field}")))}/), :cancel_keyboard)
       handler.edit_item_field_prompt(field, @item.id)
       assert_equal field, @owner.reload.bot_payload["field"]
     end

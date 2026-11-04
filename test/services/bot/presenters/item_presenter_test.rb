@@ -103,7 +103,8 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
   end
 
   test "non-web links are shown as text without a URL button" do
-    @item.update!(url: "apple store <b>")
+    # Saved before links had to be http(s)
+    @item.update_column(:url, "apple store <b>")
     presenter = presenter_for(@viewer)
 
     assert_match "apple store &lt;b&gt;", presenter.text

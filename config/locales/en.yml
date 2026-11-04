@@ -1,14 +1,22 @@
 en:
   bot:
     commands:
+      cancelled: "Cancelled, nothing was saved."
+      nothing_to_cancel: "There is nothing to cancel."
+      unknown_command: "There is no such command. Here is what I can do:\n/start — main menu\n/my — my lists\n/new — new list\n/cancel — cancel input\n/help — help"
+      text_only: "I understand text and buttons. Choose what to do:"
+      unrecognized_text: "I did not understand that. To add a gift, open a list and tap “+ Add gift”."
       help: |
-        Available commands:
-        /start — start
+        Almost everything works through the buttons under messages. Commands:
+        /start — main menu
         /my — my lists
-        (Main control is via buttons)
+        /new — new list
+        /cancel — cancel input
+        /help — this help
       list_not_found: "List not found."
       link_outdated: "This link is outdated. Ask the list owner to send you a new one."
     buttons:
+      clear_field: "Remove value"
       my_lists: "My Lists"
       shared_lists: "Friends' Lists"
       create_list: "+ New List"
@@ -71,6 +79,8 @@ en:
         guest_mine: "<b>★ This is your reservation.</b> Other guests see it's taken."
         guest_taken: "✓ Already picked by: %{user}"
     messages:
+      field_cleared: "Removed"
+      current_value: "Now"
       enter_list_name: "Enter list name:"
       enter_new_list_name: "Enter new list name:"
       list_deleted: "List deleted"
@@ -93,6 +103,24 @@ en:
       item_added: "Gift added!"
       error: "Something went wrong. Please try again."
       not_available: "This list or gift was deleted or is no longer available."
+    input_hints:
+      price: "A number in rubles, e.g. 2500 or 1499.90"
+      url: "A link to the product, e.g. https://ozon.ru/…"
+    input_errors:
+      invalid: "Could not save this value. Try again or tap “Cancel”."
+      text_only: "Please answer with text or tap “Cancel”."
+      title:
+        blank: "The name can’t be empty."
+        too_long: "The name is too long: %{count} characters max."
+      description:
+        too_long: "The description is too long: %{count} characters max."
+      url:
+        invalid: "That doesn’t look like a link. Send an address like https://… or tap “Cancel”."
+        too_long: "The link is too long: %{count} characters max."
+      price:
+        not_a_number: "The price is a number in rubles, e.g. 2500 or 1499.90."
+        greater_than: "The price must be greater than zero."
+        less_than: "The price is too large."
     presenters:
       item:
         unknown_reserver: "Unknown user"

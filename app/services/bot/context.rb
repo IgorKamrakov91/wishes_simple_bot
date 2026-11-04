@@ -60,6 +60,11 @@ module Bot
       source.is_a?(Telegram::Bot::Types::Message) ? source.text.to_s.strip : nil
     end
 
+    # A photo, sticker or other message without text
+    def non_text_message?
+      source.is_a?(Telegram::Bot::Types::Message) && source.text.nil?
+    end
+
     # For Callback handlers, which need the callback data
     def callback_data
       source.is_a?(Telegram::Bot::Types::CallbackQuery) ? source.data : nil

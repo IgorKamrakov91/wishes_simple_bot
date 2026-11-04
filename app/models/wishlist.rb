@@ -15,7 +15,10 @@ class Wishlist < ApplicationRecord
     where(user_id: user.id).or(where(id: ListViewer.where(user_id: user.id).select(:wishlist_id)))
   }
 
+  TITLE_LIMIT = 100
+
   validates :title, presence: true
+  validates :title, length: { maximum: TITLE_LIMIT }, if: :title_changed?
 
   def owner
     user
