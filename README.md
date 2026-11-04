@@ -80,7 +80,9 @@ POSTGRES_PASSWORD=...   # URL-safe, e.g. `openssl rand -hex 24`
 ```
 `RAILS_MASTER_KEY` comes from `config/master.key`.
 
-Deploy (Docker must be running locally):
+Deploys run automatically from GitHub Actions (`.github/workflows/deploy.yml`) after CI passes on `main`; they can also be started manually from the Actions tab. The workflow needs these repository secrets: `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, `RAILS_MASTER_KEY`, `TELEGRAM_BOT_TOKEN`, `BOT_USERNAME`, `POSTGRES_PASSWORD`.
+
+To deploy from your machine instead (Docker must be running locally):
 ```bash
 bin/kamal deploy
 ```
