@@ -27,6 +27,8 @@ env:
     - TELEGRAM_BOT_TOKEN
     - BOT_USERNAME
   clear:
+    # Used by `bin/rails telegram:set_webhook` after each deploy.
+    TELEGRAM_WEBHOOK_URL: https://72-56-20-126.sslip.io/telegram/webhook
     # Run Solid Queue inside Puma: single small server.
     SOLID_QUEUE_IN_PUMA: true
     WEB_CONCURRENCY: 1

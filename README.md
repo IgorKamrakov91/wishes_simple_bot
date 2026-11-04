@@ -56,15 +56,22 @@ https://t.me/PodarkiNeOtdarkiBot
     This will start the Rails application. You'll also need to set up a webhook for your Telegram bot.
 
 ### Setting up Telegram Webhook
-Your bot needs to know where to send updates. Set the webhook with the Telegram Bot API:
+Your bot needs to know where to send updates. Register the webhook with the rake task:
 ```bash
-curl "https://api.telegram.org/botYOUR_TELEGRAM_BOT_TOKEN/setWebhook" \
-  --data-urlencode "url=YOUR_APP_URL/telegram/webhook" \
-  --data-urlencode 'allowed_updates=["message","callback_query","inline_query"]'
+TELEGRAM_WEBHOOK_URL=https://YOUR_APP_URL/telegram/webhook bin/rails telegram:set_webhook
 ```
-Replace `YOUR_APP_URL` with the public URL of your running Rails application and `YOUR_TELEGRAM_BOT_TOKEN` with your bot's token.
+The task also sets `allowed_updates` (`message`, `callback_query`, `inline_query`) and a `secret_token`.
+Telegram sends that token in the `X-Telegram-Bot-Api-Secret-Token` header, and the app rejects
+updates without it (401), so forged requests can't act on behalf of other users. The secret is derived
+from `TELEGRAM_BOT_TOKEN`; set `TELEGRAM_WEBHOOK_SECRET` to use your own value instead.
 
-`allowed_updates` matters: the bot relies on `callback_query` (inline buttons) and `inline_query` (sharing lists). If it is omitted, Telegram keeps the previous list, which may not include them. Check the current state with `getWebhookInfo`.
+Re-run the task whenever the URL, the bot token or the secret changes. In production Kamal's
+`.kamal/hooks/post-deploy` runs it after every `kamal deploy`, `redeploy` and `rollback`, whether
+the deploy is manual or from GitHub Actions.
+
+`getWebhookInfo` shows the URL and `allowed_updates`, but not whether a secret is set. The real check
+is that the bot answers: if every update gets 401 (`last_error_message` in `getWebhookInfo`, 401s in
+the app log), the webhook was registered without the current secret.
 
 ## Deployment
 Production runs on a single VPS and is deployed with [Kamal](https://kamal-deploy.org) (`config/deploy.yml`):
@@ -87,6 +94,20 @@ To deploy from your machine instead (Docker must be running locally):
 bin/kamal deploy
 ```
 Useful aliases: `bin/kamal logs`, `bin/kamal console`, `bin/kamal shell`.
+
+### If the bot stops answering after a deploy
+The new version rejects updates until the webhook is registered with its secret. The post-deploy hook
+does that; if the hook failed (the deploy itself still counts as done), register it by hand:
+```bash
+bin/kamal app exec --reuse "bin/rails telegram:set_webhook"
+```
+Then send the bot a message to check it answers. Telegram retries rejected updates for a limited,
+unspecified time, so updates sent while the webhook was broken may be lost.
+
+Rolling back to a version from before the secret check is not a safe fix: that image has no
+`telegram:set_webhook` task, so the post-deploy hook fails, and the old app accepts updates without
+checking the secret, i.e. forged updates work again. Treat such a rollback as a short emergency measure
+and deploy a fixed version as soon as possible.
 
 ## Usage
 Interact with the bot directly on Telegram.
