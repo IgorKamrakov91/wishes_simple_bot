@@ -122,13 +122,21 @@ Interact with the bot directly on Telegram.
 
 ## Reservation notifications
 
-Reservation deletion notifications run in the `notifications` queue through Solid Queue,
-outside the button response. To verify delivery after a deploy, use two test accounts:
-reserve a gift, then delete it as the owner. `bin/kamal logs` should show
-`Enqueued ReservedGiftDeletedJob`, then `Performing` / `Performed`, and only the reserver
-should receive a message. Enqueue alone does not prove the worker ran: check
-`SOLID_QUEUE_IN_PUMA` and the queue database if execution never starts. A Telegram 403
-(the recipient blocked the bot) is logged without retrying.
+When a gift is reserved or released, `Bot::ReservationNotifier` enqueues a `NotificationJob`
+(queue `notifications`, Solid Queue, outside the button response) for:
+- the list owner, if "Reservations in my lists" is on (default on);
+- the list's guests with "Reservations in friends' lists" on (default off), except the person
+  who pressed the button.
+
+Texts never name who reserved. Users switch both settings under Main menu → Settings. The job
+re-checks the setting (and, for guests, access to the list) right before sending. Deleting a gift or
+a list sends no notifications.
+
+To verify delivery after a deploy, use two test accounts: reserve a gift as a guest. `bin/kamal logs`
+should show `Enqueued NotificationJob`, then `Performing` / `Performed`, and the owner should get a
+message. Enqueue alone does not prove the worker ran: check `SOLID_QUEUE_IN_PUMA` and the queue
+database if execution never starts. A Telegram 403 (the recipient blocked the bot) is logged
+without retrying; network errors and 429 are retried up to three attempts.
 
 ## Running Tests
 

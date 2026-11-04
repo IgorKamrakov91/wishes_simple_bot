@@ -78,6 +78,7 @@ module Bot
           context.notice = I18n.t("bot.messages.cannot_reserve_own")
         elsif item.reserve_for!(user, expected_version: reservation_version)
           context.notice = I18n.t("bot.messages.reserved_notice")
+          ReservationNotifier.reserved(item, by: user)
         elsif item.reserved_by?(user)
           context.notice = I18n.t("bot.messages.reserved_notice")
         elsif item.reserved_by_other?(user)
@@ -97,6 +98,7 @@ module Bot
           context.notice = I18n.t("bot.messages.cannot_reserve_own")
         elsif item.release_for!(user, expected_version: reservation_version)
           context.notice = I18n.t("bot.messages.unreserved_notice")
+          ReservationNotifier.released(item, by: user)
         elsif !item.reserved?
           context.notice = I18n.t("bot.messages.unreserved_notice")
         elsif item.reserved_by_other?(user)
@@ -134,7 +136,7 @@ module Bot
         wishlist = item.wishlist
         page = Presenters::WishlistPresenter.page_of(wishlist.items.pluck(:id).index(item.id).to_i)
 
-        ReservationDeletion.destroy_item!(item)
+        item.destroy!
 
         context.notice = I18n.t("bot.messages.item_deleted_success")
         WishlistHandler.new(context).open_list(wishlist.id, page)
