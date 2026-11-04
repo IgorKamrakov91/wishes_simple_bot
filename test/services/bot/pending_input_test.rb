@@ -157,6 +157,29 @@ class BotPendingInputTest < ActiveSupport::TestCase
     assert_nil @user.reload.bot_state
   end
 
+  test "a draft id made only of digits still matches its button" do
+    @user.start_adding_item!(wishlist_id: @wishlist.id)
+    @api.stubs(:send_message)
+    SecureRandom.stubs(:hex).returns("12345678")
+    Bot::Commands.handle(@bot, text_message("Puzzle"))
+    SecureRandom.unstub(:hex)
+    draft_id = @user.reload.bot_payload["draft_id"]
+    @api.stubs(:edit_message_text)
+
+    assert_difference("Item.count", 1) do
+      Bot::Callbacks.handle(@bot, callback("skip_item_url:#{draft_id}"))
+    end
+  end
+
+  test "pressing skip twice saves the gift once" do
+    draft_id = start_draft("Puzzle")
+    @api.stubs(:edit_message_text)
+
+    assert_difference("Item.count", 1) do
+      2.times { Bot::Callbacks.handle(@bot, callback("skip_item_url:#{draft_id}")) }
+    end
+  end
+
   test "a stale skip button does nothing" do
     @api.expects(:edit_message_text).never
     @api.expects(:send_message).never

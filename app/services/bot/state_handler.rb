@@ -56,7 +56,8 @@ module Bot
       wishlist = user.wishlists.find(user.bot_payload["wishlist_id"])
       return context.send_text(I18n.t("bot.messages.enter_item_name")) if text.blank?
 
-      draft_id = SecureRandom.hex(4)
+      # The letter prefix keeps the id a string: routing turns all-digit captures into numbers
+      draft_id = "d#{SecureRandom.hex(4)}"
       user.update!(bot_state: "adding_item_url",
                    bot_payload: { "wishlist_id" => wishlist.id, "title" => text, "draft_id" => draft_id })
 
@@ -67,23 +68,32 @@ module Bot
       context.render(I18n.t("bot.messages.enter_item_url", title: escape_html(text), list: escape_html(wishlist.title)), keyboard)
     end
 
+    # Saving the gift and ending the input happen together under a lock on
+    # the user, so two quick answers can't save the draft twice
     def create_item_url
       url = optional_text_value(text)
-      payload = user.bot_payload
+      wishlist_id = nil
 
-      wishlist_id =
-        if payload.key?("item_id")
-          # Started before drafts: the gift is already saved
-          item = user.items.find(payload["item_id"])
-          item.update!(url: url)
-          item.wishlist_id
-        else
-          wishlist = user.wishlists.find(payload["wishlist_id"])
-          wishlist.items.create!(title: payload["title"], url: url)
-          wishlist.id
-        end
+      user.with_lock do
+        payload = user.bot_payload
+        next unless user.bot_state == "adding_item_url" && payload
 
-      user.clear_state!
+        wishlist_id =
+          if payload.key?("item_id")
+            # Started before drafts: the gift is already saved
+            item = user.items.find(payload["item_id"])
+            item.update!(url: url)
+            item.wishlist_id
+          else
+            wishlist = user.wishlists.find(payload["wishlist_id"])
+            wishlist.items.create!(title: payload["title"], url: url)
+            wishlist.id
+          end
+
+        user.clear_state!
+      end
+      return unless wishlist_id
+
       keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn(I18n.t("bot.buttons.add_more"), "add_item:#{wishlist_id}") ], [ inline_btn(I18n.t("bot.buttons.open_list"), "open_list:#{wishlist_id}") ] ])
       context.render(I18n.t("bot.messages.item_added"), keyboard)
     end
