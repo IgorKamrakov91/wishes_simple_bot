@@ -82,10 +82,14 @@ module Bot
       CGI.escapeHTML(text.to_s)
     end
 
-    def share_link(wishlist)
-      bot_username = ENV["BOT_USERNAME"] || "PodarkiNeOtdarkiBot"
+    def bot_link
+      bot_username = (ENV["BOT_USERNAME"].presence || "PodarkiNeOtdarkiBot").delete_prefix("@")
 
-      "https://t.me/#{bot_username}?start=l_#{wishlist.share_token}"
+      "https://t.me/#{bot_username}"
+    end
+
+    def share_link(wishlist)
+      "#{bot_link}?start=l_#{wishlist.share_token}"
     end
   end
 end
