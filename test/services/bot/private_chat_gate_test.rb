@@ -111,7 +111,9 @@ class BotPrivateChatGateTest < ActiveSupport::TestCase
 
   test "private messages still open personal screens" do
     @api.expects(:send_message).with do |params|
-      params[:chat_id] == @owner.telegram_id && params[:text].include?(@wishlist.title)
+      params[:chat_id] == @owner.telegram_id && params[:reply_markup].inline_keyboard.flatten.any? { |button|
+        button.callback_data == "open_list:#{@wishlist.id}"
+      }
     end
 
     dispatch_message("/my", type: "private")

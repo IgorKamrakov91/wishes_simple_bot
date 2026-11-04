@@ -41,7 +41,7 @@ class BotWishlistHandlerTest < ActiveSupport::TestCase
     rendered
   end
 
-  test "show_lists shows progress and opens lists by button" do
+  test "show_lists puts each list only in its button" do
     wishlist = Wishlist.create!(user: @user, title: "Holidays")
     Item.create!(wishlist: wishlist, title: "Gift", reserved_by: 1)
     Item.create!(wishlist: wishlist, title: "Another gift")
@@ -50,10 +50,11 @@ class BotWishlistHandlerTest < ActiveSupport::TestCase
     rendered = capture_render(context)
     Bot::Callbacks::WishlistHandler.new(context).show_lists
 
-    assert_match "<b>Holidays</b>\n▰▰▰▰▰▱▱▱▱▱ 1 из 2 забронировано", rendered[:text]
+    refute_includes rendered[:text], "Holidays"
+    assert_includes rendered[:text], "Страница 1 из 1"
 
     row = rendered[:keyboard].inline_keyboard.first
-    assert_equal "Holidays · 2", row.first.text
+    assert_equal "Holidays · 2 подарка", row.first.text
     assert_equal "open_list:#{wishlist.id}", row.first.callback_data
   end
 

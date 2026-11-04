@@ -34,11 +34,11 @@ module Bot
             context.inline_btn(t("bot.buttons.share"), nil, copy_text: { text: share_link(wishlist) }),
             context.inline_btn(t("bot.buttons.list_settings"), "list_settings:#{wishlist.id}")
           ]
-          rows << [ context.inline_btn(t("bot.buttons.back_to_lists"), "show_lists") ]
+          rows << [ context.inline_btn(t("bot.buttons.back_to_lists"), ListCollectionPresenter.back_callback(wishlist, user, shared: false)) ]
         else
           # A guest without lists of their own is one tap away from making one
           rows << [ context.inline_btn(t("bot.buttons.create_own_list"), "new_list") ] unless user.wishlists.exists?
-          rows << [ context.inline_btn(t("bot.buttons.back_to_shared_lists"), "show_shared_lists") ]
+          rows << [ context.inline_btn(t("bot.buttons.back_to_shared_lists"), ListCollectionPresenter.back_callback(wishlist, user, shared: true)) ]
         end
 
         context.build_keyboard(rows)
