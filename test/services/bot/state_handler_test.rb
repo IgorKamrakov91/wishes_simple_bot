@@ -19,10 +19,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
   test "creating list state creates wishlist and clears state" do
     @user.start_creating_list!
     context = context_for("Travel gifts")
-    context.expects(:send_text).with(
-      I18n.t("bot.messages.list_created", title: "Travel gifts"),
-      kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
-    )
+    Bot::Callbacks::WishlistHandler.any_instance.expects(:open_list).with(kind_of(Integer))
 
     Bot::StateHandler.new(context).handle
 
@@ -42,10 +39,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     assert_equal "creating_list", @user.reload.bot_state
 
     retry_context = context_for("Travel gifts")
-    retry_context.expects(:send_text).with(
-      I18n.t("bot.messages.list_created", title: "Travel gifts"),
-      kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
-    )
+    Bot::Callbacks::WishlistHandler.any_instance.expects(:open_list).with(kind_of(Integer))
     Bot::StateHandler.new(retry_context).handle
 
     assert_equal [ "Travel gifts" ], @user.wishlists.pluck(:title)
@@ -99,10 +93,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     end
 
     context = context_for("12,50")
-    context.expects(:send_text).with(
-      I18n.t("bot.messages.field_updated", field: "price"),
-      kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
-    )
+    Bot::Callbacks::ItemHandler.any_instance.expects(:show_item).with(item.id)
     Bot::StateHandler.new(context).handle
 
     assert_equal 12.50.to_d, item.reload.price
@@ -147,10 +138,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     item = wishlist.items.create!(title: "Puzzle")
     @user.update!(bot_state: "editing_item", bot_payload: { "item_id" => item.id, "field" => "price" })
     context = context_for("12,50")
-    context.expects(:send_text).with(
-      I18n.t("bot.messages.field_updated", field: "price"),
-      kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
-    )
+    Bot::Callbacks::ItemHandler.any_instance.expects(:show_item).with(item.id)
 
     Bot::StateHandler.new(context).handle
 
@@ -164,10 +152,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     item = wishlist.items.create!(title: "Puzzle", url: "https://example.com")
     @user.update!(bot_state: "editing_item", bot_payload: { "item_id" => item.id, "field" => "url" })
     context = context_for("-")
-    context.expects(:send_text).with(
-      I18n.t("bot.messages.field_updated", field: "url"),
-      kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
-    )
+    Bot::Callbacks::ItemHandler.any_instance.expects(:show_item).with(item.id)
 
     Bot::StateHandler.new(context).handle
 
@@ -179,10 +164,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     item = wishlist.items.create!(title: "Puzzle", description: "Old text")
     @user.update!(bot_state: "editing_item", bot_payload: { "item_id" => item.id, "field" => "description" })
     context = context_for("   ")
-    context.expects(:send_text).with(
-      I18n.t("bot.messages.field_updated", field: "description"),
-      kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
-    )
+    Bot::Callbacks::ItemHandler.any_instance.expects(:show_item).with(item.id)
 
     Bot::StateHandler.new(context).handle
 

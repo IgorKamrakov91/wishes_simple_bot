@@ -34,8 +34,7 @@ module Bot
     def create_list
       wishlist = user.wishlists.create!(title: text)
       user.clear_state!
-      keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn(I18n.t("bot.buttons.add_item"), "add_item:#{wishlist.id}") ], [ inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists") ] ])
-      context.send_text(I18n.t("bot.messages.list_created", title: wishlist.title), keyboard)
+      Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
     end
 
     def rename_list
@@ -43,7 +42,7 @@ module Bot
       wishlist = user.wishlists.find(wishlist_id)
       wishlist.update!(title: text)
       user.clear_state!
-      context.send_text(I18n.t("bot.messages.list_renamed"))
+      Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
     end
 
     def create_item
@@ -72,16 +71,15 @@ module Bot
       value = item_field_value(field, text)
       item.update!(field => value)
       user.clear_state!
-      wishlist_id = item.wishlist_id
-      keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn(I18n.t("bot.buttons.edit_more"), "edit_item:#{item.id}") ], [ inline_btn(I18n.t("bot.buttons.open_list"), "open_list:#{wishlist_id}") ] ])
-      context.send_text(I18n.t("bot.messages.field_updated", field: field), keyboard)
+      Callbacks::ItemHandler.new(context).show_item(item.id)
     end
 
     def item_field_value(field, value)
       normalized_value = optional_text_value(value)
       return nil if normalized_value.nil?
 
-      field == "price" ? normalized_value.tr(",", ".") : normalized_value
+      # "6 000,50" -> "6000.50"
+      field == "price" ? normalized_value.gsub(/[[:space:]]/, "").tr(",", ".") : normalized_value
     end
 
     def optional_text_value(value)

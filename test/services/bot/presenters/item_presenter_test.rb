@@ -1,5 +1,6 @@
 require "test_helper"
 require "mocha/minitest"
+require "telegram/bot"
 
 class BotPresentersItemPresenterTest < ActiveSupport::TestCase
   setup do
@@ -7,124 +8,135 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     @viewer = User.create!(telegram_id: 1002, username: "viewer_user", first_name: "Viewer")
     @reserver = User.create!(telegram_id: 1003, username: "reserver_user", first_name: "Reserver")
 
-    @wishlist = Wishlist.create!(user: @owner, title: "Owner's List")
+    @wishlist = Wishlist.create!(user: @owner, title: "Owner List")
     @item = Item.create!(
       wishlist: @wishlist,
       title: "Apple 🍎",
       description: "A red apple",
-      price: 50.0,
-      url: "http://apple.com"
+      price: 6000,
+      url: "https://www.apple.com/iphone"
     )
-
-    @context = mock("Context")
-    # Presenter uses context.inline_btn and context.build_keyboard, but primarily we are testing .text method here
-    # The .text method doesn't use context, only .keyboard does.
-    # So we might not strictly need extensive context mocking if we only test .text
-    # But let's mock it to be safe if we instantiate it.
-    @context.stubs(:user).returns(@viewer)
   end
 
-  test "renders unreserved item correctly" do
-    presenter = Bot::Presenters::ItemPresenter.new(@item, @viewer, @context)
-    text = presenter.text
-
-    assert_match "🎁 Apple 🍎", text
-    assert_match "💬 A red apple", text
-    assert_match "🔗 http://apple.com", text
-    assert_match "💵 50.0₽", text
-    refute_match "🔒", text
-    refute_match "tg-spoiler", text
+  def presenter_for(user, item = @item)
+    context = Bot::Context.new(bot: mock("TelegramBot"), user: user, source: mock("Source"))
+    Bot::Presenters::ItemPresenter.new(item, user, context)
   end
 
-  test "renders reserved item with spoiler for username" do
+  def button_rows(presenter)
+    presenter.keyboard.inline_keyboard
+  end
+
+  def callbacks(presenter)
+    button_rows(presenter).flatten.map(&:callback_data).compact
+  end
+
+  test "renders card details with formatted price and store link" do
+    text = presenter_for(@viewer).text
+
+    assert_match "<b>Apple 🍎</b>", text
+    assert_match "<i>A red apple</i>", text
+    assert_match "<b>6 000 ₽</b>", text
+    assert_match "<a href=\"https://www.apple.com/iphone\">apple.com</a>", text
+    assert_match "Owner List · 1 из 1", text
+  end
+
+  test "guest sees reserve and store buttons but no owner actions" do
+    presenter = presenter_for(@viewer)
+
+    assert_includes callbacks(presenter), "toggle_reserve:#{@item.id}"
+    refute_includes callbacks(presenter), "edit_item:#{@item.id}"
+    assert_equal "https://www.apple.com/iphone", button_rows(presenter)[1].first.url
+    assert_match "Owner не узнает", presenter.text
+  end
+
+  test "owner can edit and delete but not reserve" do
+    presenter = presenter_for(@owner)
+
+    refute_includes callbacks(presenter), "toggle_reserve:#{@item.id}"
+    assert_includes callbacks(presenter), "edit_item:#{@item.id}"
+    assert_includes callbacks(presenter), "confirm_delete_item:#{@item.id}"
+    assert_match "пока никто не выбрал", presenter.text
+  end
+
+  test "owner does not see who reserved the item" do
     @item.update!(reserved_by: @reserver.telegram_id)
-    presenter = Bot::Presenters::ItemPresenter.new(@item, @viewer, @context)
-    text = presenter.text
+    text = presenter_for(@owner).text
 
-    assert_match "🔒 Apple 🍎", text
-    assert_match /🤵 <tg-spoiler>@reserver_user<\/tg-spoiler>/, text
+    assert_match "кто — секрет", text
+    refute_match "reserver_user", text
   end
 
-  test "renders reserved item with spoiler for first name if no username" do
+  test "guest sees the reserver in a spoiler and cannot reserve" do
+    @item.update!(reserved_by: @reserver.telegram_id)
+    presenter = presenter_for(@viewer)
+
+    assert_match "<tg-spoiler>@reserver_user</tg-spoiler>", presenter.text
+    refute_includes callbacks(presenter), "toggle_reserve:#{@item.id}"
+  end
+
+  test "guest falls back to the reserver's first name" do
     @reserver.update!(username: nil, first_name: "Secret Santa")
     @item.update!(reserved_by: @reserver.telegram_id)
-    presenter = Bot::Presenters::ItemPresenter.new(@item, @viewer, @context)
-    text = presenter.text
 
-    assert_match /🤵 <tg-spoiler>Secret Santa<\/tg-spoiler>/, text
+    assert_match "<tg-spoiler>Secret Santa</tg-spoiler>", presenter_for(@viewer).text
+  end
+
+  test "guest can cancel their own reservation" do
+    @item.update!(reserved_by: @viewer.telegram_id)
+    presenter = presenter_for(@viewer)
+
+    assert_match "Это твоя бронь", presenter.text
+    assert_equal I18n.t("bot.buttons.unreserve"), button_rows(presenter).first.first.text
+  end
+
+  test "link preview shows the shop page" do
+    options = presenter_for(@viewer).link_preview_options
+
+    assert_equal "https://www.apple.com/iphone", options.url
+    assert options.prefer_large_media
+  end
+
+  test "non-web links are shown as text without a URL button" do
+    @item.update!(url: "apple store <b>")
+    presenter = presenter_for(@viewer)
+
+    assert_match "apple store &lt;b&gt;", presenter.text
+    assert button_rows(presenter).flatten.none?(&:url)
+    assert presenter.link_preview_options.is_disabled
   end
 
   test "renders reserved item with fallback label when reserver no longer exists" do
     @item.update!(reserved_by: 999_999)
-    presenter = Bot::Presenters::ItemPresenter.new(@item, @viewer, @context)
-    text = presenter.text
+    text = presenter_for(@viewer).text
 
-    assert_match /🤵 <tg-spoiler>#{I18n.t("bot.presenters.item.unknown_reserver")}<\/tg-spoiler>/, text
+    assert_match "<tg-spoiler>#{I18n.t("bot.presenters.item.unknown_reserver")}</tg-spoiler>", text
   end
 
   test "escapes HTML special characters in fields" do
-    @item.update!(
-      title: "Me & You <3",
-      description: "Quote: \"Hello\"",
-      url: "http://site.com?a=1&b=2"
-    )
-    presenter = Bot::Presenters::ItemPresenter.new(@item, @viewer, @context)
-    text = presenter.text
+    @item.update!(title: "Me & You <3", description: "Quote: \"Hello\"")
+    text = presenter_for(@viewer).text
 
-    # Title: Me & You <3 -> Me &amp; You &lt;3
     assert_match "Me &amp; You &lt;3", text
-    # Description: Quote: "Hello" -> Quote: &quot;Hello&quot;
     assert_match "Quote: &quot;Hello&quot;", text
-    # URL: http://site.com?a=1&b=2 -> http://site.com?a=1&amp;b=2
-    assert_match "http://site.com?a=1&amp;b=2", text
-
-    # Ensure raw characters are NOT present
     refute_match " <3", text
-    refute_match "\"Hello\"", text
-    # The URL check is tricky because '&' is present in '&amp;', but we want to ensure standalone '&' isn't there
-    # surrounding the specific params.
-    # A simpler check:
-    assert text.include?("?a=1&amp;b=2")
   end
 
   test "escapes HTML in user info" do
     @reserver.update!(username: nil, first_name: "Bad <script> Guy")
     @item.update!(reserved_by: @reserver.telegram_id)
-    presenter = Bot::Presenters::ItemPresenter.new(@item, @viewer, @context)
-    text = presenter.text
+    text = presenter_for(@viewer).text
 
     assert_match "&lt;script&gt;", text
     refute_match "<script>", text
   end
 
-  test "keyboard lets viewers reserve unreserved items" do
-    @context.expects(:inline_btn).with(I18n.t("bot.buttons.reserve"), "toggle_reserve:#{@item.id}").returns(:reserve_button)
-    @context.expects(:build_keyboard).with([ [ :reserve_button ] ]).returns(:keyboard)
+  test "navigates between neighbouring items" do
+    second = Item.create!(wishlist: @wishlist, title: "Pear")
+    third = Item.create!(wishlist: @wishlist, title: "Plum")
 
-    presenter = Bot::Presenters::ItemPresenter.new(@item, @viewer, @context)
+    nav = button_rows(presenter_for(@viewer, second)).last
 
-    assert_equal :keyboard, presenter.keyboard
-  end
-
-  test "keyboard lets the current reserver unreserve" do
-    @item.update!(reserved_by: @viewer.telegram_id)
-
-    @context.expects(:inline_btn).with(I18n.t("bot.buttons.unreserve"), "toggle_reserve:#{@item.id}").returns(:unreserve_button)
-    @context.expects(:build_keyboard).with([ [ :unreserve_button ] ]).returns(:keyboard)
-
-    presenter = Bot::Presenters::ItemPresenter.new(@item, @viewer, @context)
-
-    assert_equal :keyboard, presenter.keyboard
-  end
-
-  test "keyboard shows owner-only edit controls" do
-    @context.expects(:inline_btn).with(I18n.t("bot.buttons.reserve"), "toggle_reserve:#{@item.id}").returns(:reserve_button)
-    @context.expects(:inline_btn).with(I18n.t("bot.buttons.edit"), "edit_item:#{@item.id}").returns(:edit_button)
-    @context.expects(:inline_btn).with(I18n.t("bot.buttons.delete"), "delete_item:#{@item.id}").returns(:delete_button)
-    @context.expects(:build_keyboard).with([ [ :reserve_button ], [ :edit_button, :delete_button ] ]).returns(:keyboard)
-
-    presenter = Bot::Presenters::ItemPresenter.new(@item, @owner, @context)
-
-    assert_equal :keyboard, presenter.keyboard
+    assert_equal [ "open_item:#{@item.id}", "list_page:#{@wishlist.id}:0", "open_item:#{third.id}" ], nav.map(&:callback_data)
   end
 end

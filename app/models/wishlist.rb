@@ -2,7 +2,7 @@ require "cgi"
 
 class Wishlist < ApplicationRecord
   belongs_to :user
-  has_many :items, dependent: :destroy
+  has_many :items, -> { order(:id) }, dependent: :destroy
   has_many :list_viewers, dependent: :destroy
   has_many :viewers, through: :list_viewers, source: :user
 
@@ -22,14 +22,13 @@ class Wishlist < ApplicationRecord
     list_viewers.exists?(user: user)
   end
 
+  # Both work on the loaded association, so `includes(:items)` avoids extra queries
   def reserved_items_count
-    items.where.not(reserved_by: nil).count
+    items.count(&:reserved?)
   end
 
   def percentage_fulfilled
-    total_items = items.count
-    return 0 if total_items.zero?
-
-    (reserved_items_count.to_f / total_items * 100).round
+    return 0 if items.empty?
+    (reserved_items_count.to_f / items.size * 100).round
   end
 end

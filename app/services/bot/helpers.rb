@@ -1,16 +1,17 @@
 module Bot
   module Helpers
-    def send_text(bot, chat_id, text, reply_markup = nil, parse_mode: nil)
+    def send_text(bot, chat_id, text, reply_markup = nil, parse_mode: nil, link_preview_options: nil)
       Rails.logger.info "SENDING TEXT: #{text}"
       Rails.logger.info "REPLY MARKUP: #{reply_markup}"
       Rails.logger.info "CHAT ID: #{chat_id}"
 
-      bot.api.send_message(
+      bot.api.send_message(**{
         chat_id: chat_id,
         text: text,
         reply_markup: reply_markup,
-        parse_mode: parse_mode
-      )
+        parse_mode: parse_mode,
+        link_preview_options: link_preview_options
+      }.compact)
     end
 
     def inline_btn(text, data = nil, **options)
@@ -57,10 +58,34 @@ module Bot
       Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: buttons)
     end
 
+    def no_link_preview
+      Telegram::Bot::Types::LinkPreviewOptions.new(is_disabled: true)
+    end
+
     def progress_bar_string(percentage, length = 10)
       filled_blocks = (percentage.to_f.clamp(0, 100) / 100 * length).round
-      empty_blocks = length - filled_blocks
-      "[" + "🟩" * filled_blocks + "⬜" * empty_blocks + "]"
+      "▰" * filled_blocks + "▱" * (length - filled_blocks)
+    end
+
+    def format_price(price)
+      amount = ActiveSupport::NumberHelper.number_to_rounded(
+        price,
+        precision: 2,
+        strip_insignificant_zeros: true,
+        delimiter: I18n.t("bot.presenters.item.price_delimiter"),
+        separator: I18n.t("bot.presenters.item.price_separator")
+      )
+      I18n.t("bot.presenters.item.price", amount: amount)
+    end
+
+    def escape_html(text)
+      CGI.escapeHTML(text.to_s)
+    end
+
+    def share_link(wishlist_id)
+      bot_username = ENV["BOT_USERNAME"] || "PodarkiNeOtdarkiBot"
+
+      "https://t.me/#{bot_username}?start=list_#{wishlist_id}"
     end
   end
 end

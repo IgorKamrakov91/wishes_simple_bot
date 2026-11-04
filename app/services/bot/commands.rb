@@ -40,15 +40,7 @@ module Bot
       private
 
       def handle_start(context)
-        keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(
-          inline_keyboard: [
-            [ inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists") ],
-            [ inline_btn(I18n.t("bot.buttons.create_list"), "new_list") ],
-            [ inline_btn(I18n.t("bot.buttons.shared_lists"), "show_shared_lists") ]
-          ]
-        )
-
-        context.send_text(I18n.t("bot.commands.hello", name: context.user.first_name), keyboard)
+        Callbacks::WishlistHandler.new(context).main_menu
       end
 
       def handle_shared_list(context, wishlist_id)

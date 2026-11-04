@@ -35,7 +35,7 @@ class BotItemAuthorizationTest < ActiveSupport::TestCase
   test "owners can start adding and editing items" do
     context = context_for(@owner)
     context.expects(:send_text).with(I18n.t("bot.messages.enter_item_name"))
-    context.expects(:send_text).with(I18n.t("bot.messages.enter_new_value", field: "title"))
+    context.expects(:send_text).with(I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.title")))
     handler = Bot::Callbacks::ItemHandler.new(context)
 
     handler.add_item_prompt(@wishlist.id)
@@ -47,9 +47,8 @@ class BotItemAuthorizationTest < ActiveSupport::TestCase
 
   test "owners can delete their items" do
     context = context_for(@owner)
-    context.stubs(:inline_btn).returns(:button)
-    context.stubs(:build_keyboard).returns(:keyboard)
-    context.expects(:send_text).with(I18n.t("bot.messages.item_deleted_success"), :keyboard)
+    context.expects(:notice=).with(I18n.t("bot.messages.item_deleted_success"))
+    Bot::Callbacks::WishlistHandler.any_instance.expects(:open_list).with(@wishlist.id, 0)
 
     assert_difference("Item.count", -1) do
       Bot::Callbacks::ItemHandler.new(context).delete_item(@item.id)
@@ -101,7 +100,7 @@ class BotItemAuthorizationTest < ActiveSupport::TestCase
     handler = Bot::Callbacks::ItemHandler.new(context)
 
     %w[title description url price].each do |field|
-      context.expects(:send_text).with(I18n.t("bot.messages.enter_new_value", field: field))
+      context.expects(:send_text).with(I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.#{field}")))
       handler.edit_item_field_prompt(field, @item.id)
       assert_equal field, @owner.reload.bot_payload["field"]
     end
