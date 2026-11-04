@@ -52,15 +52,15 @@ module Bot
         user.clear_state! if user.bot_state.present? && !INPUT_CALLBACKS.include?(callback.data)
 
         route_callback(context)
-        bot.api.answer_callback_query(**{ callback_query_id: callback.id, text: context.notice }.compact)
+        answer(bot, callback, text: context.notice)
+      # Problems with a button show up as a popup on that button, not as
+      # chat messages that stay under the screen
       rescue ActiveRecord::RecordNotFound => e
-        Rails.logger.error("Record not found in callback handler: #{e.message}")
-        context&.send_text(I18n.t("bot.messages.error"))
-        bot.api.answer_callback_query(callback_query_id: callback.id) rescue nil
+        Rails.logger.warn("Record not found in callback handler: #{e.message}")
+        answer(bot, callback, text: I18n.t("bot.messages.not_available"), show_alert: true)
       rescue StandardError => e
         Rails.logger.error("Error in callback handler: #{e.message}\n#{e.backtrace.join("\n")}")
-        context&.send_text(I18n.t("bot.messages.error"))
-        bot.api.answer_callback_query(callback_query_id: callback.id) rescue nil
+        answer(bot, callback, text: I18n.t("bot.messages.error"), show_alert: true)
       end
 
       # Public interface for other services
@@ -79,6 +79,14 @@ module Bot
       end
 
       private
+
+      # A repeated or late update carries a callback that can't be answered
+      # anymore; the screen is already updated, so this is not the user's problem
+      def answer(bot, callback, **options)
+        bot.api.answer_callback_query(callback_query_id: callback.id, **options.compact)
+      rescue Telegram::Bot::Exceptions::ResponseError => e
+        Rails.logger.warn("Could not answer callback query: #{e.message}")
+      end
 
       def route_callback(context)
         data = context.callback_data

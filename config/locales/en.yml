@@ -87,7 +87,8 @@ en:
       confirm_delete_item: "Delete «%{title}»?\nThis can't be undone."
       enter_item_url: "Send a link to the gift or tap «Skip»:"
       item_added: "Gift added!"
-      error: "An error occurred. Please try again."
+      error: "Something went wrong. Please try again."
+      not_available: "This list or gift was deleted or is no longer available."
     presenters:
       item:
         unknown_reserver: "Unknown user"
