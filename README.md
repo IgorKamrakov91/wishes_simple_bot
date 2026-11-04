@@ -56,12 +56,35 @@ https://t.me/PodarkiNeOtdarkiBot
     This will start the Rails application. You'll also need to set up a webhook for your Telegram bot.
 
 ### Setting up Telegram Webhook
-Your bot needs to know where to send updates. You can set the webhook using the Telegram Bot API directly or a tool.
-Example using `curl`:
+Your bot needs to know where to send updates. Set the webhook with the Telegram Bot API:
 ```bash
-curl -F "url=YOUR_APP_URL/telegram/webhook" "https://api.telegram.org/botYOUR_TELEGRAM_BOT_TOKEN/setWebhook"
+curl "https://api.telegram.org/botYOUR_TELEGRAM_BOT_TOKEN/setWebhook" \
+  --data-urlencode "url=YOUR_APP_URL/telegram/webhook" \
+  --data-urlencode 'allowed_updates=["message","callback_query","inline_query"]'
 ```
 Replace `YOUR_APP_URL` with the public URL of your running Rails application and `YOUR_TELEGRAM_BOT_TOKEN` with your bot's token.
+
+`allowed_updates` matters: the bot relies on `callback_query` (inline buttons) and `inline_query` (sharing lists). If it is omitted, Telegram keeps the previous list, which may not include them. Check the current state with `getWebhookInfo`.
+
+## Deployment
+Production runs on a single VPS and is deployed with [Kamal](https://kamal-deploy.org) (`config/deploy.yml`):
+- kamal-proxy terminates TLS with a Let's Encrypt certificate;
+- Postgres 17 runs as a Kamal accessory on the same server, bound to `127.0.0.1`;
+- the image is pushed through a local registry over SSH, so no external registry is needed.
+
+Secrets are read by `.kamal/secrets` from a gitignored `.env.production` in the project root:
+```
+TELEGRAM_BOT_TOKEN=...
+BOT_USERNAME=...
+POSTGRES_PASSWORD=...   # URL-safe, e.g. `openssl rand -hex 24`
+```
+`RAILS_MASTER_KEY` comes from `config/master.key`.
+
+Deploy (Docker must be running locally):
+```bash
+bin/kamal deploy
+```
+Useful aliases: `bin/kamal logs`, `bin/kamal console`, `bin/kamal shell`.
 
 ## Usage
 Interact with the bot directly on Telegram.
