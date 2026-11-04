@@ -39,4 +39,8 @@ class BotPrivacyContractTest < ActiveSupport::TestCase
     assert_includes help, "под спойлером"
     assert_includes help, "её можно переслать"
   end
+
+  test "help names the support contact" do
+    %i[ru en].each { |locale| assert_includes I18n.t("bot.commands.help", locale: locale), "@ikamrakov" }
+  end
 end
