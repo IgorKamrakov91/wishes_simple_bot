@@ -48,7 +48,7 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     assert_equal "success", button_rows(presenter).first.first.style
     refute_includes callbacks(presenter), "edit_item:#{@item.id}"
     assert_equal "https://www.apple.com/iphone", button_rows(presenter)[1].first.url
-    assert_match "Owner не узнает", presenter.text
+    assert_match "Owner в боте увидит только, что подарок занят, но не кем", presenter.text
   end
 
   test "owner can edit and delete but not reserve" do
