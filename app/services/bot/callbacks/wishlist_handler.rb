@@ -17,7 +17,7 @@ module Bot
             context.inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists"),
             context.inline_btn(I18n.t("bot.buttons.shared_lists"), "show_shared_lists")
           ],
-          [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list") ]
+          [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", style: "primary") ]
         ])
 
         context.render(text, keyboard)
@@ -37,7 +37,7 @@ module Bot
         buttons = lists.map do |list|
           [ context.inline_btn("#{list.title.truncate(40)} · #{list.items.size}", "open_list:#{list.id}") ]
         end
-        buttons << [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list") ]
+        buttons << [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", style: "primary") ]
         buttons << [ context.inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ]
 
         context.render(text, context.build_keyboard(buttons))
@@ -79,7 +79,7 @@ module Bot
 
         keyboard = context.build_keyboard([
           [ context.inline_btn(I18n.t("bot.buttons.rename_list"), "rename_list:#{wishlist.id}") ],
-          [ context.inline_btn(I18n.t("bot.buttons.delete_list"), "confirm_delete_list:#{wishlist.id}") ],
+          [ context.inline_btn(I18n.t("bot.buttons.delete_list"), "confirm_delete_list:#{wishlist.id}", style: "danger") ],
           [ context.inline_btn(I18n.t("bot.buttons.back_to_list"), "open_list:#{wishlist.id}") ]
         ])
 
@@ -91,7 +91,7 @@ module Bot
 
         keyboard = context.build_keyboard([
           [
-            context.inline_btn(I18n.t("bot.buttons.confirm_delete"), "delete_list:#{wishlist.id}"),
+            context.inline_btn(I18n.t("bot.buttons.confirm_delete"), "delete_list:#{wishlist.id}", style: "danger"),
             context.inline_btn(I18n.t("bot.buttons.cancel"), "list_settings:#{wishlist.id}")
           ]
         ])

@@ -48,7 +48,7 @@ en:
         progress: "%{reserved} of %{total} picked"
         mine: " · your reservations: %{number}"
       list:
-        owner_progress: "Friends picked %{reserved} of %{total} gifts"
+        owner_progress: "Friends already picked %{reserved} of %{total}"
         guest_progress: "%{reserved} of %{total} already picked"
         owner_empty: "Empty so far. Add your first gift!"
         guest_empty: "Nothing here yet."

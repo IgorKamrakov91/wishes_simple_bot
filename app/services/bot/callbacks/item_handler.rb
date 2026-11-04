@@ -67,7 +67,7 @@ module Bot
 
         keyboard = context.build_keyboard([
           [
-            context.inline_btn(I18n.t("bot.buttons.confirm_delete"), "delete_item:#{item.id}"),
+            context.inline_btn(I18n.t("bot.buttons.confirm_delete"), "delete_item:#{item.id}", style: "danger"),
             context.inline_btn(I18n.t("bot.buttons.cancel"), "open_item:#{item.id}")
           ]
         ])

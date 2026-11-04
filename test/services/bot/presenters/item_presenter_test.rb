@@ -45,6 +45,7 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     presenter = presenter_for(@viewer)
 
     assert_includes callbacks(presenter), "toggle_reserve:#{@item.id}"
+    assert_equal "success", button_rows(presenter).first.first.style
     refute_includes callbacks(presenter), "edit_item:#{@item.id}"
     assert_equal "https://www.apple.com/iphone", button_rows(presenter)[1].first.url
     assert_match "Owner не узнает", presenter.text
@@ -56,6 +57,8 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     refute_includes callbacks(presenter), "toggle_reserve:#{@item.id}"
     assert_includes callbacks(presenter), "edit_item:#{@item.id}"
     assert_includes callbacks(presenter), "confirm_delete_item:#{@item.id}"
+    delete_button = button_rows(presenter).flatten.find { |b| b.callback_data == "confirm_delete_item:#{@item.id}" }
+    assert_equal "danger", delete_button.style
     assert_match "пока никто не выбрал", presenter.text
   end
 
