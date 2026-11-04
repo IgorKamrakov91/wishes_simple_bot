@@ -14,9 +14,26 @@ class Item < ApplicationRecord
   validates :title, presence: true
   validates :title, length: { maximum: TITLE_LIMIT }, if: :title_changed?
   validates :description, length: { maximum: DESCRIPTION_LIMIT }, if: :description_changed?
-  validates :url, length: { maximum: URL_LIMIT }, format: { with: %r{\Ahttps?://[^\s/]+\.[^\s]*\z}i },
-                  allow_nil: true, if: :url_changed?
+  validates :url, length: { maximum: URL_LIMIT }, allow_nil: true, if: :url_changed?
+  validate :url_opens_in_a_browser, if: -> { url.present? && url_changed? }
   validates :price, numericality: { greater_than: 0, less_than: PRICE_LIMIT, allow_nil: true }
+
+  # The same parsing decides whether a link is accepted and whether the card
+  # can show it as a store button. Letters outside ASCII in the path (as
+  # copied from an address bar) are percent-encoded; the host must be ASCII.
+  def self.web_uri(value)
+    text = value.to_s.strip
+    return if text.empty?
+
+    uri = URI.parse(text.gsub(/[^\x00-\x7F]+/) { |part| ERB::Util.url_encode(part) })
+    uri if uri.is_a?(URI::HTTP) && uri.host.to_s.match?(/\A[a-z0-9-]+(\.[a-z0-9-]+)+\z/i)
+  rescue URI::Error
+    nil
+  end
+
+  def web_uri
+    self.class.web_uri(url)
+  end
 
   def reserver
     User.find_by(telegram_id: reserved_by) if reserved?
@@ -52,5 +69,9 @@ class Item < ApplicationRecord
 
     reload
     changed
+  end
+
+  def url_opens_in_a_browser
+    errors.add(:url, :invalid) unless web_uri
   end
 end
