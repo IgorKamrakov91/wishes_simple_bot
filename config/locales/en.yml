@@ -61,6 +61,9 @@ en:
       skip: "Skip"
       skip_url: "Save without a link"
       open_private_chat: "Open bot"
+      add_price: "Add price"
+      add_description: "Add description"
+      open_item: "Open gift"
     fields:
       title: "Title"
       description: "Description"
@@ -127,7 +130,7 @@ en:
       enter_list_name: "Enter list name:"
       enter_new_list_name: "Enter new list name:"
       list_deleted: "List deleted"
-      enter_item_name: "Enter gift name:"
+      enter_item_name: "Send the gift name or a link to it:"
       what_to_edit: "What do you want to change in «%{title}»?"
       enter_new_value: "Enter new value for «%{field}»:"
       already_reserved: "Someone else has already reserved this gift"
@@ -144,6 +147,7 @@ en:
       error: "Something went wrong. Please try again."
       not_available: "This list or gift was deleted or is no longer available."
       private_chat_only: "Manage lists and reserve gifts in a private chat with the bot."
+      name_linked_item: "What is the gift called? Once you send a name, I'll add it with this link to “%{list}”."
     notifications:
       own_reserved: "Someone reserved “%{title}” in your list “%{list}”. We don’t say who."
       own_released: "The reservation of “%{title}” in your list “%{list}” was released, it is free again."

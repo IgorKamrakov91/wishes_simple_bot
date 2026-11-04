@@ -27,7 +27,7 @@ module Bot
           create_list
         when "renaming_list"
           rename_list
-        when "adding_item"
+        when "adding_item", "adding_item_title"
           create_item
         when "adding_item_url"
           save_item(item_field_value("url", text))
@@ -70,11 +70,41 @@ module Bot
       Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
     end
 
-    # The gift stays a draft in the payload until its link is given or
-    # skipped: cancelling on the way publishes nothing.
+    # The gift stays a draft until its name and optional link are settled.
+    # Cancelling on the way publishes nothing.
     def create_item
-      wishlist = user.wishlists.find(user.bot_payload["wishlist_id"])
-      # Check the name now rather than after the link step
+      prompt = nil
+      item = nil
+      user.with_lock do
+        next unless %w[adding_item adding_item_title].include?(user.bot_state)
+
+        wishlist = user.wishlists.find(user.bot_payload["wishlist_id"])
+        if link_input?(text)
+          prompt = draft_with_url(wishlist, item_field_value("url", text))
+        elsif user.bot_state == "adding_item_title"
+          item = wishlist.items.create!(title: text, url: user.bot_payload["url"])
+          user.clear_state!
+        else
+          prompt = draft_with_title(wishlist)
+        end
+      end
+
+      context.render(*prompt) if prompt
+      show_saved_item(item) if item
+    end
+
+    def draft_with_url(wishlist, url)
+      # This name is only for validating the URL with the model's contract;
+      # no gift is published until the user gives it a name.
+      Item.new(wishlist: wishlist, title: "Draft", url: url).validate!
+      user.update!(bot_state: "adding_item_title",
+                   bot_payload: { "wishlist_id" => wishlist.id, "url" => url })
+      [ I18n.t("bot.messages.name_linked_item", list: escape_html(wishlist.title.to_s.truncate(100))),
+        build_keyboard([ [ inline_btn(I18n.t("bot.buttons.cancel"), "open_list:#{wishlist.id}") ] ]) ]
+    end
+
+    def draft_with_title(wishlist)
+      # Check the name now rather than after the link step.
       wishlist.items.build(title: text).validate!
 
       # The letter prefix keeps the id a string: routing turns all-digit captures into numbers
@@ -86,36 +116,55 @@ module Bot
         [ inline_btn(I18n.t("bot.buttons.skip_url"), "skip_item_url:#{draft_id}", style: "primary") ],
         [ inline_btn(I18n.t("bot.buttons.cancel"), "open_list:#{wishlist.id}") ]
       ])
-      context.render(I18n.t("bot.messages.enter_item_url", title: escape_html(text), list: escape_html(wishlist.title)), keyboard)
+      [ I18n.t("bot.messages.enter_item_url", title: escape_html(text), list: escape_html(wishlist.title.to_s.truncate(100))), keyboard ]
     end
 
     # Saving the gift and ending the input happen together under a lock on
     # the user, so two quick answers can't save the draft twice
     def save_item(url)
-      wishlist_id = nil
+      item = nil
 
       user.with_lock do
         payload = user.bot_payload
         next unless user.bot_state == "adding_item_url" && payload
 
-        wishlist_id =
+        item =
           if payload.key?("item_id")
             # Started before drafts: the gift is already saved
             item = user.items.find(payload["item_id"])
             item.update!(url: url)
-            item.wishlist_id
+            item
           else
             wishlist = user.wishlists.find(payload["wishlist_id"])
             wishlist.items.create!(title: payload["title"], url: url)
-            wishlist.id
           end
 
         user.clear_state!
       end
-      return unless wishlist_id
+      show_saved_item(item) if item
+    end
 
-      keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn(I18n.t("bot.buttons.add_more"), "add_item:#{wishlist_id}") ], [ inline_btn(I18n.t("bot.buttons.open_list"), "open_list:#{wishlist_id}") ] ])
-      context.render(I18n.t("bot.messages.item_added"), keyboard)
+    def link_input?(value)
+      value = value.to_s.strip
+      return true if value.match?(%r{\Ahttps?://}i)
+      return false unless user.bot_state == "adding_item"
+
+      # Inspect the original input before URL-field normalization turns a
+      # dotted name such as Lego.Technic into an https URL. Bare links need
+      # a path, and are accepted only before we explicitly ask for a name.
+      value.match?(%r{\A[a-z][a-z0-9+.-]*://}i) || (BARE_LINK.match?(value) && value.include?("/"))
+    end
+
+    def show_saved_item(item)
+      details = []
+      details << inline_btn(I18n.t("bot.buttons.add_price"), "edit_item_field:price:#{item.id}") unless item.price
+      details << inline_btn(I18n.t("bot.buttons.add_description"), "edit_item_field:description:#{item.id}") if item.description.blank?
+      rows = []
+      rows << details if details.any?
+      rows << [ inline_btn(I18n.t("bot.buttons.open_item"), "open_item:#{item.id}") ]
+      rows << [ inline_btn(I18n.t("bot.buttons.add_more"), "add_item:#{item.wishlist_id}") ]
+      rows << [ inline_btn(I18n.t("bot.buttons.open_list"), "open_list:#{item.wishlist_id}") ]
+      context.render(I18n.t("bot.messages.item_added"), build_keyboard(rows))
     end
 
     def update_item_field
@@ -171,7 +220,7 @@ module Bot
       case user.bot_state
       when "creating_list" then "show_lists"
       when "renaming_list" then "list_settings:#{payload['wishlist_id']}"
-      when "adding_item", "adding_item_url" then "open_list:#{payload['wishlist_id']}"
+      when "adding_item", "adding_item_url", "adding_item_title" then "open_list:#{payload['wishlist_id']}"
       when "editing_item" then "open_item:#{payload['item_id']}"
       end
     end
