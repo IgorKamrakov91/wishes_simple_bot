@@ -15,24 +15,20 @@ class BotReservationCallbacksTest < ActiveSupport::TestCase
     @item = @wishlist.items.create!(title: "Puzzle")
     @screens = []
     @notices = []
-    @notifications = []
     @api = mock("TelegramApi")
     @api.stubs(:edit_message_text).with { |params| @screens << params; true }
     @api.stubs(:answer_callback_query).with { |params| @notices << params[:text]; true }
     @bot = mock("TelegramBot")
     @bot.stubs(:api).returns(@api)
-    Bot::Callbacks::ItemHandler.any_instance.stubs(:notify_viewers).with do |list, message|
-      @notifications << [ list.id, message ]
-      true
-    end
+    Telegram::Bot::Client.expects(:new).never
+    ReservedGiftDeletedJob.expects(:perform_later).never
   end
 
-  test "replayed reserve keeps the booking and sends one notification" do
+  test "replayed reserve keeps the booking without notifying viewers" do
     2.times { press("reserve_item:#{@item.id}:0") }
 
     assert_equal @guest.telegram_id, @item.reload.reserved_by
     assert_equal 1, @item.reservation_version
-    assert_equal 1, @notifications.size
     assert_equal [ I18n.t("bot.messages.reserved_notice") ] * 2, @notices
     assert_includes @screens.last[:text], I18n.t("bot.screens.item.guest_mine")
     assert_includes current_callbacks, "unreserve_item:#{@item.id}:1"
@@ -45,18 +41,16 @@ class BotReservationCallbacksTest < ActiveSupport::TestCase
 
     assert_equal @other.telegram_id, @item.reload.reserved_by
     assert_equal 1, @item.reservation_version
-    assert_empty @notifications
     assert_equal [ I18n.t("bot.messages.already_reserved") ] * 2, @notices
     assert current_callbacks.none? { |data| data.start_with?("reserve_item:", "unreserve_item:") }
   end
 
-  test "replayed release leaves the gift free and sends one notification" do
+  test "replayed release leaves the gift free without notifying viewers" do
     @item.reserve_for!(@guest)
     2.times { press("unreserve_item:#{@item.id}:1") }
 
     assert_nil @item.reload.reserved_by
     assert_equal 2, @item.reservation_version
-    assert_equal 1, @notifications.size
     assert_equal [ I18n.t("bot.messages.unreserved_notice") ] * 2, @notices
     assert_includes current_callbacks, "reserve_item:#{@item.id}:2"
   end
@@ -72,7 +66,6 @@ class BotReservationCallbacksTest < ActiveSupport::TestCase
     press("unreserve_item:#{@item.id}:1")
     assert_equal @guest.telegram_id, @item.reload.reserved_by
     assert_equal 3, @item.reservation_version
-    assert_equal 3, @notifications.size
     assert_equal I18n.t("bot.messages.reservation_changed"), @notices.last
     assert_includes current_callbacks, "unreserve_item:#{@item.id}:3"
   end
@@ -85,7 +78,6 @@ class BotReservationCallbacksTest < ActiveSupport::TestCase
     press("unreserve_item:#{@item.id}:1", user: @owner)
     assert_equal @guest.telegram_id, @item.reload.reserved_by
     assert_equal [ I18n.t("bot.messages.cannot_reserve_own") ] * 2, @notices
-    assert_empty @notifications
   end
 
   test "legacy toggle buttons only refresh free and reserved gifts" do
@@ -99,7 +91,6 @@ class BotReservationCallbacksTest < ActiveSupport::TestCase
     assert_equal @guest.telegram_id, @item.reload.reserved_by
     assert_equal 1, @item.reservation_version
     assert_includes current_callbacks, "unreserve_item:#{@item.id}:1"
-    assert_empty @notifications
   end
 
   test "a guessed reserve callback cannot book a gift or grant list access" do
@@ -115,7 +106,6 @@ class BotReservationCallbacksTest < ActiveSupport::TestCase
     assert_equal 0, @item.reservation_version
     assert_not @wishlist.has_viewer?(stranger)
     assert_empty @screens
-    assert_empty @notifications
   end
 
   private
