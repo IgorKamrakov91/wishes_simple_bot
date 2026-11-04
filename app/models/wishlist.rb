@@ -1,3 +1,5 @@
+require "cgi"
+
 class Wishlist < ApplicationRecord
   belongs_to :user
   has_many :items, -> { order(:id) }, dependent: :destroy

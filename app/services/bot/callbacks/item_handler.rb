@@ -3,8 +3,6 @@
 module Bot
   module Callbacks
     class ItemHandler < BaseHandler
-      EDITABLE_FIELDS = %w[title description url price].freeze
-
       def show_item(item_id)
         item = Item.includes(wishlist: :user).find(item_id)
         presenter = Presenters::ItemPresenter.new(item, user, context)
@@ -18,9 +16,9 @@ module Bot
       end
 
       def edit_item_menu(item_id)
-        item = owned_item(item_id)
+        item = user.items.find(item_id)
 
-        buttons = EDITABLE_FIELDS.map do |field|
+        buttons = Item::EDITABLE_FIELDS.map do |field|
           context.inline_btn(I18n.t("bot.fields.#{field}"), "edit_item_field:#{field}:#{item.id}")
         end
         keyboard = context.build_keyboard([
@@ -32,9 +30,9 @@ module Bot
       end
 
       def edit_item_field_prompt(field, item_id)
-        return unless EDITABLE_FIELDS.include?(field)
+        item = user.items.find(item_id)
+        return context.send_text(I18n.t("bot.messages.error")) unless Item::EDITABLE_FIELDS.include?(field)
 
-        item = owned_item(item_id)
         user.update!(
           bot_state: "editing_item",
           bot_payload: { item_id: item.id, field: field }
@@ -49,14 +47,14 @@ module Bot
 
         if wishlist.user_id == user.id
           context.notice = I18n.t("bot.messages.cannot_reserve_own")
-        elsif item.reserved_by && item.reserved_by != user.telegram_id
+        elsif item.reserved_by_other?(user)
           context.notice = I18n.t("bot.messages.already_reserved")
-        elsif item.reserved_by == user.telegram_id
-          item.update!(reserved_by: nil)
+        elsif item.reserved_by?(user)
+          item.release_reservation!
           context.notice = I18n.t("bot.messages.unreserved_notice")
           notify_viewers(wishlist, I18n.t("bot.messages.reserve_lifted", title: item.title, list_title: wishlist.title, list_owner: wishlist.owner.full_name))
         else
-          item.update!(reserved_by: user.telegram_id)
+          item.reserve_for!(user)
           context.notice = I18n.t("bot.messages.reserved_notice")
           notify_viewers(wishlist, I18n.t("bot.messages.reserved_by", title: item.title, list_title: wishlist.title, user: "@#{user.full_name}"))
         end
@@ -65,7 +63,7 @@ module Bot
       end
 
       def confirm_delete_item(item_id)
-        item = owned_item(item_id)
+        item = user.items.find(item_id)
 
         keyboard = context.build_keyboard([
           [
@@ -78,24 +76,18 @@ module Bot
       end
 
       def delete_item(item_id)
-        item = owned_item(item_id)
+        item = user.items.find(item_id)
         wishlist = item.wishlist
         item_title = item.title
         page = Presenters::WishlistPresenter.page_of(wishlist.items.pluck(:id).index(item.id).to_i)
 
         item.destroy!
 
-        notify_viewers(wishlist, I18n.t("bot.messages.item_deleted", title: item_title))
+        # Disable notification about item deletion
+        # notify_viewers(wishlist, I18n.t("bot.messages.item_deleted", title: item_title))
 
         context.notice = I18n.t("bot.messages.item_deleted_success")
         WishlistHandler.new(context).open_list(wishlist.id, page)
-      end
-
-      private
-
-      # Only the list owner may change or delete its items
-      def owned_item(item_id)
-        Item.joins(:wishlist).where(wishlists: { user_id: user.id }).find(item_id)
       end
     end
   end

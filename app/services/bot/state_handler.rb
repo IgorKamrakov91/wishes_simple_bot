@@ -25,6 +25,8 @@ module Bot
       when "editing_item"
         update_item_field
       end
+    rescue ActiveRecord::RecordInvalid
+      context.send_text(I18n.t("bot.messages.error"))
     end
 
     private
@@ -52,9 +54,9 @@ module Bot
     end
 
     def create_item_url
-      item = Item.find(user.bot_payload["item_id"])
-      wishlist_id = user.bot_payload["wishlist_id"]
-      url = text == "-" ? nil : text
+      item = user.items.find(user.bot_payload["item_id"])
+      wishlist_id = item.wishlist_id
+      url = optional_text_value(text)
       item.update!(url: url)
       user.clear_state!
       keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn(I18n.t("bot.buttons.add_more"), "add_item:#{wishlist_id}") ], [ inline_btn(I18n.t("bot.buttons.open_list"), "open_list:#{wishlist_id}") ] ])
@@ -62,13 +64,27 @@ module Bot
     end
 
     def update_item_field
-      item = Item.find(user.bot_payload["item_id"])
+      item = user.items.find(user.bot_payload["item_id"])
       field = user.bot_payload["field"]
-      # "6 000,50" -> 6000.5
-      value = (field == "price") ? text.gsub(/[[:space:]]/, "").tr(",", ".").to_f : text
+      return context.send_text(I18n.t("bot.messages.error")) unless Item::EDITABLE_FIELDS.include?(field)
+
+      value = item_field_value(field, text)
       item.update!(field => value)
       user.clear_state!
       Callbacks::ItemHandler.new(context).show_item(item.id)
+    end
+
+    def item_field_value(field, value)
+      normalized_value = optional_text_value(value)
+      return nil if normalized_value.nil?
+
+      # "6 000,50" -> "6000.50"
+      field == "price" ? normalized_value.gsub(/[[:space:]]/, "").tr(",", ".") : normalized_value
+    end
+
+    def optional_text_value(value)
+      normalized_value = value.to_s.strip
+      normalized_value.presence unless normalized_value == "-"
     end
   end
 end

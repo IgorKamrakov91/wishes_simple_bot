@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "cgi"
+
 module Bot
   module Callbacks
     class WishlistHandler < BaseHandler

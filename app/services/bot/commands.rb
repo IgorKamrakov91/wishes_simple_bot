@@ -1,5 +1,7 @@
 module Bot
   class Commands
+    START_SHARED_LIST_PATTERN = %r{\A/start list_(\d+)\z}
+
     extend Bot::Helpers
 
     class << self
@@ -14,11 +16,15 @@ module Bot
         end
 
         # Otherwise, handle as a command
-        Rails.logger.info "Bot::Commands received text: '#{context.text.inspect}'"
-        case context.text
-        when /^\/start list_(\d+)$/
-          wishlist_id = context.text.match(/^\/start list_(\d+)$/)[1].to_i
-          handle_shared_list(context, wishlist_id)
+        text = context.text
+        Rails.logger.info "Bot::Commands received text: #{text.inspect}"
+
+        if (match = START_SHARED_LIST_PATTERN.match(text))
+          handle_shared_list(context, match[1].to_i)
+          return
+        end
+
+        case text
         when "/start"
           handle_start(context)
         when "/help"

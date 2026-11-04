@@ -111,4 +111,16 @@ class BotWishlistHandlerTest < ActiveSupport::TestCase
       Bot::Callbacks::WishlistHandler.new(build_context).delete_list(wishlist.id)
     end
   end
+
+  test "open_list escapes html-sensitive list title in header" do
+    wishlist = Wishlist.create!(user: @user, title: "Party <script> & Friends")
+    context = build_context
+    rendered = capture_render(context)
+
+    Bot::Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
+    header_text = rendered[:text]
+
+    assert_includes header_text, "Party &lt;script&gt; &amp; Friends"
+    refute_includes header_text, "Party <script> & Friends"
+  end
 end

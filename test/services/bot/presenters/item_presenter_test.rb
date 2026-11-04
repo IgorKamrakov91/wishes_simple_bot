@@ -106,6 +106,13 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     assert presenter.link_preview_options.is_disabled
   end
 
+  test "renders reserved item with fallback label when reserver no longer exists" do
+    @item.update!(reserved_by: 999_999)
+    text = presenter_for(@viewer).text
+
+    assert_match "<tg-spoiler>#{I18n.t("bot.presenters.item.unknown_reserver")}</tg-spoiler>", text
+  end
+
   test "escapes HTML special characters in fields" do
     @item.update!(title: "Me & You <3", description: "Quote: \"Hello\"")
     text = presenter_for(@viewer).text

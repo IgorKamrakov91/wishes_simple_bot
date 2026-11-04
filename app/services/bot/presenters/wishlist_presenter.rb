@@ -81,7 +81,7 @@ module Bot
 
       def item_marker(item)
         return "" unless item.reserved?
-        return "★ " if !owner? && item.reserved_by == user.telegram_id
+        return "★ " if !owner? && item.reserved_by?(user)
 
         "✓ "
       end

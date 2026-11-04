@@ -66,7 +66,9 @@ module Bot
 
       def reserver_label
         reserver = item.reserver
-        reserver&.username ? "@#{reserver.username}" : reserver&.first_name
+        return t("bot.presenters.item.unknown_reserver") unless reserver
+
+        reserver.username.present? ? "@#{reserver.username}" : reserver.full_name
       end
 
       def buttons
@@ -130,11 +132,18 @@ module Bot
       end
 
       def reserved_by_me?
-        item.reserved_by == user.telegram_id
+        item.reserved_by?(user)
       end
 
       def owner?
         wishlist.user_id == user.id
+      end
+
+      def reserver_label
+        reserver = item.reserver
+        return I18n.t("bot.presenters.item.unknown_reserver") unless reserver
+
+        reserver.username.present? ? "@#{reserver.username}" : reserver.full_name
       end
     end
   end
