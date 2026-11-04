@@ -16,6 +16,10 @@ module Bot
 
       private
 
+      def cancel_keyboard(callback_data)
+        context.build_keyboard([ [ context.inline_btn(I18n.t("bot.buttons.cancel"), callback_data) ] ])
+      end
+
       def notify_viewers(wishlist, message)
         return if wishlist.list_viewers.empty?
 

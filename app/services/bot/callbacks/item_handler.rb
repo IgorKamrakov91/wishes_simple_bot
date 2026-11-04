@@ -12,7 +12,7 @@ module Bot
       def add_item_prompt(wishlist_id)
         user.wishlists.find(wishlist_id)
         user.start_adding_item!(wishlist_id: wishlist_id)
-        context.send_text(I18n.t("bot.messages.enter_item_name"))
+        context.render(I18n.t("bot.messages.enter_item_name"), cancel_keyboard("open_list:#{wishlist_id}"))
       end
 
       def edit_item_menu(item_id)
@@ -38,7 +38,17 @@ module Bot
           bot_payload: { item_id: item.id, field: field }
         )
 
-        context.send_text(I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.#{field}")))
+        context.render(
+          I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.#{field}")),
+          cancel_keyboard("open_item:#{item.id}")
+        )
+      end
+
+      # Finishes adding a gift without a link
+      def skip_item_url
+        return unless user.bot_state == "adding_item_url"
+
+        StateHandler.new(context).handle
       end
 
       def toggle_reserve(item_id)

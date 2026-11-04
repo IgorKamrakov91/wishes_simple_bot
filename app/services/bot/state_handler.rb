@@ -50,7 +50,8 @@ module Bot
       wishlist = user.wishlists.find(wishlist_id)
       item = wishlist.items.create!(title: text)
       user.update!(bot_state: "adding_item_url", bot_payload: { "item_id" => item.id, "wishlist_id" => wishlist.id })
-      context.send_text(I18n.t("bot.messages.enter_item_url"))
+      keyboard = build_keyboard([ [ inline_btn(I18n.t("bot.buttons.skip"), "skip_item_url") ] ])
+      context.send_text(I18n.t("bot.messages.enter_item_url"), keyboard)
     end
 
     def create_item_url
@@ -60,7 +61,7 @@ module Bot
       item.update!(url: url)
       user.clear_state!
       keyboard = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [ [ inline_btn(I18n.t("bot.buttons.add_more"), "add_item:#{wishlist_id}") ], [ inline_btn(I18n.t("bot.buttons.open_list"), "open_list:#{wishlist_id}") ] ])
-      context.send_text(I18n.t("bot.messages.item_added"), keyboard)
+      context.render(I18n.t("bot.messages.item_added"), keyboard)
     end
 
     def update_item_field
