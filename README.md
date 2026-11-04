@@ -115,7 +115,18 @@ Interact with the bot directly on Telegram.
 - Use commands like `/start` to begin.
 - Follow the bot's conversational prompts to create wishlists, add items, and share.
 
+## Reservation notifications
+
+Reservation deletion notifications run in the `notifications` queue through Solid Queue,
+outside the button response. To verify delivery after a deploy, use two test accounts:
+reserve a gift, then delete it as the owner. `bin/kamal logs` should show
+`Enqueued ReservedGiftDeletedJob`, then `Performing` / `Performed`, and only the reserver
+should receive a message. Enqueue alone does not prove the worker ran: check
+`SOLID_QUEUE_IN_PUMA` and the queue database if execution never starts. A Telegram 403
+(the recipient blocked the bot) is logged without retrying.
+
 ## Running Tests
+
 ```bash
 bundle exec rails test
 ```

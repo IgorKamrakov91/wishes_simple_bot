@@ -78,7 +78,6 @@ module Bot
           context.notice = I18n.t("bot.messages.cannot_reserve_own")
         elsif item.reserve_for!(user, expected_version: reservation_version)
           context.notice = I18n.t("bot.messages.reserved_notice")
-          notify_viewers(wishlist, I18n.t("bot.messages.reserved_by", title: item.title, list_title: wishlist.title, user: "@#{user.full_name}"))
         elsif item.reserved_by?(user)
           context.notice = I18n.t("bot.messages.reserved_notice")
         elsif item.reserved_by_other?(user)
@@ -98,7 +97,6 @@ module Bot
           context.notice = I18n.t("bot.messages.cannot_reserve_own")
         elsif item.release_for!(user, expected_version: reservation_version)
           context.notice = I18n.t("bot.messages.unreserved_notice")
-          notify_viewers(wishlist, I18n.t("bot.messages.reserve_lifted", title: item.title, list_title: wishlist.title, list_owner: wishlist.owner.full_name))
         elsif !item.reserved?
           context.notice = I18n.t("bot.messages.unreserved_notice")
         elsif item.reserved_by_other?(user)
@@ -134,13 +132,9 @@ module Bot
       def delete_item(item_id)
         item = user.items.find(item_id)
         wishlist = item.wishlist
-        item_title = item.title
         page = Presenters::WishlistPresenter.page_of(wishlist.items.pluck(:id).index(item.id).to_i)
 
-        item.destroy!
-
-        # Disable notification about item deletion
-        # notify_viewers(wishlist, I18n.t("bot.messages.item_deleted", title: item_title))
+        ReservationDeletion.destroy_item!(item)
 
         context.notice = I18n.t("bot.messages.item_deleted_success")
         WishlistHandler.new(context).open_list(wishlist.id, page)

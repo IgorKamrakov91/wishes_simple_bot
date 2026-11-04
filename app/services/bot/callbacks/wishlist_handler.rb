@@ -101,7 +101,7 @@ module Bot
 
       def delete_list(wishlist_id)
         wishlist = user.wishlists.find(wishlist_id)
-        wishlist.destroy!
+        ReservationDeletion.destroy_list!(wishlist)
 
         context.notice = I18n.t("bot.messages.list_deleted")
         show_lists
