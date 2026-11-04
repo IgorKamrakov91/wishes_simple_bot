@@ -90,7 +90,8 @@ en:
       button_outdated: "This button no longer works"
       input_target_gone: "This list or gift no longer exists, so nothing was saved."
       item_added: "Gift added!"
-      error: "An error occurred. Please try again."
+      error: "Something went wrong. Please try again."
+      not_available: "This list or gift was deleted or is no longer available."
     presenters:
       item:
         unknown_reserver: "Unknown user"
