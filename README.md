@@ -102,8 +102,12 @@ does that; if the hook failed (the deploy itself still counts as done), register
 bin/kamal app exec --reuse "bin/rails telegram:set_webhook"
 ```
 Then send the bot a message to check it answers. Telegram retries rejected updates for a limited,
-unspecified time, so updates sent while the webhook was broken may be lost; if the gap was long, roll back
-with `bin/kamal rollback` instead of waiting.
+unspecified time, so updates sent while the webhook was broken may be lost.
+
+Rolling back to a version from before the secret check is not a safe fix: that image has no
+`telegram:set_webhook` task, so the post-deploy hook fails, and the old app accepts updates without
+checking the secret, i.e. forged updates work again. Treat such a rollback as a short emergency measure
+and deploy a fixed version as soon as possible.
 
 ## Usage
 Interact with the bot directly on Telegram.
