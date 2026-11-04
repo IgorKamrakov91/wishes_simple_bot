@@ -47,9 +47,70 @@ class BotPendingInputTest < ActiveSupport::TestCase
     @user.start_adding_item!(wishlist_id: @wishlist.id)
     @api.stubs(:send_message)
 
-    assert_difference("Item.count", 1) do
+    Bot::Commands.handle(@bot, text_message("Puzzle"))
+
+    assert_equal "adding_item_url", @user.reload.bot_state
+    assert_equal "Puzzle", @user.bot_payload["title"]
+  end
+
+  test "a gift is not published before its link step is finished" do
+    @user.start_adding_item!(wishlist_id: @wishlist.id)
+    @api.stubs(:send_message)
+
+    assert_no_difference("Item.count") do
       Bot::Commands.handle(@bot, text_message("Puzzle"))
     end
+  end
+
+  test "cancelling at the link step publishes nothing" do
+    start_draft("Puzzle")
+    Bot::Callbacks::WishlistHandler.any_instance.expects(:open_list).with(@wishlist.id)
+
+    assert_no_difference("Item.count") do
+      Bot::Callbacks.handle(@bot, callback("open_list:#{@wishlist.id}"))
+    end
+    assert_nil @user.reload.bot_state
+  end
+
+  test "a link finishes the draft" do
+    start_draft("Puzzle")
+    @api.stubs(:send_message)
+
+    assert_difference("Item.count", 1) do
+      Bot::Commands.handle(@bot, text_message("https://example.com/puzzle"))
+    end
+    item = @wishlist.items.last
+    assert_equal [ "Puzzle", "https://example.com/puzzle" ], [ item.title, item.url ]
+    assert_nil @user.reload.bot_state
+  end
+
+  test "the link prompt names the gift and the list" do
+    @user.start_adding_item!(wishlist_id: @wishlist.id)
+    @api.expects(:send_message).with do |params|
+      buttons = params[:reply_markup].inline_keyboard.flatten
+      params[:text].include?("«Puzzle &amp; co»") && params[:text].include?("«Birthday»") &&
+        buttons.map(&:callback_data) == [ "skip_item_url:#{@user.reload.bot_payload['draft_id']}", "open_list:#{@wishlist.id}" ]
+    end
+
+    Bot::Commands.handle(@bot, text_message("Puzzle & co"))
+  end
+
+  test "a list deleted while typing ends the input with an explanation" do
+    start_draft("Puzzle")
+    @wishlist.destroy!
+    @api.expects(:send_message).with { |params| params[:text] == I18n.t("bot.messages.input_target_gone") }
+
+    assert_no_difference("Item.count") do
+      Bot::Commands.handle(@bot, text_message("https://example.com/puzzle"))
+    end
+    assert_nil @user.reload.bot_state
+  end
+
+  test "the page counter button keeps the pending input" do
+    start_draft("Puzzle")
+
+    Bot::Callbacks.handle(@bot, callback("noop"))
+
     assert_equal "adding_item_url", @user.reload.bot_state
   end
 
@@ -74,7 +135,18 @@ class BotPendingInputTest < ActiveSupport::TestCase
     assert_equal "adding_item", @user.reload.bot_state
   end
 
-  test "skip finishes adding a gift without a link" do
+  test "skip saves the draft without a link" do
+    draft_id = start_draft("Puzzle")
+    @api.expects(:edit_message_text).with { |params| params[:text] == I18n.t("bot.messages.item_added") }
+
+    assert_difference("Item.count", 1) do
+      Bot::Callbacks.handle(@bot, callback("skip_item_url:#{draft_id}"))
+    end
+    assert_nil @wishlist.items.last.url
+    assert_nil @user.reload.bot_state
+  end
+
+  test "skip still finishes a gift started before drafts" do
     item = @wishlist.items.create!(title: "Puzzle", url: nil)
     @user.update!(bot_state: "adding_item_url", bot_payload: { "item_id" => item.id, "wishlist_id" => @wishlist.id })
     @api.expects(:edit_message_text).with { |params| params[:text] == I18n.t("bot.messages.item_added") }
@@ -88,7 +160,27 @@ class BotPendingInputTest < ActiveSupport::TestCase
   test "a stale skip button does nothing" do
     @api.expects(:edit_message_text).never
     @api.expects(:send_message).never
+    @api.expects(:answer_callback_query).with(callback_query_id: "1", text: I18n.t("bot.messages.button_outdated"))
 
-    Bot::Callbacks.handle(@bot, callback("skip_item_url"))
+    Bot::Callbacks.handle(@bot, callback("skip_item_url:abc123"))
+  end
+
+  test "a skip button from an earlier gift doesn't save the current one" do
+    start_draft("Puzzle")
+    @api.expects(:edit_message_text).never
+
+    assert_no_difference("Item.count") do
+      Bot::Callbacks.handle(@bot, callback("skip_item_url:olddraft"))
+    end
+    assert_equal "adding_item_url", @user.reload.bot_state
+  end
+
+  private
+
+  def start_draft(title)
+    draft_id = "d#{SecureRandom.hex(3)}"
+    @user.update!(bot_state: "adding_item_url",
+                  bot_payload: { "wishlist_id" => @wishlist.id, "title" => title, "draft_id" => draft_id })
+    draft_id
   end
 end

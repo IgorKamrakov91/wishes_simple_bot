@@ -60,12 +60,12 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     assert_equal payload, @user.bot_payload
   end
 
-  test "blank new item title preserves the adding item state" do
+  test "blank new item title asks for the name again" do
     wishlist = @user.wishlists.create!(title: "Birthday")
     payload = { "wishlist_id" => wishlist.id }
     @user.update!(bot_state: "adding_item", bot_payload: payload)
     context = context_for("   ")
-    context.expects(:send_text).with(I18n.t("bot.messages.error"))
+    context.expects(:send_text).with(I18n.t("bot.messages.enter_item_name"))
 
     assert_no_difference("Item.count") do
       Bot::StateHandler.new(context).handle

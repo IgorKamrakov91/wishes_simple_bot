@@ -22,11 +22,11 @@ module Bot
       /^toggle_reserve:(\d+)$/ => "Callbacks::ItemHandler#toggle_reserve",
       /^confirm_delete_item:(\d+)$/ => "Callbacks::ItemHandler#confirm_delete_item",
       /^delete_item:(\d+)$/ => "Callbacks::ItemHandler#delete_item",
-      /^skip_item_url$/ => "Callbacks::ItemHandler#skip_item_url"
+      /^skip_item_url(?::(\w+))?$/ => "Callbacks::ItemHandler#skip_item_url"
     }.freeze
 
-    # Buttons that finish the pending input instead of abandoning it
-    INPUT_CALLBACKS = %w[skip_item_url].freeze
+    # Buttons that finish the pending input or do nothing, so they keep it
+    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|noop)\z/
 
     class << self
       def handle(bot, callback)
@@ -52,7 +52,7 @@ module Bot
         context = Context.new(bot: bot, user: user, source: callback)
 
         # Pressing a button abandons any pending input, prompts start a new one
-        user.clear_state! if user.bot_state.present? && !INPUT_CALLBACKS.include?(callback.data)
+        user.clear_state! if user.bot_state.present? && !KEEP_INPUT_CALLBACKS.match?(callback.data.to_s)
 
         route_callback(context)
         bot.api.answer_callback_query(**{ callback_query_id: callback.id, text: context.notice }.compact)

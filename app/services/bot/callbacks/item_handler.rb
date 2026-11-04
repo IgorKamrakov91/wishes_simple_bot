@@ -44,9 +44,13 @@ module Bot
         )
       end
 
-      # Finishes adding a gift without a link
-      def skip_item_url
-        return unless user.bot_state == "adding_item_url"
+      # Saves the gift being added without a link. The button carries the
+      # draft id, so a button left from an earlier gift can't save this one.
+      def skip_item_url(draft_id = nil)
+        payload = user.bot_payload || {}
+        current = user.bot_state == "adding_item_url" &&
+                  (payload["draft_id"] == draft_id || (draft_id.nil? && payload.key?("item_id")))
+        return context.notice = I18n.t("bot.messages.button_outdated") unless current
 
         StateHandler.new(context).handle
       end

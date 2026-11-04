@@ -31,6 +31,7 @@ en:
       confirm_delete: "Yes, Delete"
       cancel: "Cancel"
       skip: "Skip"
+      skip_url: "Save without a link"
     fields:
       title: "Title"
       description: "Description"
@@ -84,7 +85,9 @@ en:
       item_deleted: "🗑 «%{title}» deleted"
       item_deleted_success: "Gift deleted"
       confirm_delete_item: "Delete «%{title}»?\nThis can't be undone."
-      enter_item_url: "Send a link to the gift or tap «Skip»:"
+      enter_item_url: "New gift “%{title}” in “%{list}”.\nSend a link to it. The link is optional, you can save without it."
+      button_outdated: "This button no longer works"
+      input_target_gone: "This list or gift no longer exists, so nothing was saved."
       item_added: "Gift added!"
       error: "An error occurred. Please try again."
     presenters:
