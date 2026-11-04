@@ -7,6 +7,17 @@ en:
       text_only: "I understand text and buttons. Choose what to do:"
       unrecognized_text: "I did not understand that. To add a gift, open a list and tap “+ Add gift”."
       help: |
+        How it works:
+        1. Create a list and add gifts to it.
+        2. Send it to friends with “Send to a friend” or copy the link.
+        3. Friends reserve gifts so nobody gives the same thing twice.
+
+        Who sees what:
+        • Anyone with the link can open the list, and the link can be forwarded.
+        • The list owner sees that a gift is taken, but not who reserved it.
+        • Other guests see the name of whoever reserved it, under a spoiler.
+        • Find your reservations in “My reservations”; notifications are in “Settings”.
+
         Almost everything works through the buttons under messages. Commands:
         /start — main menu
         /my — my lists
@@ -98,8 +109,8 @@ en:
         status: "Status"
         owner_reserved: "✓ someone picked it (who is a secret)"
         owner_free: "nobody picked it yet"
-        guest_free: "Available. If you reserve it, other guests will see it's taken, and %{owner} won't know who picked it."
-        guest_mine: "<b>★ This is your reservation.</b> Other guests see it's taken."
+        guest_free: "Available. If you reserve it, other guests will see it's taken and your name under a spoiler. %{owner} will only see in the bot that it's taken, not by whom."
+        guest_mine: "<b>★ This is your reservation.</b> Other guests see it's taken and your name under a spoiler."
         guest_taken: "✓ Already picked by: %{user}"
       collections:
         choose: "Choose a list:"
