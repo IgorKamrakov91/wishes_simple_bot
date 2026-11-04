@@ -16,6 +16,13 @@ en:
       list_not_found: "List not found."
       link_outdated: "This link is outdated. Ask the list owner to send you a new one."
     buttons:
+      prev_page: "← Previous"
+      next_page: "Next →"
+      prev_item: "← Previous"
+      next_item: "Next →"
+      create_first_list: "Create your first list"
+      create_own_list: "Create your own list"
+      send_to_friend: "Send to a friend"
       clear_field: "Remove value"
       my_lists: "My Lists"
       shared_lists: "Friends' Lists"
@@ -49,7 +56,11 @@ en:
       price: "Price"
     screens:
       main:
-        text: "<b>Hello, %{name}!</b>\nHere live your wishlists and the lists your friends shared with you.\n\nYour lists: <b>%{lists}</b> · gifts: <b>%{items}</b>\nFriends' lists: <b>%{shared}</b>"
+        welcome: "<b>Hi, %{name}!</b>\nI help you make a wishlist and share it with friends.\n\n1. Create a list and add gifts to it.\n2. Send the list to your friends.\n3. Friends reserve gifts so nobody gives the same thing twice."
+        greeting: "<b>Hi, %{name}!</b>\nYour wishlists and the lists friends shared with you live here."
+        own: "Your lists: <b>%{lists}</b> · gifts: <b>%{items}</b>"
+        shared: "Friends' lists: <b>%{shared}</b>"
+        own_hint: "Create your own list so friends know what to give you."
       my_lists:
         empty: "No lists yet. Create your first one!"
         no_items: "No gifts yet"
@@ -60,12 +71,14 @@ en:
         progress: "%{reserved} of %{total} picked"
         mine: " · your reservations: %{number}"
       list:
-        owner_progress: "Friends already picked %{reserved} of %{total}"
-        guest_progress: "%{reserved} of %{total} already picked"
+        owner_summary: "%{gifts} · reserved %{reserved}"
+        guest_summary: "%{gifts} · already picked %{reserved}"
+        page: "page %{page} of %{total}"
+        status_taken: "taken"
+        status_mine: "your reservation"
         owner_empty: "Empty so far. Add your first gift!"
         guest_empty: "Nothing here yet."
         hint: "Tap a gift to open its card."
-        legend: "✓ taken   ★ your reservation"
       list_settings:
         text: "<b>List settings</b>\n«%{title}»"
         confirm_delete: "Delete the list «%{title}» with all its gifts?\nThis can't be undone."
@@ -93,9 +106,6 @@ en:
       reserved_notice: "Reserved"
       unreserved_notice: "Reservation cancelled"
       reservation_changed: "Card refreshed. Check the status and use the current button."
-      reserve_lifted: "🔓 Reservation lifted from «%{title}»"
-      reserved_by: "🔒 «%{title}» / %{list_title}, reserved by user %{user}"
-      item_deleted: "🗑 «%{title}» deleted"
       item_deleted_success: "Gift deleted"
       confirm_delete_item: "Delete «%{title}»?\nThis can't be undone."
       enter_item_url: "New gift “%{title}” in “%{list}”.\nSend a link to it. The link is optional, you can save without it."
@@ -105,6 +115,9 @@ en:
       error: "Something went wrong. Please try again."
       not_available: "This list or gift was deleted or is no longer available."
       private_chat_only: "Manage lists and reserve gifts in a private chat with the bot."
+    notifications:
+      item_deleted: "The gift “%{title}” you reserved in “%{list}” (%{owner}) was deleted. Your reservation is no longer active."
+      list_deleted: "The list “%{list}” (%{owner}) with your reservations was deleted. Those reservations are no longer active."
     input_hints:
       price: "A number in rubles, e.g. 2500 or 1499.90"
       url: "A link to the product, e.g. https://ozon.ru/…"
@@ -132,6 +145,12 @@ en:
         new: "New list"
         cancel: "Cancel input"
         help: "Help"
+    inline:
+      open: "Open wishlist"
+      card: "🎁 %{owner} is sharing the wishlist “%{title}”\n%{gifts}. Open it to pick a gift and reserve it: other guests will see it is taken."
+      gifts:
+        one: "%{count} gift"
+        other: "%{count} gifts"
     presenters:
       item:
         unknown_reserver: "Unknown user"

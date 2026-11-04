@@ -6,11 +6,25 @@ module Bot
   module Callbacks
     class WishlistHandler < BaseHandler
       def main_menu
-        text = I18n.t("bot.screens.main.text",
-                      name: escape_html(user.first_name.presence || user.full_name),
-                      lists: user.wishlists.count,
-                      items: Item.joins(:wishlist).where(wishlists: { user_id: user.id }).count,
-                      shared: user.viewed_wishlists.distinct.count)
+        name = escape_html(user.first_name.presence || user.full_name)
+        lists = user.wishlists.count
+        shared = user.viewed_wishlists.distinct.count
+
+        # A newcomer gets how it works and one next step instead of zero counters
+        if lists.zero? && shared.zero?
+          keyboard = context.build_keyboard([
+            [ context.inline_btn(I18n.t("bot.buttons.create_first_list"), "new_list", style: "primary") ]
+          ])
+          return context.render(I18n.t("bot.screens.main.welcome", name: name), keyboard)
+        end
+
+        lines = [ I18n.t("bot.screens.main.greeting", name: name) ]
+        if lists.positive?
+          items = Item.joins(:wishlist).where(wishlists: { user_id: user.id }).count
+          lines << I18n.t("bot.screens.main.own", lists: lists, items: items)
+        end
+        lines << I18n.t("bot.screens.main.shared", shared: shared) if shared.positive?
+        lines << I18n.t("bot.screens.main.own_hint") if lists.zero?
 
         keyboard = context.build_keyboard([
           [
@@ -20,7 +34,7 @@ module Bot
           [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", style: "primary") ]
         ])
 
-        context.render(text, keyboard)
+        context.render(lines.join("\n\n"), keyboard)
       end
 
       def show_lists
@@ -101,7 +115,7 @@ module Bot
 
       def delete_list(wishlist_id)
         wishlist = user.wishlists.find(wishlist_id)
-        wishlist.destroy!
+        ReservationDeletion.destroy_list!(wishlist)
 
         context.notice = I18n.t("bot.messages.list_deleted")
         show_lists

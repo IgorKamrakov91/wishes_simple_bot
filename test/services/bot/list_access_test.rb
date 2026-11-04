@@ -111,7 +111,7 @@ class BotListAccessTest < ActiveSupport::TestCase
   end
 
   test "shared inline cards open the list through the share link" do
-    result = Bot::Inline.inline_result_for_list(@wishlist, shared: true)
+    result = Bot::Inline.inline_result_for_list(@wishlist)
     button = result.reply_markup.inline_keyboard.flatten.first
 
     assert_match "start=l_#{@wishlist.share_token}", button.url

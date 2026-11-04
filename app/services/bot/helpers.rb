@@ -19,6 +19,10 @@ module Bot
       if options[:copy_text].is_a?(Hash)
         options[:copy_text] = Telegram::Bot::Types::CopyTextButton.new(options[:copy_text])
       end
+      if options[:switch_inline_query_chosen_chat].is_a?(Hash)
+        options[:switch_inline_query_chosen_chat] =
+          Telegram::Bot::Types::SwitchInlineQueryChosenChat.new(options[:switch_inline_query_chosen_chat])
+      end
 
       params = { text: text }
       params[:callback_data] = data if data
