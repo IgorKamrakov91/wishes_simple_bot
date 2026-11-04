@@ -20,7 +20,7 @@ module Bot
       def link_preview_options
         return no_link_preview unless web_url
 
-        Telegram::Bot::Types::LinkPreviewOptions.new(url: item.url, prefer_large_media: true)
+        Telegram::Bot::Types::LinkPreviewOptions.new(url: web_url.to_s, prefer_large_media: true)
       end
 
       private
@@ -46,7 +46,7 @@ module Bot
       def store_link
         return escape_html(item.url) unless web_url
 
-        "<a href=\"#{escape_html(item.url)}\">#{escape_html(web_url.host.delete_prefix('www.'))}</a>"
+        "<a href=\"#{escape_html(web_url.to_s)}\">#{escape_html(web_url.host.delete_prefix('www.'))}</a>"
       end
 
       # The owner never learns who reserved the gift
@@ -82,7 +82,7 @@ module Bot
           end
         end
 
-        buttons << [ context.inline_btn(t("bot.buttons.open_in_store"), url: item.url) ] if web_url
+        buttons << [ context.inline_btn(t("bot.buttons.open_in_store"), url: web_url.to_s) ] if web_url
 
         if owner?
           buttons << [
@@ -113,10 +113,7 @@ module Bot
       def web_url
         return @web_url if defined?(@web_url)
 
-        uri = URI.parse(item.url.to_s.strip)
-        @web_url = uri.is_a?(URI::HTTP) && uri.host.present? ? uri : nil
-      rescue URI::InvalidURIError
-        @web_url = nil
+        @web_url = item.web_uri
       end
 
       def wishlist

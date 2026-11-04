@@ -106,4 +106,24 @@ class ItemTest < ActiveSupport::TestCase
     assert_equal @reserver.telegram_id, item.reserved_by
     assert_equal 3, item.reservation_version
   end
+
+  test "links are accepted exactly when the card can open them" do
+    item = Item.new(wishlist: @wishlist, title: "Puzzle")
+
+    {
+      "https://ozon.ru/t/abc" => "https://ozon.ru/t/abc",
+      "https://ozon.ru/product/кроссовки-123" => "https://ozon.ru/product/%D0%BA%D1%80%D0%BE%D1%81%D1%81%D0%BE%D0%B2%D0%BA%D0%B8-123",
+      "http://shop.example.com:8080/x?a=1" => "http://shop.example.com:8080/x?a=1"
+    }.each do |url, opened|
+      item.url = url
+      assert item.valid?, url
+      assert_equal opened, item.web_uri.to_s
+    end
+
+    [ "https://shop.example:bad/product", "https://localhost/x", "ftp://example.com/x", "https://магазин.рф/x", "в магазине" ].each do |url|
+      item.url = url
+      refute item.valid?, url
+      assert_nil item.web_uri, url
+    end
+  end
 end
