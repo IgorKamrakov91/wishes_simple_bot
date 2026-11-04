@@ -92,14 +92,41 @@ class BotReservationNotificationsTest < ActiveJob::TestCase
     assert_includes labels, I18n.t("bot.screens.settings.notify_own_reservations", state: I18n.t("bot.screens.settings.on"))
     assert_includes labels, I18n.t("bot.screens.settings.notify_friend_reservations", state: I18n.t("bot.screens.settings.off"))
 
-    press("toggle_setting:notify_friend_reservations", user: @quiet)
-    press("toggle_setting:notify_own_reservations", user: @quiet)
+    callbacks = edits.last[:reply_markup].inline_keyboard.flatten.map(&:callback_data)
+    assert_includes callbacks, "set_setting:notify_friend_reservations:1"
+    assert_includes callbacks, "set_setting:notify_own_reservations:0"
+
+    press("set_setting:notify_friend_reservations:1", user: @quiet)
+    press("set_setting:notify_own_reservations:0", user: @quiet)
     @quiet.reload
     assert @quiet.notify_friend_reservations
     refute @quiet.notify_own_reservations
 
-    press("toggle_setting:telegram_id", user: @quiet)
+    press("set_setting:telegram_id:1", user: @quiet)
     assert_equal 91004, @quiet.reload.telegram_id
+  end
+
+  test "a repeated delivery of the same press keeps the choice" do
+    2.times { press("set_setting:notify_own_reservations:0", user: @quiet) }
+
+    refute @quiet.reload.notify_own_reservations
+  end
+
+  test "nothing is enqueued when the reservation is rolled back" do
+    ActiveRecord::Base.transaction do
+      @item.reserve_for!(@guest)
+      Bot::ReservationNotifier.reserved(@item, by: @guest)
+      raise ActiveRecord::Rollback
+    end
+
+    assert_empty recipients
+    assert_nil @item.reload.reserved_by
+  end
+
+  test "jobs queued under the old deletion name finish without sending" do
+    Telegram::Bot::Client.expects(:new).never
+
+    ReservedGiftDeletedJob.perform_now(@guest.telegram_id, "item_deleted", {}, "ru")
   end
 end
 

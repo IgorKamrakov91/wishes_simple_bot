@@ -29,12 +29,15 @@ module Bot
       end
     end
 
-    # The reservation itself is already saved: a queue outage must not turn
-    # it into a failed button press
+    # Only after the reservation is committed (right away when there is no
+    # transaction), and a queue outage must not fail the button press
     def enqueue(recipient, kind, details)
-      NotificationJob.perform_later(recipient.telegram_id, kind, details, I18n.locale.to_s)
-    rescue StandardError => e
-      Rails.logger.error("Could not enqueue #{kind} notification (#{e.class})")
+      locale = I18n.locale.to_s
+      ActiveRecord.after_all_transactions_commit do
+        NotificationJob.perform_later(recipient.telegram_id, kind, details, locale)
+      rescue StandardError => e
+        Rails.logger.error("Could not enqueue #{kind} notification (#{e.class})")
+      end
     end
   end
 end
