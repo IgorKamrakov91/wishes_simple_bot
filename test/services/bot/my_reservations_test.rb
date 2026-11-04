@@ -2,7 +2,7 @@ require "test_helper"
 require "mocha/minitest"
 require "telegram/bot"
 
-class BotMyReservationsTest < ActiveSupport::TestCase
+class BotMyReservationsTest < ActiveJob::TestCase
   setup do
     @guest = User.create!(telegram_id: 94001, first_name: "Guest")
     @owner = User.create!(telegram_id: 94002, first_name: "Owner <&>")
@@ -107,6 +107,21 @@ class BotMyReservationsTest < ActiveSupport::TestCase
     assert_equal 2, item.reservation_version
     assert_equal I18n.t("bot.messages.reservation_changed"), @answer[:text]
     assert_includes buttons.map(&:callback_data), "release_book:#{item.id}:2:0"
+  end
+
+  test "release uses the shared notification path once and never sends inline" do
+    item = book
+    Telegram::Bot::Client.expects(:new).never
+    @api.expects(:send_message).never
+
+    assert_enqueued_jobs 1, only: NotificationJob do
+      2.times { press("release_book:#{item.id}:0:0") }
+    end
+
+    job = enqueued_jobs.find { |entry| entry[:job] == NotificationJob }
+    assert_equal [ @owner.telegram_id, "own_released" ], job[:args].first(2)
+    assert_includes text, I18n.t("bot.screens.reservations.empty")
+    assert_nil item.reload.reserved_by
   end
 
   test "forged release callbacks cannot release someone else's booking" do
