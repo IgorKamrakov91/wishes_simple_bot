@@ -7,6 +7,7 @@ en:
         /my — my lists
         (Main control is via buttons)
       list_not_found: "List not found."
+      link_outdated: "This link is outdated. Ask the list owner to send you a new one."
     buttons:
       my_lists: "My Lists"
       shared_lists: "Friends' Lists"

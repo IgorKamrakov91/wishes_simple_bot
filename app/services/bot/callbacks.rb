@@ -32,20 +32,17 @@ module Bot
       def handle(bot, callback)
         user = User.find_or_create_from_telegram(callback.from.to_h.symbolize_keys)
 
-        # Check if a callback is from an inline message
+        # Buttons in inline messages sent before share tokens carry a list id.
+        # Callback data comes from the client and proves nothing, so the id
+        # opens the list only for people who already have access to it.
         if callback.inline_message_id && (match = callback.data.match(/^open_shared_list:(\d+)$/))
-          wishlist_id = match[1]
-
-          # Get bot username - API returns hash with 'result' key
-          response = bot.api.call("getMe")
-          bot_username = response["result"]["username"]
-
-          url = "https://t.me/#{bot_username}?start=list_#{wishlist_id}"
-          Rails.logger.info "Bot::Callbacks answering callback with URL: '#{url}'"
-          bot.api.answer_callback_query(
+          wishlist = Wishlist.accessible_to(user).find_by(id: match[1])
+          bot.api.answer_callback_query(**{
             callback_query_id: callback.id,
-            url: url
-          )
+            url: wishlist && share_link(wishlist),
+            text: (I18n.t("bot.commands.link_outdated") unless wishlist),
+            show_alert: (true unless wishlist)
+          }.compact)
           return
         end
 

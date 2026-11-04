@@ -108,10 +108,7 @@ module Bot
       end
 
       def open_list(wishlist_id, page = 0)
-        wishlist = Wishlist.includes(:items, :user).find(wishlist_id)
-        is_owner = wishlist.user_id == user.id
-
-        add_user_to_list_viewers(user, wishlist) unless is_owner
+        wishlist = Wishlist.accessible_to(user).includes(:items, :user).find(wishlist_id)
 
         presenter = Presenters::WishlistPresenter.new(wishlist, user, context, page: page)
         context.render(presenter.text, presenter.keyboard)
@@ -131,12 +128,6 @@ module Bot
         stats += I18n.t("bot.screens.shared_lists.mine", number: mine) if screen == :shared_lists && mine.positive?
 
         "#{progress_bar_string(list.percentage_fulfilled)} #{stats}"
-      end
-
-      def add_user_to_list_viewers(user, wishlist)
-        return if wishlist.has_viewer?(user)
-
-        wishlist.list_viewers.create!(user: user)
       end
     end
   end

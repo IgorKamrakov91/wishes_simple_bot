@@ -30,7 +30,7 @@ module Bot
         if owner?
           rows << [ context.inline_btn(t("bot.buttons.add_item"), "add_item:#{wishlist.id}", style: "primary") ]
           rows << [
-            context.inline_btn(t("bot.buttons.share"), nil, copy_text: { text: share_link(wishlist.id) }),
+            context.inline_btn(t("bot.buttons.share"), nil, copy_text: { text: share_link(wishlist) }),
             context.inline_btn(t("bot.buttons.list_settings"), "list_settings:#{wishlist.id}")
           ]
           rows << [ context.inline_btn(t("bot.buttons.back_to_lists"), "show_lists") ]

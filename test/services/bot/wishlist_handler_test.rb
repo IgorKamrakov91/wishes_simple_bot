@@ -66,19 +66,33 @@ class BotWishlistHandlerTest < ActiveSupport::TestCase
 
     share_btn = rendered[:keyboard].inline_keyboard.flatten.find(&:copy_text)
     assert_equal I18n.t("bot.buttons.share"), share_btn.text
-    assert_equal "https://t.me/TestBot?start=list_#{wishlist.id}", share_btn.copy_text.text
+    assert_equal "https://t.me/TestBot?start=l_#{wishlist.share_token}", share_btn.copy_text.text
     assert_nil share_btn.switch_inline_query
   end
 
-  test "open_list adds a guest to the list viewers" do
+  test "open_list refuses a list the user was never let into" do
     owner = User.create!(telegram_id: 20002, first_name: "Owner")
     wishlist = Wishlist.create!(user: owner, title: "Birthday")
 
     context = build_context
-    capture_render(context)
+    context.expects(:render).never
+
+    assert_raises(ActiveRecord::RecordNotFound) do
+      Bot::Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
+    end
+    refute wishlist.has_viewer?(@user)
+  end
+
+  test "open_list shows a list the guest was let into" do
+    owner = User.create!(telegram_id: 20002, first_name: "Owner")
+    wishlist = Wishlist.create!(user: owner, title: "Birthday")
+    wishlist.admit!(@user)
+
+    context = build_context
+    rendered = capture_render(context)
     Bot::Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
 
-    assert wishlist.has_viewer?(@user)
+    assert_match "Birthday", rendered[:text]
   end
 
   test "delete_list asks for confirmation first" do

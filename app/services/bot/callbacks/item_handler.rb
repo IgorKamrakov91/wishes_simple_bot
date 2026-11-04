@@ -4,7 +4,7 @@ module Bot
   module Callbacks
     class ItemHandler < BaseHandler
       def show_item(item_id)
-        item = Item.includes(wishlist: :user).find(item_id)
+        item = Item.accessible_to(user).includes(wishlist: :user).find(item_id)
         presenter = Presenters::ItemPresenter.new(item, user, context)
         context.render(presenter.text, presenter.keyboard, link_preview_options: presenter.link_preview_options)
       end
@@ -57,7 +57,7 @@ module Bot
       end
 
       def toggle_reserve(item_id)
-        item = Item.find(item_id)
+        item = Item.accessible_to(user).find(item_id)
         wishlist = item.wishlist
 
         if wishlist.user_id == user.id
