@@ -38,44 +38,14 @@ module Bot
         context.render(lines.join("\n\n"), keyboard)
       end
 
-      def show_lists
-        lists = user.wishlists.includes(:items).order(:id)
-
-        summaries = lists.map do |list|
-          "<b>#{escape_html(list.title)}</b>\n#{list_progress(list, :my_lists)}"
-        end
-        text = [
-          "<b>#{I18n.t('bot.buttons.my_lists')}</b>",
-          summaries.presence&.join("\n\n") || I18n.t("bot.screens.my_lists.empty")
-        ].join("\n\n")
-
-        buttons = lists.map do |list|
-          [ context.inline_btn("#{list.title.truncate(40)} · #{list.items.size}", "open_list:#{list.id}") ]
-        end
-        buttons << [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", style: "primary") ]
-        buttons << [ context.inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ]
-
-        context.render(text, context.build_keyboard(buttons))
+      def show_lists(page = 0)
+        presenter = Presenters::ListCollectionPresenter.new(user, context, page: page)
+        context.render(presenter.text, presenter.keyboard)
       end
 
-      def show_shared_lists
-        lists = user.viewed_wishlists.includes(:user, :items).distinct.order(:id)
-
-        summaries = lists.map do |list|
-          "#{list.owner_link} · <b>#{escape_html(list.title)}</b>\n#{list_progress(list, :shared_lists)}"
-        end
-        text = [
-          "<b>#{I18n.t('bot.buttons.shared_lists')}</b>",
-          summaries.presence&.join("\n\n") || I18n.t("bot.screens.shared_lists.empty")
-        ].join("\n\n")
-
-        buttons = lists.map do |list|
-          owner_name = list.owner.first_name.presence || list.owner.full_name
-          [ context.inline_btn("#{owner_name} · #{list.title}".truncate(48), "open_list:#{list.id}") ]
-        end
-        buttons << [ context.inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ]
-
-        context.render(text, context.build_keyboard(buttons))
+      def show_shared_lists(page = 0)
+        presenter = Presenters::ListCollectionPresenter.new(user, context, shared: true, page: page)
+        context.render(presenter.text, presenter.keyboard)
       end
 
       def create_list_prompt
@@ -131,18 +101,6 @@ module Bot
 
       def open_shared_list(wishlist_id)
         open_list(wishlist_id)
-      end
-
-      private
-
-      def list_progress(list, screen)
-        return I18n.t("bot.screens.#{screen}.no_items") if list.items.empty?
-
-        stats = I18n.t("bot.screens.#{screen}.progress", reserved: list.reserved_items_count, total: list.items.size)
-        mine = list.items.count { |item| item.reserved_by == user.telegram_id }
-        stats += I18n.t("bot.screens.shared_lists.mine", number: mine) if screen == :shared_lists && mine.positive?
-
-        "#{progress_bar_string(list.percentage_fulfilled)} #{stats}"
       end
     end
   end
