@@ -24,7 +24,6 @@ module Bot
 
         # Otherwise, handle as a command
         text = context.text
-        Rails.logger.info "Bot::Commands received text: #{text.inspect}"
 
         if (match = START_SHARED_LIST_PATTERN.match(text))
           handle_shared_list(context, match[1])
