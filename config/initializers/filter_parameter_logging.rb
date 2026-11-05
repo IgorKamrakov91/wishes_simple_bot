@@ -8,8 +8,9 @@ Rails.application.config.filter_parameters += [
 ]
 
 # Telegram updates: what people write (gift names, links, /start l_<token>
-# invitations, inline queries) and who they are stay out of the logs.
-# Exact key names, so ids, chat types and callback data stay visible.
+# invitations, inline queries), links inside messages and buttons, and who
+# people are stay out of the logs. Exact key names, so ids, chat types and
+# callback data stay visible.
 Rails.application.config.filter_parameters += [
-  /\A(text|caption|query|first_name|last_name|username|phone_number|title|description)\z/
+  /\A(text|caption|query|url|first_name|last_name|username|phone_number|title|description)\z/
 ]

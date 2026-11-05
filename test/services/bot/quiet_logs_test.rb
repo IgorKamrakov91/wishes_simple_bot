@@ -85,3 +85,56 @@ class BotListCreationLockTest < ActiveSupport::TestCase
     assert_equal "Новое", wishlist.reload.title
   end
 end
+
+class BotLeakRegressionTest < ActiveSupport::TestCase
+  FAKE_TOKEN = "123456789:FAKE_BOT_TOKEN_abcdefghijklmnopqrstu"
+
+  setup do
+    @previous_token = ENV["TELEGRAM_BOT_TOKEN"]
+    ENV["TELEGRAM_BOT_TOKEN"] = FAKE_TOKEN
+  end
+
+  teardown do
+    ENV["TELEGRAM_BOT_TOKEN"] = @previous_token
+  end
+
+  test "links inside messages and buttons are filtered from request params" do
+    filter = ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
+    params = { "message" => {
+      "entities" => [ { "type" => "text_link", "offset" => 0, "length" => 4, "url" => "https://t.me/WishBot?start=l_FAKE_INVITE_TOKEN" } ],
+      "reply_markup" => { "inline_keyboard" => [ [ { "text" => "Открыть", "url" => "https://t.me/WishBot?start=l_FAKE_INVITE_TOKEN" } ] ] }
+    } }
+
+    refute_includes filter.filter(params).to_s, "FAKE_INVITE_TOKEN"
+  end
+
+  test "a non-JSON Telegram error doesn't carry the bot token" do
+    env = stub(url: URI("https://api.telegram.org/bot#{FAKE_TOKEN}/sendMessage"))
+    error = Telegram::Bot::Exceptions::ResponseError.new(response: stub(status: 502, body: "<html>Bad Gateway</html>", env: env))
+
+    [ error.message, error.to_s, error.data.to_s, error.inspect, error.full_message ].each do |text|
+      refute_includes text, "FAKE_BOT_TOKEN", text
+    end
+    assert_equal 502, error.error_code
+  end
+
+  test "a job that gives up after Telegram errors logs no token" do
+    output = StringIO.new
+    previous = Rails.logger
+    Rails.logger = ActiveSupport::Logger.new(output)
+    ActiveJob::Base.logger = Rails.logger
+    user = User.create!(telegram_id: 97001, first_name: "Owner")
+    env = stub(url: URI("https://api.telegram.org/bot#{FAKE_TOKEN}/sendMessage"))
+    api = mock("TelegramApi")
+    api.stubs(:send_message).raises(Telegram::Bot::Exceptions::ResponseError.new(response: stub(status: 502, body: "oops", env: env)))
+    Telegram::Bot::Client.stubs(:new).returns(stub(api: api))
+    job = NotificationJob.new(user.telegram_id, "own_reserved", { "title" => "Плед", "list" => "ДР" }, "ru")
+    job.executions = 3
+
+    assert_raises(Telegram::Bot::Exceptions::ResponseError) { job.perform_now }
+    refute_includes output.string, "FAKE_BOT_TOKEN"
+  ensure
+    Rails.logger = previous
+    ActiveJob::Base.logger = previous
+  end
+end
