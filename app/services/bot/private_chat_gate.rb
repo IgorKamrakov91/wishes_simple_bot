@@ -12,7 +12,7 @@ module Bot
         return true if message.chat.type == "private"
 
         if GROUP_TYPES.include?(message.chat.type) && addressed_command?(message.text.to_s)
-          show_private_chat_link(bot, message.chat.id)
+          show_private_chat_link(bot, message.chat.id, url: invitation_link(message.text.to_s))
         end
         false
       end
@@ -46,8 +46,21 @@ module Bot
         end
       end
 
-      def show_private_chat_link(bot, chat_id)
-        keyboard = build_keyboard([ [ inline_btn(I18n.t("bot.buttons.open_private_chat"), url: bot_link) ] ])
+      def invitation_link(text)
+        command, payload = text.split(/\s+/, 2)
+        return bot_link unless command.match?(%r{\A/start(?:@\w+)?\z}) && payload
+
+        payload = payload.strip
+        return bot_link if payload.length > 64
+
+        start = "/start #{payload}"
+        return bot_link unless Commands::START_SHARED_LIST_PATTERN.match?(start) || Commands::START_LEGACY_LIST_PATTERN.match?(start)
+
+        "#{bot_link}?start=#{payload}"
+      end
+
+      def show_private_chat_link(bot, chat_id, url: bot_link)
+        keyboard = build_keyboard([ [ inline_btn(I18n.t("bot.buttons.open_private_chat"), url: url) ] ])
         safely do
           bot.api.send_message(chat_id: chat_id, text: I18n.t("bot.messages.private_chat_only"),
                                reply_markup: keyboard, link_preview_options: no_link_preview)

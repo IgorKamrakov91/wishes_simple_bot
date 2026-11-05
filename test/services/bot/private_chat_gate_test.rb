@@ -28,10 +28,72 @@ class BotPrivateChatGateTest < ActiveSupport::TestCase
 
     dispatch_message("/my")
     dispatch_message("/new@wishbot", type: "supergroup")
-    dispatch_message("/start l_#{@wishlist.share_token}", user: @guest)
+    dispatch_message("/start", user: @guest)
 
     assert_equal 1, @wishlist.list_viewers.count
     assert_equal 1, @wishlist.items.count
+  end
+
+  test "a group invitation carries its token without reading data or touching private input" do
+    @owner.start_creating_list!
+    before = @owner.attributes
+    User.expects(:find_or_create_from_telegram).never
+    Wishlist.expects(:find_by).never
+    Wishlist.expects(:accessible_to).never
+    Wishlist.any_instance.expects(:admit!).never
+    @api.expects(:send_message).with { |params| private_prompt?(params, payload: "l_#{@wishlist.share_token}") }.twice
+
+    dispatch_message("/start l_#{@wishlist.share_token}")
+    dispatch_message("/start@wishbot\tl_#{@wishlist.share_token}", type: "supergroup")
+
+    assert_equal before, @owner.reload.attributes
+    assert_equal 1, @wishlist.list_viewers.count
+    assert_equal 1, @wishlist.items.count
+  end
+
+  test "legacy group invitations retain their payload for the private access check" do
+    User.expects(:find_or_create_from_telegram).never
+    Wishlist.expects(:accessible_to).never
+    @api.expects(:send_message).with { |params| private_prompt?(params, payload: "list_#{@wishlist.id}") }
+
+    dispatch_message("/start list_#{@wishlist.id}", user: @guest)
+
+    assert_equal 1, @wishlist.list_viewers.count
+  end
+
+  test "unsupported or malformed group payloads only open the bot" do
+    User.expects(:find_or_create_from_telegram).never
+    inputs = [ "/start l_", "/start list_nope", "/start unknown", "/start https://example.com", "/start l_abc&other=value",
+               "/start l_abc extra", "/start l_#{'a' * 63}", "/help l_abc", "/new@WishBot l_abc" ]
+    @api.expects(:send_message).with { |params| private_prompt?(params) }.times(inputs.size)
+
+    inputs.each { |input| dispatch_message(input) }
+
+    assert_equal 1, @wishlist.list_viewers.count
+  end
+
+  test "group invitations addressed to another bot are ignored" do
+    User.expects(:find_or_create_from_telegram).never
+    @api.expects(:send_message).never
+
+    dispatch_message("/start@AnotherBot l_#{@wishlist.share_token}")
+
+    assert_equal 1, @wishlist.list_viewers.count
+  end
+
+  test "only the private continuation admits the guest and shows the invited list" do
+    payload = "l_#{@wishlist.share_token}"
+    ListViewer.where(wishlist: @wishlist, user: @guest).delete_all
+    @api.expects(:send_message).with { |params| private_prompt?(params, payload: payload) }
+    dispatch_message("/start@WishBot #{payload}", user: @guest)
+    refute @wishlist.has_viewer?(@guest)
+
+    @api.expects(:send_message).with do |params|
+      params[:chat_id] == @guest.telegram_id && params[:text].include?(@wishlist.title)
+    end
+    dispatch_message("/start #{payload}", user: @guest, type: "private")
+
+    assert @wishlist.has_viewer?(@guest)
   end
 
   test "group conversation and commands for another bot leave private input untouched" do
@@ -165,10 +227,12 @@ class BotPrivateChatGateTest < ActiveSupport::TestCase
     { id: user.telegram_id, is_bot: false, first_name: user.first_name }
   end
 
-  def private_prompt?(params)
-    button = params[:reply_markup].inline_keyboard.flatten.sole
-    params[:chat_id] == -71001 && params[:text] == I18n.t("bot.messages.private_chat_only") &&
-      button.url == "https://t.me/WishBot" && button.callback_data.nil?
+  def private_prompt?(params, payload: nil)
+    return false unless params[:chat_id] == -71001 && params[:text] == I18n.t("bot.messages.private_chat_only")
+
+    buttons = params[:reply_markup].inline_keyboard.flatten
+    url = payload ? "https://t.me/WishBot?start=#{payload}" : "https://t.me/WishBot"
+    buttons.one? && buttons.first.url == url && buttons.first.callback_data.nil?
   end
 
   def dispatch_message(text, user: @owner, type: "group")
