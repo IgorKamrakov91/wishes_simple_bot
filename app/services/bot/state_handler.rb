@@ -56,18 +56,29 @@ module Bot
       context.send_text(I18n.t("bot.messages.input_target_gone"), keyboard)
     end
 
+    # Like gifts: the state is rechecked under a lock on the user, so two
+    # deliveries of the same answer can't create two lists
     def create_list
-      wishlist = user.wishlists.create!(title: text)
-      user.clear_state!
-      Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
+      wishlist = nil
+      user.with_lock do
+        next unless user.bot_state == "creating_list"
+
+        wishlist = user.wishlists.create!(title: text)
+        user.clear_state!
+      end
+      Callbacks::WishlistHandler.new(context).open_list(wishlist.id) if wishlist
     end
 
     def rename_list
-      wishlist_id = user.bot_payload["wishlist_id"]
-      wishlist = user.wishlists.find(wishlist_id)
-      wishlist.update!(title: text)
-      user.clear_state!
-      Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
+      wishlist = nil
+      user.with_lock do
+        next unless user.bot_state == "renaming_list"
+
+        wishlist = user.wishlists.find(user.bot_payload["wishlist_id"])
+        wishlist.update!(title: text)
+        user.clear_state!
+      end
+      Callbacks::WishlistHandler.new(context).open_list(wishlist.id) if wishlist
     end
 
     # The gift stays a draft until its name and optional link are settled.

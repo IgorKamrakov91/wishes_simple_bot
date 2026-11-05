@@ -12,7 +12,8 @@ module Bot
       elsif update.inline_query
         Inline.handle_query(bot, update.inline_query)
       else
-        Rails.logger.info "Unknown update type: #{update.inspect}"
+        # Only the kind of update: its contents may be personal
+        Rails.logger.info "Unknown update type: #{update.to_h.keys.excluding(:update_id).join(', ')}"
       end
     end
   end
