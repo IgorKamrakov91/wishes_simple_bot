@@ -179,14 +179,19 @@ module Bot
     end
 
     def update_item_field
-      item = user.items.find(user.bot_payload["item_id"])
-      field = user.bot_payload["field"]
-      return context.send_text(I18n.t("bot.messages.error")) unless Item::EDITABLE_FIELDS.include?(field)
+      item = nil
+      user.with_lock do
+        # Another delivery or cancellation may already have ended this edit.
+        next unless user.bot_state == "editing_item"
 
-      value = item_field_value(field, text)
-      item.update!(field => value)
-      user.clear_state!
-      Callbacks::ItemHandler.new(context).show_item(item.id)
+        field = user.bot_payload["field"]
+        return context.send_text(I18n.t("bot.messages.error")) unless Item::EDITABLE_FIELDS.include?(field)
+
+        item = user.items.find(user.bot_payload["item_id"])
+        item.update!(field => item_field_value(field, text))
+        user.clear_state!
+      end
+      Callbacks::ItemHandler.new(context).show_item(item.id) if item
     end
 
     def item_field_value(field, value)
