@@ -11,6 +11,7 @@ module Bot
       /^cancel_input$/ => "Callbacks::InputHandler#cancel",
       /^show_reservations$/ => "Callbacks::ReservationsHandler#show_reservations",
       /^show_reservations:(\d+)$/ => "Callbacks::ReservationsHandler#show_reservations",
+      /^open_booked_item:(\d+):(\d+)$/ => "Callbacks::ReservationsHandler#open_item",
       /^release_book:(\d+):(\d+):(\d+)$/ => "Callbacks::ReservationsHandler#release",
       /^show_lists$/ => "Callbacks::WishlistHandler#show_lists",
       /^show_lists:(\d+)$/ => "Callbacks::WishlistHandler#show_lists",

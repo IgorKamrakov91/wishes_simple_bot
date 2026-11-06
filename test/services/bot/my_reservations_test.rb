@@ -35,7 +35,7 @@ class BotMyReservationsTest < ActiveJob::TestCase
   end
 
   def opened_ids
-    buttons.filter_map { |button| button.callback_data[/\Aopen_item:(\d+)\z/, 1]&.to_i }
+    buttons.filter_map { |button| button.callback_data[/\Aopen_booked_item:(\d+):\d+\z/, 1]&.to_i }
   end
 
   def text
@@ -149,10 +149,95 @@ class BotMyReservationsTest < ActiveJob::TestCase
 
   test "the card returns to its reservation page after opening from the collection" do
     items = 7.times.map { |index| book("Gift #{index}") }
-    press("open_item:#{items.last.id}")
+    press("show_reservations:1")
+    open_card = buttons.find { |button| button.callback_data == "open_booked_item:#{items.last.id}:1" }
+    press(open_card.callback_data)
+
+    assert_includes text, items.last.title
     assert_equal "show_reservations:1", buttons.last.callback_data
+    assert_includes buttons.map(&:callback_data), "list_page:#{@wishlist.id}:1"
+    assert_includes buttons.map(&:callback_data), "release_book:#{items.last.id}:0:1"
+    assert buttons.none? { |button| button.callback_data.start_with?("open_item:", "unreserve_item:") }
+
     press(buttons.last.callback_data)
     assert_equal items.last(2).map(&:id), opened_ids
+  end
+
+  test "release from a card preserves the originating page and clamps an empty final page" do
+    items = 7.times.map { |index| book("Gift #{index}") }
+    press("open_booked_item:#{items.last.id}:1")
+    release = buttons.find { |button| button.callback_data.start_with?("release_book:") }.callback_data
+
+    2.times { press(release) }
+    assert_equal [ items[-2].id ], opened_ids
+    assert_includes text, "Страница 2 из 2"
+    assert_nil items.last.reload.reserved_by
+    assert_equal 1, items.last.reservation_version
+
+    press("open_booked_item:#{items[-2].id}:1")
+    press(buttons.find { |button| button.callback_data.start_with?("release_book:") }.callback_data)
+    assert_equal items.first(5).map(&:id), opened_ids
+    assert_includes text, "Страница 1 из 1"
+  end
+
+  test "releasing the final booking from its card returns to the empty collection once" do
+    item = book
+    press("open_booked_item:#{item.id}:0")
+    release = buttons.find { |button| button.callback_data.start_with?("release_book:") }.callback_data
+    @api.expects(:send_message).never
+
+    assert_enqueued_jobs 1, only: NotificationJob do
+      2.times { press(release) }
+    end
+
+    assert_includes text, I18n.t("bot.screens.reservations.empty")
+    assert_equal %w[show_shared_lists main_menu], buttons.map(&:callback_data)
+    assert_nil item.reload.reserved_by
+    assert_equal 1, item.reservation_version
+  end
+
+  test "old card links refresh the collection after release, deletion or revoked access" do
+    item = book
+    item.release_for!(@guest)
+    press("open_booked_item:#{item.id}:8")
+    assert_includes text, I18n.t("bot.screens.reservations.empty")
+    assert_equal I18n.t("bot.messages.button_outdated"), @answer[:text]
+
+    item.reserve_for!(@guest)
+    ListViewer.where(wishlist: @wishlist, user: @guest).delete_all
+    press("open_booked_item:#{item.id}:0")
+    assert_includes text, I18n.t("bot.screens.reservations.empty")
+    refute_includes text, item.title
+    assert_equal @guest.telegram_id, item.reload.reserved_by
+
+    item.destroy!
+    press("open_booked_item:#{item.id}:0")
+    assert_includes text, I18n.t("bot.screens.reservations.empty")
+  end
+
+  test "forged card links do not expose another guest's booking or legacy owned bookings" do
+    other_item = @wishlist.items.create!(title: "Other booking", reserved_by: @other.telegram_id)
+    own_list = @guest.wishlists.create!(title: "My list")
+    own_item = own_list.items.create!(title: "Legacy own booking", reserved_by: @guest.telegram_id)
+
+    [ other_item, own_item ].each do |item|
+      press("open_booked_item:#{item.id}:0")
+      assert_includes text, I18n.t("bot.screens.reservations.empty")
+      refute_includes text, item.title
+      assert_equal I18n.t("bot.messages.button_outdated"), @answer[:text]
+    end
+  end
+
+  test "regular wishlist cards keep neighbour navigation and release in place" do
+    first, second = 2.times.map { |index| book("Gift #{index}") }
+    press("open_item:#{first.id}")
+    assert_includes buttons.map(&:callback_data), "open_item:#{second.id}"
+    assert_includes buttons.map(&:callback_data), "unreserve_item:#{first.id}:0"
+    refute buttons.any? { |button| button.callback_data.start_with?("release_book:") }
+
+    press("unreserve_item:#{first.id}:0")
+    assert_includes text, first.title
+    assert_includes buttons.map(&:callback_data), "reserve_item:#{first.id}:1"
   end
 
   test "group callbacks never release a reservation or show the collection" do

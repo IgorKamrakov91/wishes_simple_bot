@@ -5,6 +5,11 @@ module Bot
     class ItemPresenter < BasePresenter
       object_name :item
 
+      def initialize(item, user, context, reservations_page: nil)
+        super(item, user, context)
+        @reservations_page = reservations_page
+      end
+
       def text
         blocks = [ heading ]
         blocks << details if details.present?
@@ -78,7 +83,12 @@ module Bot
           if !item.reserved?
             buttons << [ context.inline_btn(t("bot.buttons.reserve"), "reserve_item:#{item.id}:#{item.reservation_version}", style: "success") ]
           elsif reserved_by_me?
-            buttons << [ context.inline_btn(t("bot.buttons.unreserve"), "unreserve_item:#{item.id}:#{item.reservation_version}") ]
+            release = if @reservations_page
+              "release_book:#{item.id}:#{item.reservation_version}:#{@reservations_page}"
+            else
+              "unreserve_item:#{item.id}:#{item.reservation_version}"
+            end
+            buttons << [ context.inline_btn(t("bot.buttons.unreserve"), release) ]
           end
         end
 
@@ -91,9 +101,11 @@ module Bot
           ]
         end
 
-        buttons << neighbours_row if neighbours_row.any?
+        buttons << neighbours_row if @reservations_page.nil? && neighbours_row.any?
         buttons << [ context.inline_btn(t("bot.buttons.back_to_list"), "list_page:#{wishlist.id}:#{WishlistPresenter.page_of(position)}") ]
-        if !owner? && (reserved_by_me? || ReservationsPresenter.scope_for(user).exists?)
+        if @reservations_page
+          buttons << [ context.inline_btn(t("bot.screens.reservations.back"), "show_reservations:#{@reservations_page}") ]
+        elsif !owner? && (reserved_by_me? || ReservationsPresenter.scope_for(user).exists?)
           page = reserved_by_me? ? ReservationsPresenter.page_for(item, user) : 0
           buttons << [ context.inline_btn(t("bot.screens.reservations.back"), "show_reservations:#{page}") ]
         end
