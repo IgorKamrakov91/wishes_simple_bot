@@ -3,9 +3,10 @@
 module Bot
   module Callbacks
     class ItemHandler < BaseHandler
-      def show_item(item_id)
-        item = Item.accessible_to(user).includes(wishlist: :user).find(item_id)
-        presenter = Presenters::ItemPresenter.new(item, user, context)
+      def show_item(item_id, reservations_page: nil)
+        scope = reservations_page.nil? ? Item.accessible_to(user) : Presenters::ReservationsPresenter.scope_for(user)
+        item = scope.includes(wishlist: :user).find(item_id)
+        presenter = Presenters::ItemPresenter.new(item, user, context, reservations_page: reservations_page)
         context.render(presenter.text, presenter.keyboard, link_preview_options: presenter.link_preview_options)
       end
 

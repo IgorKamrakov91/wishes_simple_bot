@@ -41,7 +41,7 @@ module Bot
 
       def keyboard
         rows = items.each_with_index.map do |item, index|
-          [ context.inline_btn("#{number(index)}. #{item.title.to_s.truncate(24)}", "open_item:#{item.id}"),
+          [ context.inline_btn("#{number(index)}. #{item.title.to_s.truncate(24)}", "open_booked_item:#{item.id}:#{page}"),
             context.inline_btn(t("bot.screens.reservations.release", number: number(index)),
                                "release_book:#{item.id}:#{item.reservation_version}:#{page}") ]
         end
