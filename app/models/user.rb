@@ -1,10 +1,25 @@
 class User < ApplicationRecord
+  RESERVATION_REMINDER_DAYS = [ 0, 7, 14, 30 ].freeze
+
   has_many :wishlists, dependent: :destroy
   has_many :items, through: :wishlists
   has_many :list_viewers, dependent: :destroy
   has_many :viewed_wishlists, through: :list_viewers, source: :wishlist
 
   validates :telegram_id, presence: true, uniqueness: true
+  validates :reservation_reminder_days, inclusion: { in: RESERVATION_REMINDER_DAYS }
+
+  def configure_reservation_reminders!(days)
+    raise ArgumentError, "Unsupported reminder interval" unless RESERVATION_REMINDER_DAYS.include?(days)
+
+    with_lock do
+      # Replayed settings buttons must not postpone the next reminder.
+      next if reservation_reminder_days == days
+
+      update!(reservation_reminder_days: days,
+              reservation_reminder_next_at: (ReminderSchedule.next_send_at(Time.current + days.days) if days.positive?))
+    end
+  end
 
   def self.find_or_create_from_telegram(data)
     find_or_initialize_by(telegram_id: data[:id]).tap do |user|

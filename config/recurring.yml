@@ -10,6 +10,9 @@
 #     schedule: at 5am every day
 
 production:
+  reservation_reminders:
+    class: ReservationRemindersJob
+    schedule: "0 12 * * * Europe/Moscow"
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
     schedule: every hour at minute 12
