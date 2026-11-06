@@ -48,12 +48,15 @@ class BotMyReservationsTest < ActiveJob::TestCase
     assert_includes buttons.map(&:callback_data), "show_reservations"
 
     press("show_reservations")
-    assert_includes text, "Gift &lt;&amp;&gt;"
-    assert_includes text, "Owner &lt;&amp;&gt;"
-    assert_includes text, "Birthday &lt;&amp;&gt;"
-    refute_includes text, "Gift <&>"
     assert_equal [ item.id ], opened_ids
+    booked = buttons.first
+    assert_equal "Gift <&> · «Birthday <&>»", booked.text
+    assert_equal "success", booked.style
+    assert buttons.none? { |button| button.callback_data.start_with?("release_book:") }
+
+    press(booked.callback_data)
     assert_includes buttons.map(&:callback_data), "release_book:#{item.id}:0:0"
+    assert_includes buttons.map(&:callback_data), "mark_purchased:#{item.id}:0:1:0"
   end
 
   test "collection excludes free gifts, other people's bookings and inaccessible or owned lists" do
@@ -84,12 +87,13 @@ class BotMyReservationsTest < ActiveJob::TestCase
     assert_includes buttons.map(&:callback_data), "show_reservations:0"
     refute_includes buttons.map(&:callback_data), "show_reservations:2"
 
+    press("open_booked_item:#{items.last.id}:1")
     release = buttons.find { |button| button.callback_data.start_with?("release_book:") }.callback_data
     press(release)
     assert_nil items.last.reload.reserved_by
     assert_equal 1, items.last.reservation_version
     assert_equal items.first(5).map(&:id), opened_ids
-    assert_includes text, "Страница 1 из 1"
+    refute_includes text, "Страница"
     assert_equal I18n.t("bot.messages.unreserved_notice"), @answer[:text]
 
     press(release)
@@ -106,7 +110,7 @@ class BotMyReservationsTest < ActiveJob::TestCase
     assert_equal @guest.telegram_id, item.reload.reserved_by
     assert_equal 2, item.reservation_version
     assert_equal I18n.t("bot.messages.reservation_changed"), @answer[:text]
-    assert_includes buttons.map(&:callback_data), "release_book:#{item.id}:2:0"
+    assert_equal [ item.id ], opened_ids
   end
 
   test "release uses the shared notification path once and never sends inline" do
@@ -177,7 +181,7 @@ class BotMyReservationsTest < ActiveJob::TestCase
     press("open_booked_item:#{items[-2].id}:1")
     press(buttons.find { |button| button.callback_data.start_with?("release_book:") }.callback_data)
     assert_equal items.first(5).map(&:id), opened_ids
-    assert_includes text, "Страница 1 из 1"
+    refute_includes text, "Страница"
   end
 
   test "releasing the final booking from its card returns to the empty collection once" do
@@ -259,6 +263,6 @@ class BotMyReservationsTest < ActiveJob::TestCase
     assert_equal 5, opened_ids.size
     assert buttons.all? { |button| button.callback_data.bytesize <= 64 }
     assert buttons.none? { |button| button.callback_data == "noop" }
-    assert_includes text, "&quot;"
+    assert buttons.first(5).all? { |button| button.text.length <= 60 }
   end
 end

@@ -55,6 +55,8 @@ en:
       back_to_list: "← To List"
       reserve: "Reserve"
       unreserve: "Cancel Reservation"
+      purchased: "Already bought"
+      not_purchased: "Not bought yet"
       open_in_store: "Open in Store"
       edit: "Edit"
       delete: "Delete"
@@ -126,6 +128,7 @@ en:
         owner_reserved: "✓ someone picked it (who is a secret)"
         owner_free: "nobody picked it yet"
         guest_free: "Available. If you reserve it, other guests will see it's taken and your name under a spoiler. %{owner} will only see in the bot that it's taken, not by whom."
+        guest_purchased: "✓ Marked as bought: reminders will leave it out."
         guest_mine: "<b>★ This is your reservation.</b> Other guests see it's taken and your name under a spoiler."
         guest_taken: "✓ Already picked by: %{user}"
       collections:
@@ -133,9 +136,9 @@ en:
         page: "Page %{page} of %{total}"
       reservations:
         title: "My reservations"
-        hint: "Gifts you plan to give. Open a card or release a reservation if your plans have changed."
+        hint: "Gifts you plan to give. Tap a gift to mark it bought or release it."
         empty: "You have no reservations yet. Open a friend's list and choose a gift."
-        release: "%{number}. Release"
+        purchased: "bought"
         back: "← My reservations"
     messages:
       field_cleared: "Removed"
@@ -150,6 +153,8 @@ en:
       cannot_reserve_own: "You can't reserve your own gift"
       reserved_notice: "Reserved"
       unreserved_notice: "Reservation cancelled"
+      purchased_notice: "Marked as bought"
+      not_purchased_notice: "Bought mark removed"
       reservation_changed: "Card refreshed. Check the status and use the current button."
       item_deleted_success: "Gift deleted"
       confirm_delete_item: "Delete «%{title}»?\nThis can't be undone."

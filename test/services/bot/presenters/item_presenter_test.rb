@@ -92,7 +92,8 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     presenter = presenter_for(@viewer)
 
     assert_match "Это твоя бронь", presenter.text
-    assert_equal I18n.t("bot.buttons.unreserve"), button_rows(presenter).first.first.text
+    assert_equal [ I18n.t("bot.buttons.purchased"), I18n.t("bot.buttons.unreserve") ], button_rows(presenter).first(2).map { |row| row.first.text }
+    assert_includes callbacks(presenter), "mark_purchased:#{@item.id}:1:1"
     assert_includes callbacks(presenter), "unreserve_item:#{@item.id}:1"
     assert_includes callbacks(presenter), "show_reservations:0"
   end

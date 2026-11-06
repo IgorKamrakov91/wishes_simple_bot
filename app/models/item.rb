@@ -61,11 +61,29 @@ class Item < ApplicationRecord
     change_reservation(user.telegram_id, nil, expected_version)
   end
 
+  def purchased?
+    purchased_at.present?
+  end
+
+  # Only the guest holding this reservation can mark it; the version keeps an
+  # old button from marking a later reservation. Repeats leave it as it is.
+  def mark_purchased_by!(user, purchased, expected_version: reservation_version)
+    scope = self.class.where(id: id, reserved_by: user.telegram_id, reservation_version: expected_version)
+    changed = if purchased
+      scope.where(purchased_at: nil).update_all(purchased_at: Time.current, updated_at: Time.current)
+    else
+      scope.where.not(purchased_at: nil).update_all(purchased_at: nil, updated_at: Time.current)
+    end
+    reload
+    changed == 1 || (reserved_by?(user) && reservation_version == expected_version && purchased? == purchased)
+  end
+
   private
 
   def change_reservation(previous_reserver, next_reserver, expected_version)
     changed = self.class.where(id: id, reserved_by: previous_reserver, reservation_version: expected_version)
-      .update_all(reserved_by: next_reserver, reservation_version: expected_version + 1, updated_at: Time.current) == 1
+      .update_all(reserved_by: next_reserver, reservation_version: expected_version + 1,
+                  purchased_at: nil, updated_at: Time.current) == 1
 
     reload
     changed

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_05_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_06_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -24,6 +24,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_090000) do
     t.string "url"
     t.bigint "wishlist_id", null: false
     t.bigint "reservation_version", default: 0, null: false
+    t.datetime "purchased_at"
     t.index ["reserved_by"], name: "index_items_on_reserved_by"
     t.index ["wishlist_id"], name: "index_items_on_wishlist_id"
   end

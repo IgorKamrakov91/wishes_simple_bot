@@ -53,6 +53,7 @@ class BotPresentersWishlistPresenterTest < ActiveSupport::TestCase
     assert_equal "https://t.me/TestBot?start=l_#{@wishlist.share_token}", share.copy_text.text
     assert buttons.any? { |b| b.callback_data == "list_settings:#{@wishlist.id}" }
     assert_equal "Taken · 1 900 ₽ · занято", buttons.first.text
+    assert_equal "danger", buttons.first.style
     assert_match "2 подарка · забронировано 1", presenter.text
     refute_match "%", presenter.text
   end
@@ -66,7 +67,7 @@ class BotPresentersWishlistPresenterTest < ActiveSupport::TestCase
     buttons = rows(presenter).flatten
 
     assert_equal [ "★ Mine · твоя бронь", "Theirs · занято", "Free" ], buttons.first(3).map(&:text)
-    assert_equal [ "success", "success", nil ], buttons.first(3).map(&:style)
+    assert_equal [ "success", "danger", nil ], buttons.first(3).map(&:style)
     assert_match "3 подарка · уже выбрали 2", presenter.text
     assert_match "tg://user?id=3001", presenter.text
     assert buttons.none?(&:copy_text)

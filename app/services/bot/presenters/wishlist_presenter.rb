@@ -5,8 +5,10 @@ module Bot
     class WishlistPresenter < BasePresenter
       PER_PAGE = 5
       TITLE_LIMIT = 32
-      # Telegram colors inline buttons by style: primary, success, danger
-      RESERVED_STYLE = "success"
+      # Telegram colors inline buttons only by style (primary, success,
+      # danger), not by any hex color
+      MY_RESERVATION_STYLE = "success"
+      TAKEN_STYLE = "danger"
 
       object_name :wishlist
 
@@ -84,11 +86,14 @@ module Bot
         end
       end
 
-      # Reserved gifts are colored and the guest's own reservation starts with
-      # a star; the status word at the end keeps both readable for screen
-      # readers and in clients that ignore button colors
+      # The guest's own reservations are green with a star, gifts taken by
+      # someone else are red; the status word at the end keeps both readable
+      # for screen readers and in clients that ignore button colors
       def item_button(item)
-        options = item.reserved? ? { style: RESERVED_STYLE } : {}
+        options = if reserved_by_me?(item) then { style: MY_RESERVATION_STYLE }
+        elsif item.reserved? then { style: TAKEN_STYLE }
+        else {}
+        end
         context.inline_btn(item_label(item), "open_item:#{item.id}", **options)
       end
 

@@ -109,6 +109,25 @@ module Bot
 
       # Old toggle buttons do not encode whether the user intended to reserve
       # or release. Refresh them into explicit actions without changing data.
+      # "Already bought" on the guest's own reservation: reminders leave the
+      # gift out. Each button writes an explicit value, so a repeated press
+      # can't flip it back.
+      def mark_purchased(item_id, reservation_version, value, reservations_page = nil)
+        item = Item.accessible_to(user).find(item_id)
+        purchased = value == 1
+        context.notice = if item.mark_purchased_by!(user, purchased, expected_version: reservation_version)
+          I18n.t(purchased ? "bot.messages.purchased_notice" : "bot.messages.not_purchased_notice")
+        else
+          I18n.t("bot.messages.button_outdated")
+        end
+
+        if reservations_page && !item.reserved_by?(user)
+          ReservationsHandler.new(context).show_reservations(reservations_page)
+        else
+          show_item(item.id, reservations_page: reservations_page)
+        end
+      end
+
       def toggle_reserve(item_id)
         item = Item.accessible_to(user).find(item_id)
         context.notice = I18n.t("bot.messages.reservation_changed")
