@@ -36,26 +36,40 @@ class BotPurchasedReservationsTest < ActiveSupport::TestCase
     assert @item.reload.purchased?
     assert_equal I18n.t("bot.messages.purchased_notice"), @answer[:text]
     assert_includes text, I18n.t("bot.screens.item.guest_purchased")
-    assert_includes callbacks, "mark_purchased:#{@item.id}:1:0:0"
+    assert_includes callbacks, "mark_purchased:#{@item.id}:2:0:0"
     assert_includes callbacks, "show_reservations:0"
 
     press("show_reservations")
     assert_equal "Puzzle · «Birthday» · куплен", buttons.first.text
 
-    press("mark_purchased:#{@item.id}:1:0:0")
+    press("mark_purchased:#{@item.id}:2:0:0")
     refute @item.reload.purchased?
     assert_equal I18n.t("bot.messages.not_purchased_notice"), @answer[:text]
   end
 
   test "releasing ends the mark, and an old button can't mark the next reservation" do
     press("mark_purchased:#{@item.id}:1:1")
-    @item.release_for!(@guest, expected_version: 1)
+    refute @item.release_for!(@guest, expected_version: 1), "a release button from before the mark is outdated"
+    assert @item.release_for!(@guest, expected_version: 2)
     assert_nil @item.reload.purchased_at
 
     @item.reserve_for!(@guest)
     press("mark_purchased:#{@item.id}:1:1")
     refute @item.reload.purchased?
     assert_equal I18n.t("bot.messages.button_outdated"), @answer[:text]
+  end
+
+  test "a late repeat of an earlier press can't undo a later choice" do
+    press("mark_purchased:#{@item.id}:1:1")
+    press("mark_purchased:#{@item.id}:2:0")
+    press("mark_purchased:#{@item.id}:1:1")
+    refute @item.reload.purchased?
+    assert_equal I18n.t("bot.messages.button_outdated"), @answer[:text]
+
+    press("mark_purchased:#{@item.id}:3:1")
+    press("mark_purchased:#{@item.id}:2:0")
+    assert @item.reload.purchased?
+    assert_equal 4, @item.reservation_version
   end
 
   test "nobody else can mark the booking, and the owner never sees the mark" do
