@@ -3,7 +3,7 @@ en:
     commands:
       cancelled: "Cancelled, nothing was saved."
       nothing_to_cancel: "There is nothing to cancel."
-      unknown_command: "There is no such command. Here is what I can do:\n/start — main menu\n/my — my lists\n/new — new list\n/cancel — cancel input\n/help — help"
+      unknown_command: "There is no such command. Here is what I can do:"
       text_only: "I understand text and buttons. Choose what to do:"
       unrecognized_text: "I did not understand that. To add a gift, open a list and tap “+ Add gift”."
       help: |
@@ -19,17 +19,17 @@ en:
         • Find your reservations in “My reservations”; notifications are in “Settings”.
 
         Almost everything works through the buttons under messages. Commands:
-        /start — main menu
-        /my — my lists
-        /new — new list
-        /cancel — cancel input
-        /help — this help
-
-        Questions and suggestions: @ikamrakov
+      help_cancel: "While typing: /cancel — cancel input"
+      help_contact: "Questions and suggestions: @ikamrakov"
+      input_active: "The input is not finished: you can continue or cancel it."
+      input_finished: "The input is already finished"
       list_not_found: "List not found."
       link_outdated: "This link is outdated. Ask the list owner to send you a new one."
     buttons:
       settings: "Settings"
+      help: "Help"
+      resume_input: "Continue input"
+      cancel_input: "Cancel input"
       prev_page: "← Previous"
       next_page: "Next →"
       prev_item: "← Previous"
@@ -180,7 +180,8 @@ en:
         start: "Main menu"
         my: "My lists"
         new: "New list"
-        cancel: "Cancel input"
+        reservations: "My reservations"
+        settings: "Settings"
         help: "Help"
     inline:
       open: "Open wishlist"

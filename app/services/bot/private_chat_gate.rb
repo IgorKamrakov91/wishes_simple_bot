@@ -5,7 +5,7 @@ module Bot
     extend Helpers
 
     GROUP_TYPES = %w[group supergroup].freeze
-    COMMANDS = %w[start my help new cancel].freeze
+    COMMANDS = %w[start my new reservations settings help cancel].freeze
 
     class << self
       def allow_message?(bot, message)

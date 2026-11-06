@@ -4,6 +4,9 @@ module Bot
     # Links from before share tokens: they no longer let anyone in
     START_LEGACY_LIST_PATTERN = %r{\A/start list_(\d+)\z}
 
+    # Looking something up doesn't abandon what the user is typing
+    KEEP_INPUT_COMMANDS = %w[/help /settings].freeze
+
     extend Bot::Helpers
 
     class << self
@@ -13,13 +16,13 @@ module Bot
 
         had_input = user.bot_state.present?
         if had_input
-          # A command means the user gave up on the pending input
           unless context.text.start_with?("/")
             StateHandler.new(context).handle
             return
           end
 
-          user.clear_state!
+          # Other commands mean the user gave up on the pending input
+          user.clear_state! unless KEEP_INPUT_COMMANDS.include?(context.text)
         end
 
         # Otherwise, handle as a command
@@ -39,11 +42,15 @@ module Bot
         when "/start"
           handle_start(context)
         when "/help"
-          context.send_text(help_text)
+          Callbacks::HelpHandler.new(context).show_help
         when "/my"
           Callbacks.show_lists(context)
         when "/new"
           Callbacks::WishlistHandler.new(context).create_list_prompt
+        when "/reservations"
+          Callbacks::ReservationsHandler.new(context).show_reservations
+        when "/settings"
+          Callbacks::SettingsHandler.new(context).show_settings
         when "/cancel"
           reply_with_menu(context, I18n.t(had_input ? "bot.commands.cancelled" : "bot.commands.nothing_to_cancel"))
         else
@@ -61,7 +68,9 @@ module Bot
         elsif context.text.empty? then "text_only"
         else "unrecognized_text"
         end
-        reply_with_menu(context, I18n.t("bot.commands.#{key}"))
+        text = I18n.t("bot.commands.#{key}")
+        text = "#{text}\n#{Profile.command_list}" if key == "unknown_command"
+        reply_with_menu(context, text)
       end
 
       def reply_with_menu(context, text)
@@ -94,10 +103,6 @@ module Bot
         else
           context.send_text(I18n.t("bot.commands.link_outdated"))
         end
-      end
-
-      def help_text
-        I18n.t("bot.commands.help")
       end
     end
   end

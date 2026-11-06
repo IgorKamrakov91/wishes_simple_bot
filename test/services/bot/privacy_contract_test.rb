@@ -41,6 +41,6 @@ class BotPrivacyContractTest < ActiveSupport::TestCase
   end
 
   test "help names the support contact" do
-    %i[ru en].each { |locale| assert_includes I18n.t("bot.commands.help", locale: locale), "@ikamrakov" }
+    %i[ru en].each { |locale| I18n.with_locale(locale) { assert_includes Bot::Callbacks::HelpHandler.text, "@ikamrakov" } }
   end
 end

@@ -6,6 +6,9 @@ module Bot
       /^main_menu$/ => "Callbacks::WishlistHandler#main_menu",
       /^settings$/ => "Callbacks::SettingsHandler#show_settings",
       /^set_setting:(\w+):([01])$/ => "Callbacks::SettingsHandler#set_setting",
+      /^help$/ => "Callbacks::HelpHandler#show_help",
+      /^resume_input$/ => "Callbacks::InputHandler#resume",
+      /^cancel_input$/ => "Callbacks::InputHandler#cancel",
       /^show_reservations$/ => "Callbacks::ReservationsHandler#show_reservations",
       /^show_reservations:(\d+)$/ => "Callbacks::ReservationsHandler#show_reservations",
       /^open_booked_item:(\d+):(\d+)$/ => "Callbacks::ReservationsHandler#open_item",
@@ -36,8 +39,9 @@ module Bot
       /^skip_item_url(?::(\w+))?$/ => "Callbacks::ItemHandler#skip_item_url"
     }.freeze
 
-    # Buttons that finish the pending input or do nothing, so they keep it
-    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|noop)\z/
+    # Buttons that finish the pending input, do nothing, or only look
+    # something up (help, settings), so they keep it
+    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|noop|help|settings|set_setting:\w+:[01]|resume_input|cancel_input)\z/
 
     class << self
       def handle(bot, callback)

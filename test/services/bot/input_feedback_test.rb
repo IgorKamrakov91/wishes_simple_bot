@@ -170,7 +170,8 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
   test "an unknown command lists the commands" do
     say("/foo")
 
-    assert_equal I18n.t("bot.commands.unknown_command"), last_text
+    assert last_text.start_with?(I18n.t("bot.commands.unknown_command"))
+    Bot::Profile::COMMANDS.each { |command| assert_includes last_text, "/#{command} — " }
   end
 
   test "a sticker outside any input gets an answer" do
