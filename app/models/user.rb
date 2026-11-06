@@ -17,7 +17,7 @@ class User < ApplicationRecord
       next if reservation_reminder_days == days
 
       update!(reservation_reminder_days: days,
-              reservation_reminder_next_at: (ReminderSchedule.next_send_at(Time.current + days.days) if days.positive?))
+              reservation_reminder_next_at: (ReminderSchedule.after_days(Time.current, days) if days.positive?))
     end
   end
 

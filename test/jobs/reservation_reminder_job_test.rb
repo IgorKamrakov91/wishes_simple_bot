@@ -156,6 +156,33 @@ class ReservationReminderJobTest < ActiveJob::TestCase
     end
   end
 
+  test "an afternoon opt-in is due at noon after seven Moscow calendar days" do
+    @guest.configure_reservation_reminders!(0)
+    travel_to Time.utc(2026, 11, 6, 12, 37) # 15:37 Moscow
+    @guest.configure_reservation_reminders!(7)
+    noon = Time.utc(2026, 11, 13, 9)
+    assert_equal noon, @guest.reload.reservation_reminder_next_at
+
+    travel_to noon
+    assert_enqueued_jobs 1, only: ReservationReminderJob do
+      ReservationRemindersJob.perform_now
+    end
+    job = enqueued_jobs.find { |entry| entry[:job] == ReservationReminderJob }
+    ReservationReminderJob.perform_now(*job[:args])
+    assert_equal 1, @messages.size
+  end
+
+  test "send time seconds do not postpone eligibility beyond the next daily run" do
+    travel_to Time.utc(2026, 11, 6, 9, 0, 3)
+    deliver
+    assert_equal Time.utc(2026, 11, 6, 9, 0, 3), @guest.reload.reservation_reminder_last_sent_at
+    next_noon = Time.utc(2026, 11, 13, 9)
+    assert_equal next_noon, @guest.reservation_reminder_next_at
+
+    travel_to next_noon
+    assert_enqueued_jobs(1) { ReservationRemindersJob.perform_now }
+  end
+
   test "large legacy titles stay within the message limit and the digest is bounded" do
     @item.update_column(:title, "🔥" * 6000)
     @wishlist.update_column(:title, "🔥" * 6000)

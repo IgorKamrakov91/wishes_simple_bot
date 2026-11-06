@@ -142,8 +142,10 @@ without retrying; network errors and 429 are retried up to three attempts.
 ## Reservation reminders
 
 Settings → Reservation reminders offers Off (default), 7, 14 or 30 days. Enabling or changing
-the interval schedules the first reminder after that interval; repeating the same setting does
-not postpone it. A successful delivery schedules the next one from its delivery time.
+the interval schedules the first reminder at noon on the Moscow calendar date that many days
+later; repeating the same setting does not postpone it. Successful delivery schedules the next
+one at noon on the delivery's Moscow calendar date plus the selected interval. Send delays do
+not drift a reminder past the daily scheduler's next eligible run.
 Only accessible reservations in other people's lists without `purchased_at` are included.
 The digest contains at most five gift names and links to My reservations and Settings.
 

@@ -77,7 +77,7 @@ en:
       reservation_reminders:
         button: "Reservation reminders: %{frequency}"
         text: "<b>Reservation reminders</b>\n\nRemind me about gifts I plan to give that are not marked as bought.\nThe first reminder arrives after the selected number of days. Messages are sent between 12:00 and 18:00 Moscow time.\n\nFrequency:"
-        "off": "Off"
+        "off": "disabled"
         every: "every %{count} days"
         updated: "Reservation reminders: %{frequency}"
       settings:

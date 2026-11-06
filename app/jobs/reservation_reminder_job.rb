@@ -20,7 +20,7 @@ class ReservationReminderJob < ApplicationJob
 
     # Claim this due time before the HTTP request, without holding a user row
     # lock during delivery. Concurrent jobs and restarts cannot claim it twice.
-    @claimed_next_at = ReminderSchedule.next_send_at(Time.current + @days.days)
+    @claimed_next_at = ReminderSchedule.after_days(Time.current, @days)
     return unless pending.update_all(reservation_reminder_next_at: @claimed_next_at,
                                      reservation_reminder_last_attempt_at: Time.current) == 1
 
@@ -41,7 +41,7 @@ class ReservationReminderJob < ApplicationJob
 
     sent_at = Time.current
     User.where(id: @recipient.id).update_all(reservation_reminder_last_sent_at: sent_at)
-    claimed.update_all(reservation_reminder_next_at: ReminderSchedule.next_send_at(sent_at + @days.days))
+    claimed.update_all(reservation_reminder_next_at: ReminderSchedule.after_days(sent_at, @days))
   rescue Telegram::Bot::Exceptions::ResponseError, Faraday::Error => e
     code = e.error_code.to_i if e.is_a?(Telegram::Bot::Exceptions::ResponseError)
     Rails.logger.info("Reservation reminder delivery failed (#{code || e.class})")
