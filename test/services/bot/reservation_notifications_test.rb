@@ -116,6 +116,17 @@ class BotReservationNotificationsTest < ActiveJob::TestCase
     refute @quiet.reload.notify_own_reservations
   end
 
+  test "birthday reminders can be disabled independently without abandoning pending input" do
+    assert @guest.notify_birthdays
+    @guest.start_creating_list!
+    press("set_setting:notify_birthdays:0")
+
+    refute @guest.reload.notify_birthdays
+    assert @guest.notify_own_reservations
+    refute @guest.notify_friend_reservations
+    assert_equal "creating_list", @guest.bot_state
+  end
+
   test "nothing is enqueued when the reservation is rolled back" do
     ActiveRecord::Base.transaction do
       @item.reserve_for!(@guest)

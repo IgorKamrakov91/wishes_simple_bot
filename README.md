@@ -170,6 +170,41 @@ and an enabled interval. Confirm a real Telegram message and a populated `last_s
 an enqueued job alone does not prove delivery. Marking all bookings bought or disabling the
 setting must suppress a queued reminder. Do not change real users' due dates for a smoke test.
 
+## Birthday reminders
+
+Birthday reminders are on by default for guests and can be disabled independently in Settings.
+`BirthdayRemindersJob` runs daily at noon Europe/Moscow and schedules a paced `getChat` refresh
+for each list owner with interested guests. `SyncTelegramBirthdayJob` reads only the optional
+`ChatFullInfo.birthdate` field. It stores day/month and refresh timestamps, never the birth year,
+age or the raw profile. A missing or invalid birthdate clears the cached day/month; a failed
+refresh leaves the cache ineligible for delivery. There is no manual birthdate input.
+
+Telegram decides whether a birthdate is available to the bot. That does not tell us whether an
+individual guest can see it in Telegram. Help explains that a birthdate available to the bot can
+be used to remind guests of the owner's lists. Refresh is daily, so privacy/profile changes are
+not detected instantly. Confirm this behavior with real Telegram profiles during acceptance.
+
+Guests with current list access receive one reminder per owner and upcoming birthday year,
+even if several lists are shared. A 1–30 day window catches queue outages and guests who obtain
+access after the 30-day point. The owner is not a recipient, and messages only link to lists the
+guest can still access. Birthday dates near January are deduplicated by the upcoming occurrence
+year, even when the notification was sent in December. February 29 uses February 28 as the
+reminder's calendar reference in non-leap years; the message retains the profile's 29.02 date.
+
+`BirthdayReminderJob` rechecks the guest's preference, access, current profile refresh and date
+window. It uses the same Moscow daytime window as reservation reminders. A unique database
+record claims delivery before HTTP; only confirmed sends receive `sent_at`. 429 respects
+`retry_after`, with up to three attempts for definite Telegram failures. A timeout or crash after
+claiming is not automatically retried, avoiding duplicate annual reminders at the cost of a
+potential missed reminder. Refresh requests can retry network errors because they do not send
+messages. No names, dates or Telegram profile bodies are logged by these jobs.
+
+After deployment, check the scheduler and worker for all three birthday jobs. Use real test
+profiles with a visible date inside the window and two shared lists, and verify one real message
+to the guest. Check hidden/missing birthdays, guest opt-out, revoked list access, the absence of
+birth year/age in storage, and no second delivery from a repeated run. Enqueue alone is not
+acceptance. Do not modify real users' birthdays or delivery records to force the check.
+
 ## Running Tests
 
 ```bash

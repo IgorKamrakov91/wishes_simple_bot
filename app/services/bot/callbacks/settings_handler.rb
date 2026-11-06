@@ -3,7 +3,7 @@
 module Bot
   module Callbacks
     class SettingsHandler < BaseHandler
-      SETTINGS = %w[notify_own_reservations notify_friend_reservations].freeze
+      SETTINGS = %w[notify_own_reservations notify_friend_reservations notify_birthdays].freeze
 
       def show_settings
         # Each button writes the value it shows next, so a repeated delivery

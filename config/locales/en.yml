@@ -16,6 +16,7 @@ en:
         • Anyone with the link can open the list, and the link can be forwarded.
         • The list owner sees that a gift is taken, but not who reserved it.
         • Other guests see the name of whoever reserved it, under a spoiler.
+        • If your Telegram profile's birthdate is available to the bot, it may remind guests of your lists. Dates are refreshed daily.
         • Find your reservations in “My reservations”; notifications are in “Settings”.
 
         Almost everything works through the buttons under messages. Commands:
@@ -88,10 +89,13 @@ en:
           • My lists — when friends choose my gifts.
           • Friends' lists — when other guests choose gifts.
 
-          You do not receive notifications about your own actions. Notifications do not include the person's name.
+          You do not receive notifications about your own actions. Reservation notifications do not name the person who changed the reservation.
+
+          Friends' birthdays — a reminder about 30 days ahead, if Telegram provides the profile's birthdate. Dates are checked daily.
           Tap a button to change its setting.
         notify_own_reservations: "My lists: %{state}"
         notify_friend_reservations: "Friends' lists: %{state}"
+        notify_birthdays: "Friends' birthdays: %{state}"
         "on": "enabled"
         "off": "disabled"
         turned_on: "Notifications %{list_scope} enabled"
@@ -99,6 +103,7 @@ en:
         scopes:
           notify_own_reservations: "for my lists"
           notify_friend_reservations: "for friends' lists"
+          notify_birthdays: "for friends' birthdays"
       main:
         welcome: "<b>Hi, %{name}!</b>\nI help you make a wishlist and share it with friends.\n\n1. Create a list and add gifts to it.\n2. Send the list to your friends.\n3. Friends reserve gifts so nobody gives the same thing twice."
         greeting: "<b>Hi, %{name}!</b>\nYour wishlists and the lists friends shared with you live here."
@@ -173,6 +178,8 @@ en:
       private_chat_only: "Manage lists and reserve gifts in a private chat with the bot."
       name_linked_item: "What is the gift called? Once you send a name, I'll add it with this link to “%{list}”."
     reminders:
+      birthdays:
+        text: "Birthday coming up: %{name} — %{date}.\nChoose a gift from the lists you have access to.\n\nYou can turn birthday reminders off in settings."
       reservations:
         heading: "Gift reminder"
         count:

@@ -10,9 +10,24 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_06_230000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_06_231000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "birthday_reminder_deliveries", force: :cascade do |t|
+    t.bigint "recipient_id", null: false
+    t.bigint "owner_id", null: false
+    t.integer "birthday_year", null: false
+    t.integer "attempts", default: 0, null: false
+    t.datetime "claimed_at"
+    t.datetime "retry_at"
+    t.datetime "sent_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_id"], name: "index_birthday_reminder_deliveries_on_owner_id"
+    t.index ["recipient_id", "owner_id", "birthday_year"], name: "index_birthday_reminders_on_recipient_owner_year", unique: true
+    t.index ["recipient_id"], name: "index_birthday_reminder_deliveries_on_recipient_id"
+  end
 
   create_table "items", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -55,6 +70,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_230000) do
     t.datetime "reservation_reminder_next_at"
     t.datetime "reservation_reminder_last_attempt_at"
     t.datetime "reservation_reminder_last_sent_at"
+    t.boolean "notify_birthdays", default: true, null: false
+    t.integer "birthdate_day"
+    t.integer "birthdate_month"
+    t.datetime "birthdate_checked_at"
+    t.datetime "birthdate_synced_at"
     t.index ["reservation_reminder_next_at"], name: "index_users_on_reservation_reminder_next_at"
     t.index ["telegram_id"], name: "index_users_on_telegram_id", unique: true
     t.check_constraint "reservation_reminder_days = ANY (ARRAY[0, 7, 14, 30])", name: "users_reservation_reminder_days"
@@ -70,6 +90,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_230000) do
     t.index ["user_id"], name: "index_wishlists_on_user_id"
   end
 
+  add_foreign_key "birthday_reminder_deliveries", "users", column: "owner_id", on_delete: :cascade
+  add_foreign_key "birthday_reminder_deliveries", "users", column: "recipient_id", on_delete: :cascade
   add_foreign_key "items", "wishlists"
   add_foreign_key "list_viewers", "users"
   add_foreign_key "list_viewers", "wishlists"
