@@ -7,6 +7,8 @@ require "telegram/bot"
 Telegram::Bot::Types::Update
 
 class BotContextTest < ActiveSupport::TestCase
+  include Bot::Helpers
+
   setup do
     @api = mock("TelegramApi")
     @bot = mock("TelegramBot")
@@ -25,6 +27,18 @@ class BotContextTest < ActiveSupport::TestCase
     Bot::Context.new(bot: @bot, user: @user, source: callback)
   end
 
+  def keyboard
+    build_keyboard([ [ inline_btn("Back", "main_menu") ] ])
+  end
+
+  def message_context
+    message = Telegram::Bot::Types::Message.new(
+      message_id: 1, date: 1, chat: { id: 777, type: "private" }, text: "/cancel",
+      from: { id: 12345, is_bot: false, first_name: "John" }
+    )
+    Bot::Context.new(bot: @bot, user: @user, source: message)
+  end
+
   def response_error(description)
     response = Struct.new(:body, :status).new({ ok: false, error_code: 400, description: description }.to_json, 400)
     Telegram::Bot::Exceptions::ResponseError.new(response: response)
@@ -38,6 +52,40 @@ class BotContextTest < ActiveSupport::TestCase
     @api.expects(:send_message).never
 
     callback_context.render("New screen")
+  end
+
+  test "screens with buttons get a blank line that keeps them wide, plain messages don't" do
+    sent = []
+    @api.stubs(:edit_message_text).with { |params| sent << params[:text]; true }
+
+    callback_context.render("Menu", keyboard)
+    callback_context.render("Done")
+    callback_context.edit_message("Plain edit", keyboard)
+
+    pad = "\n#{"\u2800" * 23}"
+    assert_equal [ "Menu#{pad}", "Done", "Plain edit#{pad}" ], sent
+    assert_equal "Menu", screen_text(sent.first)
+  end
+
+  test "the blank line is left out when it would push a screen past Telegram's limit" do
+    sent = []
+    @api.stubs(:edit_message_text).with { |params| sent << params[:text]; true }
+    room = 4096 - 24
+
+    callback_context.render("x" * room, keyboard)
+    callback_context.render("x" * (room + 1), keyboard)
+    callback_context.render("x" * 4096, keyboard)
+    # An emoji is two UTF-16 units for Telegram
+    callback_context.render("😂" + "x" * (room - 1), keyboard)
+
+    assert_equal [ 4096, room + 1, 4096, room + 1 ], sent.map { |text| text.encode("UTF-16LE").bytesize / 2 }
+    assert_equal [ true, false, false, false ], sent.map { |text| text.end_with?(Bot::Context::SCREEN_WIDTH_LINE) }
+  end
+
+  test "a command reply with buttons is widened too" do
+    @api.expects(:send_message).with { |params| params[:text] == "Cancelled\n#{Bot::Context::SCREEN_WIDTH_LINE}" }
+
+    message_context.send_text("Cancelled", keyboard)
   end
 
   test "render ignores unchanged screens" do

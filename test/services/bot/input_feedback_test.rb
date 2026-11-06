@@ -46,7 +46,11 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
   end
 
   def last_text
-    @sent.last[:text]
+    screen_text(@sent.last[:text])
+  end
+
+  def widened?
+    @sent.last[:text].end_with?("\n#{Bot::Context::SCREEN_WIDTH_LINE}")
   end
 
   def last_buttons
@@ -58,6 +62,7 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
     say("две тыщи")
 
     assert_equal I18n.t("bot.input_errors.price.not_a_number"), last_text
+    assert widened?, "an error with buttons is as wide as the prompt before it"
     assert_equal [ "open_item:#{@item.id}" ], last_buttons.map(&:callback_data)
     assert_equal "editing_item", @user.reload.bot_state
     assert_equal 10, @item.reload.price
@@ -144,6 +149,7 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
     say("/cancel")
 
     assert_equal I18n.t("bot.commands.cancelled"), last_text
+    assert widened?
     assert_nil @user.reload.bot_state
   end
 

@@ -53,7 +53,7 @@ class BotUrlFirstGiftsTest < ActiveSupport::TestCase
     assert_equal [ "Книга", "https://example.com/gift", nil, nil ], [ item.title, item.url, item.price, item.description ]
     assert_nil @user.reload.bot_state
     assert_nil @user.bot_payload
-    assert_equal I18n.t("bot.messages.item_added"), @sent.last[:text]
+    assert_equal I18n.t("bot.messages.item_added"), screen_text(@sent.last[:text])
   end
 
   test "bare and Cyrillic-path links use the existing normalization and parser" do
@@ -102,7 +102,7 @@ class BotUrlFirstGiftsTest < ActiveSupport::TestCase
   test "invalid explicit links stay at the first step and explain the URL error" do
     [ "https://", "https://bad_host.ru/item", "ftp://example.com/gift" ].each do |url|
       assert_no_difference("Item.count") { say(url) }
-      assert_equal I18n.t("bot.input_errors.url.invalid"), @sent.last[:text]
+      assert_equal I18n.t("bot.input_errors.url.invalid"), screen_text(@sent.last[:text])
       assert_equal "adding_item", @user.reload.bot_state
     end
   end
@@ -110,7 +110,7 @@ class BotUrlFirstGiftsTest < ActiveSupport::TestCase
   test "the URL length limit is checked before staging a draft" do
     say("https://example.com/#{'a' * Item::URL_LIMIT}")
 
-    assert_equal I18n.t("bot.input_errors.url.too_long", count: Item::URL_LIMIT), @sent.last[:text]
+    assert_equal I18n.t("bot.input_errors.url.too_long", count: Item::URL_LIMIT), screen_text(@sent.last[:text])
     assert_equal "adding_item", @user.reload.bot_state
     assert_equal({ "wishlist_id" => @wishlist.id }, @user.bot_payload)
   end
@@ -120,7 +120,7 @@ class BotUrlFirstGiftsTest < ActiveSupport::TestCase
     payload = @user.reload.bot_payload
     [ [ " ", "blank" ], [ "a" * 101, "too_long" ] ].each do |name, error|
       assert_no_difference("Item.count") { say(name) }
-      assert_equal I18n.t("bot.input_errors.title.#{error}", count: Item::TITLE_LIMIT), @sent.last[:text]
+      assert_equal I18n.t("bot.input_errors.title.#{error}", count: Item::TITLE_LIMIT), screen_text(@sent.last[:text])
       assert_equal "adding_item_title", @user.reload.bot_state
       assert_equal payload, @user.bot_payload
     end
@@ -156,7 +156,7 @@ class BotUrlFirstGiftsTest < ActiveSupport::TestCase
     say("https://example.com/gift")
     say(photo: [ { file_id: "f", file_unique_id: "u", width: 1, height: 1 } ])
 
-    assert_equal I18n.t("bot.input_errors.text_only"), @sent.last[:text]
+    assert_equal I18n.t("bot.input_errors.text_only"), screen_text(@sent.last[:text])
     assert_equal "adding_item_title", @user.reload.bot_state
     assert_equal "https://example.com/gift", @user.bot_payload["url"]
     assert_equal [ "open_list:#{@wishlist.id}" ], buttons.map(&:callback_data)
@@ -174,7 +174,7 @@ class BotUrlFirstGiftsTest < ActiveSupport::TestCase
     @wishlist.destroy!
     assert_no_difference("Item.count") { say("Книга") }
 
-    assert_equal I18n.t("bot.messages.input_target_gone"), @sent.last[:text]
+    assert_equal I18n.t("bot.messages.input_target_gone"), screen_text(@sent.last[:text])
     assert_nil @user.reload.bot_state
   end
 

@@ -13,6 +13,9 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
-    # Add more helper methods to be used by all tests here...
+    # Screen text as written, without the blank line that widens screens
+    def screen_text(text)
+      text.to_s.delete_suffix("\n#{Bot::Context::SCREEN_WIDTH_LINE}")
+    end
   end
 end

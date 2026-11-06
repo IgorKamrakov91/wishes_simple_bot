@@ -4,6 +4,14 @@ module Bot
   class Context
     include Helpers
 
+    # Telegram sizes a message, and the buttons under it, by its longest
+    # line, so screens jumped in width as the user moved around. A blank
+    # line of braille spaces (U+2800, which Telegram doesn't trim) makes
+    # every screen with buttons about as wide as a phone allows; it stays a
+    # little short of that so the time still fits beside it.
+    SCREEN_WIDTH_LINE = "\u2800" * 23
+    MESSAGE_LIMIT = 4096
+
     attr_reader :bot, :user, :source
 
     # Short text shown as a toast when the callback query is answered
@@ -22,7 +30,7 @@ module Bot
 
     # Helper to send text to the current chat
     def send_text(text, keyboard = nil, parse_mode: nil, link_preview_options: nil)
-      super(bot, chat_id, text, keyboard, parse_mode: parse_mode, link_preview_options: link_preview_options)
+      super(bot, chat_id, widen(text, keyboard), keyboard, parse_mode: parse_mode, link_preview_options: link_preview_options)
     end
 
     # Helper to edit the message a callback came from
@@ -32,7 +40,7 @@ module Bot
       bot.api.edit_message_text(**{
         chat_id: chat_id,
         message_id: source.message.message_id,
-        text: text,
+        text: widen(text, keyboard),
         reply_markup: keyboard,
         parse_mode: parse_mode,
         link_preview_options: link_preview_options
@@ -71,6 +79,15 @@ module Bot
     end
 
     private
+
+    # Telegram counts the limit in UTF-16 units after parsing the markup;
+    # the source text is never shorter, so a long screen just stays narrow
+    def widen(text, keyboard)
+      return text unless keyboard
+
+      widened = "#{text}\n#{SCREEN_WIDTH_LINE}"
+      widened.encode("UTF-16LE").bytesize / 2 <= MESSAGE_LIMIT ? widened : text
+    end
 
     def editable_message?
       source.is_a?(Telegram::Bot::Types::CallbackQuery) && source.message&.message_id.present?
