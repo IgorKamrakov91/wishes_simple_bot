@@ -13,12 +13,6 @@ module Bot
         @user = context.user
         @chat_id = context.chat_id
       end
-
-      private
-
-      def cancel_keyboard(callback_data)
-        context.build_keyboard([ [ context.inline_btn(I18n.t("bot.buttons.cancel"), callback_data) ] ])
-      end
     end
   end
 end

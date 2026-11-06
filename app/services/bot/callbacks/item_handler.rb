@@ -12,7 +12,7 @@ module Bot
       def add_item_prompt(wishlist_id)
         user.wishlists.find(wishlist_id)
         user.start_adding_item!(wishlist_id: wishlist_id)
-        context.render(I18n.t("bot.messages.enter_item_name"), cancel_keyboard("open_list:#{wishlist_id}"))
+        InputPrompt.new(context).render
       end
 
       def edit_item_menu(item_id)
@@ -37,15 +37,7 @@ module Bot
           bot_state: "editing_item",
           bot_payload: { item_id: item.id, field: field }
         )
-
-        current = item.public_send(field)
-        rows = []
-        if current.present? && Item::OPTIONAL_FIELDS.include?(field)
-          rows << [ context.inline_btn(I18n.t("bot.buttons.clear_field"), "clear_item_field:#{field}:#{item.id}") ]
-        end
-        rows << [ context.inline_btn(I18n.t("bot.buttons.cancel"), "open_item:#{item.id}") ]
-
-        context.render(edit_prompt_text(field, current), context.build_keyboard(rows))
+        InputPrompt.new(context).render
       end
 
       # Removes an optional value, in place of typing "-"
@@ -154,17 +146,6 @@ module Bot
         return false unless user.bot_state == "adding_item_url"
 
         draft_id ? payload["draft_id"] == draft_id : payload.key?("item_id")
-      end
-
-      def edit_prompt_text(field, current)
-        lines = [ I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.#{field}")) ]
-        hint = I18n.t("bot.input_hints.#{field}", default: nil)
-        lines << "<i>#{hint}</i>" if hint
-        if current.present?
-          shown = field == "price" ? format_price(current) : current.to_s.truncate(200)
-          lines << "\n#{I18n.t('bot.messages.current_value')}: #{escape_html(shown)}"
-        end
-        lines.join("\n")
       end
     end
   end

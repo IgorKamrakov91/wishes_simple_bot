@@ -12,7 +12,7 @@ class BotProfileTest < ActiveSupport::TestCase
     I18n.with_locale(:en) { Bot::Profile.apply(api) }
 
     default = calls.reject { |_, params| params.key?(:language_code) }.to_h
-    assert_equal %w[start my new cancel help], default[:set_my_commands][:commands].map { |c| c[:command] }
+    assert_equal %w[start my new reservations settings help], default[:set_my_commands][:commands].map { |c| c[:command] }
     assert_equal "Главное меню", default[:set_my_commands][:commands].first[:description]
     assert_match "Вишлисты", default[:set_my_short_description][:short_description]
 

@@ -110,8 +110,7 @@ module Bot
       Item.new(wishlist: wishlist, title: "Draft", url: url).validate!
       user.update!(bot_state: "adding_item_title",
                    bot_payload: { "wishlist_id" => wishlist.id, "url" => url })
-      [ I18n.t("bot.messages.name_linked_item", list: escape_html(wishlist.title.to_s.truncate(100))),
-        build_keyboard([ [ inline_btn(I18n.t("bot.buttons.cancel"), "open_list:#{wishlist.id}") ] ]) ]
+      InputPrompt.new(context).prompt
     end
 
     def draft_with_title(wishlist)
@@ -122,12 +121,7 @@ module Bot
       draft_id = "d#{SecureRandom.hex(4)}"
       user.update!(bot_state: "adding_item_url",
                    bot_payload: { "wishlist_id" => wishlist.id, "title" => text, "draft_id" => draft_id })
-
-      keyboard = build_keyboard([
-        [ inline_btn(I18n.t("bot.buttons.skip_url"), "skip_item_url:#{draft_id}", style: "primary") ],
-        [ inline_btn(I18n.t("bot.buttons.cancel"), "open_list:#{wishlist.id}") ]
-      ])
-      [ I18n.t("bot.messages.enter_item_url", title: escape_html(text), list: escape_html(wishlist.title.to_s.truncate(100))), keyboard ]
+      InputPrompt.new(context).prompt
     end
 
     # Saving the gift and ending the input happen together under a lock on

@@ -6,7 +6,9 @@ module Bot
   # The bot speaks Russian, so everyone gets the Russian texts; languages
   # that once had their own texts get them removed and fall back to these.
   module Profile
-    COMMANDS = %w[start my new cancel help].freeze
+    # /cancel still works, but only matters while typing, where every step
+    # has a Cancel button; /help mentions it
+    COMMANDS = %w[start my new reservations settings help].freeze
     REMOVED_LANGUAGES = %w[en].freeze
 
     module_function
@@ -28,6 +30,11 @@ module Bot
 
     def commands
       COMMANDS.map { |name| { command: name, description: I18n.t("bot.profile.commands.#{name}") } }
+    end
+
+    # The same list for /help and unknown commands
+    def command_list
+      commands.map { |c| "/#{c[:command]} — #{c[:description].downcase_first}" }.join("\n")
     end
   end
 end

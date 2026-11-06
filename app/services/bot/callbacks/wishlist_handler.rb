@@ -33,7 +33,10 @@ module Bot
           ],
           [ context.inline_btn(I18n.t("bot.screens.reservations.title"), "show_reservations") ],
           [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", style: "primary") ],
-          [ context.inline_btn(I18n.t("bot.buttons.settings"), "settings") ]
+          [
+            context.inline_btn(I18n.t("bot.buttons.settings"), "settings"),
+            context.inline_btn(I18n.t("bot.buttons.help"), "help")
+          ]
         ])
 
         context.render(lines.join("\n\n"), keyboard)
@@ -51,13 +54,13 @@ module Bot
 
       def create_list_prompt
         user.start_creating_list!
-        context.render(I18n.t("bot.messages.enter_list_name"), cancel_keyboard("show_lists"))
+        InputPrompt.new(context).render
       end
 
       def rename_list_prompt(wishlist_id)
         user.wishlists.find(wishlist_id)
         user.start_renaming_list!(wishlist_id: wishlist_id)
-        context.render(I18n.t("bot.messages.enter_new_list_name"), cancel_keyboard("list_settings:#{wishlist_id}"))
+        InputPrompt.new(context).render
       end
 
       def list_settings(wishlist_id)
