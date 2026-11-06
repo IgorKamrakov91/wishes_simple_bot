@@ -105,6 +105,55 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     assert_nil @user.bot_payload
   end
 
+  test "an edit delivered twice only updates the gift once" do
+    wishlist = @user.wishlists.create!(title: "Birthday")
+    item = wishlist.items.create!(title: "Puzzle", price: 10)
+    @user.update!(bot_state: "editing_item", bot_payload: { "item_id" => item.id, "field" => "price" })
+    stale_user = User.find(@user.id)
+    context = context_for("12,50")
+    context.stubs(:user).returns(stale_user)
+    Bot::Callbacks::ItemHandler.any_instance.expects(:show_item).with(item.id).once
+
+    Bot::StateHandler.new(context_for("12,50")).handle
+    item.update!(price: 20)
+    Bot::StateHandler.new(context).handle
+
+    assert_equal 20.to_d, item.reload.price
+    assert_nil stale_user.reload.bot_state
+  end
+
+  test "a cancelled edit cannot be applied by a stale delivery" do
+    wishlist = @user.wishlists.create!(title: "Birthday")
+    item = wishlist.items.create!(title: "Puzzle", price: 10)
+    @user.update!(bot_state: "editing_item", bot_payload: { "item_id" => item.id, "field" => "price" })
+    stale_user = User.find(@user.id)
+    context = context_for("12,50")
+    context.stubs(:user).returns(stale_user)
+    Bot::Callbacks::ItemHandler.any_instance.expects(:show_item).never
+    @user.clear_state!
+
+    Bot::StateHandler.new(context).handle
+
+    assert_equal 10.to_d, item.reload.price
+    assert_nil stale_user.reload.bot_state
+  end
+
+  test "a stale edit does not consume a newly started list prompt" do
+    wishlist = @user.wishlists.create!(title: "Birthday")
+    item = wishlist.items.create!(title: "Puzzle")
+    @user.update!(bot_state: "editing_item", bot_payload: { "item_id" => item.id, "field" => "title" })
+    stale_user = User.find(@user.id)
+    context = context_for("New name")
+    context.stubs(:user).returns(stale_user)
+    Bot::Callbacks::ItemHandler.any_instance.expects(:show_item).never
+    @user.start_creating_list!
+
+    Bot::StateHandler.new(context).handle
+
+    assert_equal "Puzzle", item.reload.title
+    assert_equal "creating_list", @user.reload.bot_state
+  end
+
   test "adding item url state treats dash as skipped url" do
     wishlist = Wishlist.create!(user: @user, title: "Birthday")
     item = wishlist.items.create!(title: "Puzzle")
