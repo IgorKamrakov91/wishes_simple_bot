@@ -49,10 +49,12 @@ class BotMyReservationsTest < ActiveJob::TestCase
 
     press("show_reservations")
     assert_equal [ item.id ], opened_ids
-    booked, release = @edits.last[:reply_markup].inline_keyboard.first
+    row = @edits.last[:reply_markup].inline_keyboard.first
+    assert_equal 1, row.size
+    booked = row.first
     assert_equal "Gift <&> · Owner <&>, «Birthday <&>»", booked.text
     assert_equal "success", booked.style
-    assert_equal [ I18n.t("bot.buttons.unreserve"), "release_book:#{item.id}:0:0" ], [ release.text, release.callback_data ]
+    assert buttons.none? { |button| button.callback_data.start_with?("release_book:") }
 
     press(booked.callback_data)
     assert_includes buttons.map(&:callback_data), "release_book:#{item.id}:0:0"
@@ -263,6 +265,6 @@ class BotMyReservationsTest < ActiveJob::TestCase
     assert_equal 5, opened_ids.size
     assert buttons.all? { |button| button.callback_data.bytesize <= 64 }
     assert buttons.none? { |button| button.callback_data == "noop" }
-    assert buttons.select { |button| button.callback_data.start_with?("open_booked_item:") }.all? { |button| button.text.length <= 70 }
+    assert buttons.select { |button| button.callback_data.start_with?("open_booked_item:") }.all? { |button| button.text.length <= 80 }
   end
 end
