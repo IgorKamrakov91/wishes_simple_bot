@@ -10,6 +10,9 @@
 #     schedule: at 5am every day
 
 production:
+  birthday_reminders:
+    class: BirthdayRemindersJob
+    schedule: "0 12 * * * Europe/Moscow"
   reservation_reminders:
     class: ReservationRemindersJob
     schedule: "0 12 * * * Europe/Moscow"
