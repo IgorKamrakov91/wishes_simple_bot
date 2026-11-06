@@ -53,7 +53,7 @@ class BotOnboardingAndSharingTest < ActiveSupport::TestCase
   test "a newcomer sees how it works and one button to start" do
     start
 
-    assert_equal I18n.t("bot.screens.main.welcome", name: "Анна"), @sent.last[:text]
+    assert_equal I18n.t("bot.screens.main.welcome", name: "Анна"), screen_text(@sent.last[:text])
     assert_equal [ [ I18n.t("bot.buttons.create_first_list"), "new_list" ] ], buttons.map { |b| [ b.text, b.callback_data ] }
   end
 

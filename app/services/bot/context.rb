@@ -39,9 +39,17 @@ module Bot
       }.compact)
     end
 
+    # Telegram sizes a message, and the buttons under it, by its longest
+    # line, so screens jumped in width as the user moved around. A blank
+    # line of braille spaces (U+2800, which Telegram doesn't trim) makes
+    # every screen with buttons about as wide as a phone allows; it stays a
+    # little short of that so the time still fits beside it.
+    SCREEN_WIDTH_LINE = "\u2800" * 23
+
     # Shows a screen: buttons update the message they belong to in place,
     # commands and typed replies get a new message.
     def render(text, keyboard = nil, link_preview_options: no_link_preview)
+      text = "#{text}\n#{SCREEN_WIDTH_LINE}" if keyboard
       if editable_message?
         edit_message(text, keyboard, parse_mode: "HTML", link_preview_options: link_preview_options)
       else

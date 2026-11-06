@@ -157,7 +157,7 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
     say("/new")
 
     assert_equal "creating_list", @user.reload.bot_state
-    assert_equal I18n.t("bot.messages.enter_list_name"), last_text
+    assert_equal I18n.t("bot.messages.enter_list_name"), screen_text(last_text)
   end
 
   test "plain text outside any input gets a hint and a menu" do

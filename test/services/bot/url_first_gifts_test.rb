@@ -53,7 +53,7 @@ class BotUrlFirstGiftsTest < ActiveSupport::TestCase
     assert_equal [ "Книга", "https://example.com/gift", nil, nil ], [ item.title, item.url, item.price, item.description ]
     assert_nil @user.reload.bot_state
     assert_nil @user.bot_payload
-    assert_equal I18n.t("bot.messages.item_added"), @sent.last[:text]
+    assert_equal I18n.t("bot.messages.item_added"), screen_text(@sent.last[:text])
   end
 
   test "bare and Cyrillic-path links use the existing normalization and parser" do

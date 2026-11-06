@@ -40,6 +40,18 @@ class BotContextTest < ActiveSupport::TestCase
     callback_context.render("New screen")
   end
 
+  test "screens with buttons get a blank line that keeps them wide, plain messages don't" do
+    sent = []
+    @api.stubs(:edit_message_text).with { |params| sent << params[:text]; true }
+    keyboard = callback_context.build_keyboard([ [ callback_context.inline_btn("Back", "main_menu") ] ])
+
+    callback_context.render("Menu", keyboard)
+    callback_context.render("Done")
+
+    assert_equal [ "Menu\n#{"\u2800" * 23}", "Done" ], sent
+    assert_equal "Menu", screen_text(sent.first)
+  end
+
   test "render ignores unchanged screens" do
     @api.stubs(:edit_message_text).raises(response_error("Bad Request: message is not modified"))
     @api.expects(:send_message).never
