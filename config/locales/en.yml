@@ -147,7 +147,7 @@ en:
         page: "Page %{page} of %{total}"
       reservations:
         title: "My reservations"
-        hint: "Gifts you plan to give. Tap a gift to mark it bought or release it."
+        hint: "Gifts you plan to give. Tap a gift to open its card and mark it bought, or Release if your plans have changed."
         empty: "You have no reservations yet. Open a friend's list and choose a gift."
         purchased: "bought"
         back: "← My reservations"

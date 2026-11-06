@@ -40,7 +40,7 @@ class BotPurchasedReservationsTest < ActiveSupport::TestCase
     assert_includes callbacks, "show_reservations:0"
 
     press("show_reservations")
-    assert_equal "Puzzle · «Birthday» · куплен", buttons.first.text
+    assert_equal "Puzzle · Owner, «Birthday» · куплен", buttons.first.text
 
     press("mark_purchased:#{@item.id}:2:0:0")
     refute @item.reload.purchased?
