@@ -61,11 +61,29 @@ class Item < ApplicationRecord
     change_reservation(user.telegram_id, nil, expected_version)
   end
 
+  def purchased?
+    purchased_at.present?
+  end
+
+  # Only the guest holding this reservation can mark it. A real change bumps
+  # the version like reserve/release do, so a late repeat of an earlier press
+  # can't undo a later choice, and older buttons stop working. Repeating the
+  # last press changes nothing and still reports the mark as it is.
+  def mark_purchased_by!(user, purchased, expected_version: reservation_version)
+    scope = self.class.where(id: id, reserved_by: user.telegram_id, reservation_version: expected_version)
+    scope = purchased ? scope.where(purchased_at: nil) : scope.where.not(purchased_at: nil)
+    changed = scope.update_all(purchased_at: (Time.current if purchased),
+                               reservation_version: expected_version + 1, updated_at: Time.current) == 1
+    reload
+    changed || (reserved_by?(user) && purchased? == purchased)
+  end
+
   private
 
   def change_reservation(previous_reserver, next_reserver, expected_version)
     changed = self.class.where(id: id, reserved_by: previous_reserver, reservation_version: expected_version)
-      .update_all(reserved_by: next_reserver, reservation_version: expected_version + 1, updated_at: Time.current) == 1
+      .update_all(reserved_by: next_reserver, reservation_version: expected_version + 1,
+                  purchased_at: nil, updated_at: Time.current) == 1
 
     reload
     changed

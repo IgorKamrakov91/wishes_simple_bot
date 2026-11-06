@@ -4,6 +4,8 @@ module Bot
   module Presenters
     class ReservationsPresenter < BasePresenter
       PER_PAGE = 5
+      TITLE_LIMIT = 28
+      LIST_LIMIT = 20
 
       attr_reader :page
 
@@ -28,22 +30,16 @@ module Bot
           lines << t("bot.screens.reservations.empty")
         else
           lines << t("bot.screens.reservations.hint")
-          lines << t("bot.screens.collections.page", page: page + 1, total: total_pages)
-          items.each_with_index do |item, index|
-            wishlist = item.wishlist
-            owner = wishlist.owner.first_name.presence || wishlist.owner.full_name
-            lines << "<b>#{number(index)}. #{escape_html(item.title.to_s.truncate(48))}</b>\n" \
-                     "#{escape_html(owner.to_s.truncate(24))} · «#{escape_html(wishlist.title.to_s.truncate(32))}»"
-          end
+          lines << t("bot.screens.collections.page", page: page + 1, total: total_pages) if total_pages > 1
         end
         lines.join("\n\n")
       end
 
       def keyboard
-        rows = items.each_with_index.map do |item, index|
-          [ context.inline_btn("#{number(index)}. #{item.title.to_s.truncate(24)}", "open_booked_item:#{item.id}:#{page}"),
-            context.inline_btn(t("bot.screens.reservations.release", number: number(index)),
-                               "release_book:#{item.id}:#{item.reservation_version}:#{page}") ]
+        # One button per gift, named with its list; marking it bought and
+        # releasing it are on the card
+        rows = items.map do |item|
+          [ context.inline_btn(item_label(item), "open_booked_item:#{item.id}:#{page}", style: "success") ]
         end
         rows << pager_row if pager_row.any?
         rows << [ context.inline_btn(t("bot.buttons.shared_lists"), "show_shared_lists") ]
@@ -53,8 +49,10 @@ module Bot
 
       private
 
-      def number(index)
-        page * PER_PAGE + index + 1
+      def item_label(item)
+        label = +"#{item.title.to_s.truncate(TITLE_LIMIT)} · «#{item.wishlist.title.to_s.truncate(LIST_LIMIT)}»"
+        label << " · #{t('bot.screens.reservations.purchased')}" if item.purchased?
+        label
       end
 
       def total_pages

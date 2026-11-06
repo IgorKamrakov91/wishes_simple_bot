@@ -63,10 +63,17 @@ module Bot
         if !item.reserved?
           t("bot.screens.item.guest_free", owner: escape_html(wishlist.owner.first_name.presence || wishlist.owner.full_name))
         elsif reserved_by_me?
-          t("bot.screens.item.guest_mine")
+          [ t("bot.screens.item.guest_mine"), (t("bot.screens.item.guest_purchased") if item.purchased?) ].compact.join("\n")
         else
           t("bot.screens.item.guest_taken", user: "<tg-spoiler>#{escape_html(reserver_label)}</tg-spoiler>")
         end
+      end
+
+      def purchased_button
+        value = item.purchased? ? 0 : 1
+        data = [ "mark_purchased", item.id, item.reservation_version, value, @reservations_page ].compact.join(":")
+        label = item.purchased? ? t("bot.buttons.not_purchased") : t("bot.buttons.purchased")
+        context.inline_btn(label, data, **(item.purchased? ? {} : { style: "success" }))
       end
 
       def reserver_label
@@ -83,6 +90,7 @@ module Bot
           if !item.reserved?
             buttons << [ context.inline_btn(t("bot.buttons.reserve"), "reserve_item:#{item.id}:#{item.reservation_version}", style: "success") ]
           elsif reserved_by_me?
+            buttons << [ purchased_button ]
             release = if @reservations_page
               "release_book:#{item.id}:#{item.reservation_version}:#{@reservations_page}"
             else
