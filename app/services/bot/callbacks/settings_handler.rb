@@ -24,7 +24,8 @@ module Bot
 
         enabled = value == 1
         user.update!(setting => enabled)
-        context.notice = I18n.t(enabled ? "bot.screens.settings.turned_on" : "bot.screens.settings.turned_off")
+        context.notice = I18n.t(enabled ? "bot.screens.settings.turned_on" : "bot.screens.settings.turned_off",
+                               list_scope: I18n.t("bot.screens.settings.scopes.#{setting}"))
         show_settings
       end
     end

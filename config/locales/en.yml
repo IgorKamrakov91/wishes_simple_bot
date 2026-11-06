@@ -44,7 +44,7 @@ en:
       share: "Copy Link"
       add_item: "+ Add Gift"
       add_more: "Add Another"
-      list_settings: "Settings"
+      list_settings: "List settings"
       rename_list: "Rename"
       delete_list: "Delete List"
       open_list: "Open List"
@@ -73,13 +73,24 @@ en:
       price: "Price"
     screens:
       settings:
-        text: "<b>Settings</b>\nReservation notifications. They never say who reserved a gift."
-        notify_own_reservations: "Reservations in my lists: %{state}"
-        notify_friend_reservations: "Reservations in friends' lists: %{state}"
-        "on": "on"
-        "off": "off"
-        turned_on: "Notifications on"
-        turned_off: "Notifications off"
+        text: |
+          <b>Settings</b>
+
+          Notifications when gifts are reserved or reservations are released:
+          • My lists — when friends choose my gifts.
+          • Friends' lists — when other guests choose gifts.
+
+          You do not receive notifications about your own actions. Notifications do not include the person's name.
+          Tap a button to change its setting.
+        notify_own_reservations: "My lists: %{state}"
+        notify_friend_reservations: "Friends' lists: %{state}"
+        "on": "enabled"
+        "off": "disabled"
+        turned_on: "Notifications %{list_scope} enabled"
+        turned_off: "Notifications %{list_scope} disabled"
+        scopes:
+          notify_own_reservations: "for my lists"
+          notify_friend_reservations: "for friends' lists"
       main:
         welcome: "<b>Hi, %{name}!</b>\nI help you make a wishlist and share it with friends.\n\n1. Create a list and add gifts to it.\n2. Send the list to your friends.\n3. Friends reserve gifts so nobody gives the same thing twice."
         greeting: "<b>Hi, %{name}!</b>\nYour wishlists and the lists friends shared with you live here."

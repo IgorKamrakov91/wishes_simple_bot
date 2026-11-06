@@ -85,7 +85,9 @@ class BotReservationNotificationsTest < ActiveJob::TestCase
 
   test "settings toggle both kinds of notifications" do
     edits = []
+    answers = []
     @api.stubs(:edit_message_text).with { |params| edits << params; true }
+    @api.stubs(:answer_callback_query).with { |params| answers << params[:text]; true }
 
     press("settings", user: @quiet)
     labels = edits.last[:reply_markup].inline_keyboard.flatten.map(&:text)
@@ -97,7 +99,9 @@ class BotReservationNotificationsTest < ActiveJob::TestCase
     assert_includes callbacks, "set_setting:notify_own_reservations:0"
 
     press("set_setting:notify_friend_reservations:1", user: @quiet)
+    assert_equal "Уведомления о списках друзей включены", answers.last
     press("set_setting:notify_own_reservations:0", user: @quiet)
+    assert_equal "Уведомления о моих списках выключены", answers.last
     @quiet.reload
     assert @quiet.notify_friend_reservations
     refute @quiet.notify_own_reservations
