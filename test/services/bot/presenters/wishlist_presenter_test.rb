@@ -61,11 +61,13 @@ class BotPresentersWishlistPresenterTest < ActiveSupport::TestCase
     other = User.create!(telegram_id: 3003, first_name: "Other")
     Item.create!(wishlist: @wishlist, title: "Mine", reserved_by: @guest.telegram_id)
     Item.create!(wishlist: @wishlist, title: "Theirs", reserved_by: other.telegram_id)
+    Item.create!(wishlist: @wishlist, title: "Free")
     presenter = presenter_for(@guest)
     buttons = rows(presenter).flatten
 
-    assert_equal [ "Mine · твоя бронь", "Theirs · занято" ], buttons.first(2).map(&:text)
-    assert_match "2 подарка · уже выбрали 2", presenter.text
+    assert_equal [ "★ Mine · твоя бронь", "Theirs · занято", "Free" ], buttons.first(3).map(&:text)
+    assert_equal [ "success", "success", nil ], buttons.first(3).map(&:style)
+    assert_match "3 подарка · уже выбрали 2", presenter.text
     assert_match "tg://user?id=3001", presenter.text
     assert buttons.none?(&:copy_text)
     assert_equal "show_shared_lists:0", buttons.last.callback_data

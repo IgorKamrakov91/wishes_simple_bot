@@ -5,6 +5,8 @@ module Bot
     class WishlistPresenter < BasePresenter
       PER_PAGE = 5
       TITLE_LIMIT = 32
+      # Telegram colors inline buttons by style: primary, success, danger
+      RESERVED_STYLE = "success"
 
       object_name :wishlist
 
@@ -24,7 +26,7 @@ module Bot
       end
 
       def keyboard
-        rows = page_items.map { |item| [ context.inline_btn(item_label(item), "open_item:#{item.id}") ] }
+        rows = page_items.map { |item| [ item_button(item) ] }
         rows << pager_row if total_pages > 1 && pager_row.any?
 
         if owner?
@@ -82,17 +84,29 @@ module Bot
         end
       end
 
-      # The status is a word at the end, so it reads the same with a screen
-      # reader and without colors or symbols
+      # Reserved gifts are colored and the guest's own reservation starts with
+      # a star; the status word at the end keeps both readable for screen
+      # readers and in clients that ignore button colors
+      def item_button(item)
+        options = item.reserved? ? { style: RESERVED_STYLE } : {}
+        context.inline_btn(item_label(item), "open_item:#{item.id}", **options)
+      end
+
       def item_label(item)
-        label = +item.title.to_s.truncate(TITLE_LIMIT)
+        label = +""
+        label << "★ " if reserved_by_me?(item)
+        label << item.title.to_s.truncate(TITLE_LIMIT)
         label << " · #{format_price(item.price)}" if item.price.present?
         label << " · #{item_status(item)}" if item.reserved?
         label
       end
 
       def item_status(item)
-        !owner? && item.reserved_by?(user) ? t("bot.screens.list.status_mine") : t("bot.screens.list.status_taken")
+        reserved_by_me?(item) ? t("bot.screens.list.status_mine") : t("bot.screens.list.status_taken")
+      end
+
+      def reserved_by_me?(item)
+        !owner? && item.reserved_by?(user)
       end
 
       # Only the steps that exist; the page number is in the text
