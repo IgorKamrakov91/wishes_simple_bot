@@ -4,8 +4,9 @@ module Bot
   module Presenters
     class ReservationsPresenter < BasePresenter
       PER_PAGE = 5
-      TITLE_LIMIT = 28
-      LIST_LIMIT = 20
+      TITLE_LIMIT = 24
+      OWNER_LIMIT = 16
+      LIST_LIMIT = 16
 
       attr_reader :page
 
@@ -36,10 +37,11 @@ module Bot
       end
 
       def keyboard
-        # One button per gift, named with its list; marking it bought and
-        # releasing it are on the card
+        # The gift (with whose list it is in) opens the card, where it can be
+        # marked bought; the release button sits next to it
         rows = items.map do |item|
-          [ context.inline_btn(item_label(item), "open_booked_item:#{item.id}:#{page}", style: "success") ]
+          [ context.inline_btn(item_label(item), "open_booked_item:#{item.id}:#{page}", style: "success"),
+            context.inline_btn(t("bot.buttons.unreserve"), "release_book:#{item.id}:#{item.reservation_version}:#{page}") ]
         end
         rows << pager_row if pager_row.any?
         rows << [ context.inline_btn(t("bot.buttons.shared_lists"), "show_shared_lists") ]
@@ -50,7 +52,11 @@ module Bot
       private
 
       def item_label(item)
-        label = +"#{item.title.to_s.truncate(TITLE_LIMIT)} · «#{item.wishlist.title.to_s.truncate(LIST_LIMIT)}»"
+        wishlist = item.wishlist
+        owner = wishlist.owner.first_name.presence || wishlist.owner.full_name
+        # Buttons have one line and one font size, so the list follows the name
+        label = +"#{item.title.to_s.truncate(TITLE_LIMIT)} · #{owner.to_s.truncate(OWNER_LIMIT)}, " \
+                 "«#{wishlist.title.to_s.truncate(LIST_LIMIT)}»"
         label << " · #{t('bot.screens.reservations.purchased')}" if item.purchased?
         label
       end
