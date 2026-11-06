@@ -139,6 +139,37 @@ message. Enqueue alone does not prove the worker ran: check `SOLID_QUEUE_IN_PUMA
 database if execution never starts. A Telegram 403 (the recipient blocked the bot) is logged
 without retrying; network errors and 429 are retried up to three attempts.
 
+## Reservation reminders
+
+Settings → Reservation reminders offers Off (default), 7, 14 or 30 days. Enabling or changing
+the interval schedules the first reminder at noon on the Moscow calendar date that many days
+later; repeating the same setting does not postpone it. Successful delivery schedules the next
+one at noon on the delivery's Moscow calendar date plus the selected interval. Send delays do
+not drift a reminder past the daily scheduler's next eligible run.
+Only accessible reservations in other people's lists without `purchased_at` are included.
+The digest contains at most five gift names and links to My reservations and Settings.
+
+`ReservationRemindersJob` runs daily at 12:00 **Europe/Moscow** through `config/recurring.yml`.
+Deliveries are spread one second apart rather than enqueued as a broadcast burst.
+`ReservationReminderJob` sends between 12:00 and 18:00 Moscow time, deferring late jobs to the next
+daytime window. Both use the `reminders` queue, which the production wildcard worker handles.
+The due time is claimed in the primary database before sending, so overlapping/replayed jobs
+cannot send the same attempt twice. Settings and current unpurchased reservations are rechecked
+at delivery. `reservation_reminder_last_sent_at` is updated only after a successful API response;
+`reservation_reminder_last_attempt_at` records an attempt even if Telegram cannot be reached.
+
+Telegram 400/403/404 responses are not retried. Rate limits use `retry_after` and other Telegram
+errors use a short delay, with at most three attempts per queued delivery. An ambiguous network
+failure may mean Telegram accepted the message, so it is not retried immediately; the next
+normal interval remains scheduled. A process crash after claiming can also skip that interval.
+This favors avoiding duplicate reminders over guaranteed delivery of each reminder.
+
+After deployment, verify that Solid Queue's scheduler loaded `reservation_reminders` and that
+the worker executes both jobs, then use a test account with an unpurchased accessible booking
+and an enabled interval. Confirm a real Telegram message and a populated `last_sent_at`;
+an enqueued job alone does not prove delivery. Marking all bookings bought or disabling the
+setting must suppress a queued reminder. Do not change real users' due dates for a smoke test.
+
 ## Running Tests
 
 ```bash

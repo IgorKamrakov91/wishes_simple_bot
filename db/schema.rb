@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_06_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_06_230000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -51,7 +51,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_120000) do
     t.string "username"
     t.boolean "notify_own_reservations", default: true, null: false
     t.boolean "notify_friend_reservations", default: false, null: false
+    t.integer "reservation_reminder_days", default: 0, null: false
+    t.datetime "reservation_reminder_next_at"
+    t.datetime "reservation_reminder_last_attempt_at"
+    t.datetime "reservation_reminder_last_sent_at"
+    t.index ["reservation_reminder_next_at"], name: "index_users_on_reservation_reminder_next_at"
     t.index ["telegram_id"], name: "index_users_on_telegram_id", unique: true
+    t.check_constraint "reservation_reminder_days = ANY (ARRAY[0, 7, 14, 30])", name: "users_reservation_reminder_days"
   end
 
   create_table "wishlists", force: :cascade do |t|

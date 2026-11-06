@@ -6,6 +6,8 @@ module Bot
       /^main_menu$/ => "Callbacks::WishlistHandler#main_menu",
       /^settings$/ => "Callbacks::SettingsHandler#show_settings",
       /^set_setting:(\w+):([01])$/ => "Callbacks::SettingsHandler#set_setting",
+      /^reservation_reminders$/ => "Callbacks::SettingsHandler#show_reservation_reminders",
+      /^set_reminder_days:(0|7|14|30)$/ => "Callbacks::SettingsHandler#set_reminder_days",
       /^help$/ => "Callbacks::HelpHandler#show_help",
       /^resume_input$/ => "Callbacks::InputHandler#resume",
       /^cancel_input$/ => "Callbacks::InputHandler#cancel",
@@ -43,7 +45,7 @@ module Bot
 
     # Buttons that finish the pending input, do nothing, or only look
     # something up (help, settings), so they keep it
-    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|noop|help|settings|set_setting:\w+:[01]|resume_input|cancel_input)\z/
+    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|noop|help|settings|set_setting:\w+:[01]|reservation_reminders|set_reminder_days:(0|7|14|30)|resume_input|cancel_input)\z/
 
     class << self
       def handle(bot, callback)

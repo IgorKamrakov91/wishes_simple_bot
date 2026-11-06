@@ -74,6 +74,12 @@ en:
       url: "Link"
       price: "Price"
     screens:
+      reservation_reminders:
+        button: "Reservation reminders: %{frequency}"
+        text: "<b>Reservation reminders</b>\n\nRemind me about gifts I plan to give that are not marked as bought.\nThe first reminder arrives after the selected number of days. Messages are sent between 12:00 and 18:00 Moscow time.\n\nFrequency:"
+        "off": "disabled"
+        every: "every %{count} days"
+        updated: "Reservation reminders: %{frequency}"
       settings:
         text: |
           <b>Settings</b>
@@ -166,6 +172,14 @@ en:
       not_available: "This list or gift was deleted or is no longer available."
       private_chat_only: "Manage lists and reserve gifts in a private chat with the bot."
       name_linked_item: "What is the gift called? Once you send a name, I'll add it with this link to “%{list}”."
+    reminders:
+      reservations:
+        heading: "Gift reminder"
+        count:
+          one: "You have %{count} reserved gift not marked as bought."
+          other: "You have %{count} reserved gifts not marked as bought."
+        more: "And %{count} more."
+        hint: "Open My reservations to mark gifts as bought. Change reminder frequency in settings."
     notifications:
       own_reserved: "Someone reserved “%{title}” in your list “%{list}”. We don’t say who."
       own_released: "The reservation of “%{title}” in your list “%{list}” was released, it is free again."
