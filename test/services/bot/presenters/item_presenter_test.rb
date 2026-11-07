@@ -61,14 +61,14 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     assert_includes callbacks(presenter), "confirm_delete_item:#{@item.id}"
     delete_button = button_rows(presenter).flatten.find { |b| b.callback_data == "confirm_delete_item:#{@item.id}" }
     assert_equal "danger", delete_button.style
-    assert_match "пока никто не выбрал", presenter.text
+    assert_match "пока никто не забронировал", presenter.text
   end
 
   test "owner does not see who reserved the item" do
     @item.update!(reserved_by: @reserver.telegram_id)
     text = presenter_for(@owner).text
 
-    assert_match "кто — секрет", text
+    assert_match "кем — секрет", text
     refute_match "reserver_user", text
   end
 
