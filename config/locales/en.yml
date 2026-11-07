@@ -26,6 +26,8 @@ en:
       input_finished: "The input is already finished"
       list_not_found: "List not found."
       link_outdated: "This link is outdated. Ask the list owner to send you a new one."
+      invitation_unavailable: "I couldn't open the list using this link. Ask the sender for a current link or open Help."
+      message_failed: "I couldn't reply to your message. Check the result in My lists or My reservations. Tap Help if you need assistance."
     buttons:
       settings: "Settings"
       help: "Help"
