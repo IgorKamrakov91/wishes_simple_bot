@@ -18,6 +18,8 @@ module Bot
 
     # Answers the pending input with the text the user sent
     def handle
+      return if replayed_list_name?
+
       # A photo or sticker has no text to use as the value
       return reply_with_problem(I18n.t("bot.input_errors.text_only")) if context.try(:non_text_message?)
 
@@ -50,10 +52,7 @@ module Bot
       # The input stays active, so the user can just send a fixed value
       reply_with_problem(error_message(e.record))
     rescue ActiveRecord::RecordNotFound
-      # The list or gift was deleted while the user was typing
-      user.clear_state!
-      keyboard = build_keyboard([ [ inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ] ])
-      context.send_text(I18n.t("bot.messages.input_target_gone"), keyboard)
+      reply_with_missing_target
     end
 
     # Like gifts: the state is rechecked under a lock on the user, so two
@@ -61,18 +60,20 @@ module Bot
     def create_list
       wishlist = nil
       user.with_lock do
-        next unless user.bot_state == "creating_list"
+        next unless user.bot_state == "creating_list" && !replayed_list_name?
 
         wishlist = user.wishlists.create!(title: text)
-        user.clear_state!
+        attributes = { bot_state: "adding_item", bot_payload: { "wishlist_id" => wishlist.id, "first_item" => true } }
+        attributes[:last_list_creation_message_id] = source_message_id if source_message_id
+        user.update!(attributes)
       end
-      Callbacks::WishlistHandler.new(context).open_list(wishlist.id) if wishlist
+      InputPrompt.new(context).render if wishlist
     end
 
     def rename_list
       wishlist = nil
       user.with_lock do
-        next unless user.bot_state == "renaming_list"
+        next unless user.bot_state == "renaming_list" && !replayed_list_name?
 
         wishlist = user.wishlists.find(user.bot_payload["wishlist_id"])
         wishlist.update!(title: text)
@@ -87,7 +88,7 @@ module Bot
       prompt = nil
       item = nil
       user.with_lock do
-        next unless %w[adding_item adding_item_title].include?(user.bot_state)
+        next unless %w[adding_item adding_item_title].include?(user.bot_state) && !replayed_list_name?
 
         wishlist = user.wishlists.find(user.bot_payload["wishlist_id"])
         if link_input?(text)
@@ -131,7 +132,7 @@ module Bot
 
       user.with_lock do
         payload = user.bot_payload
-        next unless user.bot_state == "adding_item_url" && payload
+        next unless user.bot_state == "adding_item_url" && payload && !replayed_list_name?
 
         item =
           if payload.key?("item_id")
@@ -169,14 +170,16 @@ module Bot
       rows << [ inline_btn(I18n.t("bot.buttons.open_item"), "open_item:#{item.id}") ]
       rows << [ inline_btn(I18n.t("bot.buttons.add_more"), "add_item:#{item.wishlist_id}") ]
       rows << [ inline_btn(I18n.t("bot.buttons.open_list"), "open_list:#{item.wishlist_id}") ]
-      context.render(I18n.t("bot.messages.item_added"), build_keyboard(rows))
+      message = I18n.t("bot.messages.item_added", title: escape_html(item.title.to_s.truncate(100)),
+                       list: escape_html(item.wishlist.title.to_s.truncate(100)))
+      context.render(message, build_keyboard(rows))
     end
 
     def update_item_field
       item = nil
       user.with_lock do
         # Another delivery or cancellation may already have ended this edit.
-        next unless user.bot_state == "editing_item"
+        next unless user.bot_state == "editing_item" && !replayed_list_name?
 
         field = user.bot_payload["field"]
         return context.send_text(I18n.t("bot.messages.error")) unless Item::EDITABLE_FIELDS.include?(field)
@@ -215,24 +218,32 @@ module Bot
 
       I18n.t("bot.input_errors.#{error.attribute}.#{error.type}",
              count: error.options[:count],
+             limit: (format_price(error.options[:count]) if error.attribute == :price && error.type == :less_than),
              default: I18n.t("bot.input_errors.invalid"))
     end
 
     def reply_with_problem(message)
-      keyboard = build_keyboard([ [ inline_btn(I18n.t("bot.buttons.cancel"), cancel_callback) ] ]) if cancel_callback
-      context.send_text(message, keyboard)
+      context.send_text(message, InputPrompt.new(context).prompt&.last)
+    rescue ActiveRecord::RecordNotFound
+      reply_with_missing_target
     end
 
-    # Where Cancel leads for each kind of input
-    def cancel_callback
-      payload = user.bot_payload || {}
+    def reply_with_missing_target
+      # The list or gift was deleted while the user was typing.
+      user.clear_state!
+      keyboard = build_keyboard([ [ inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ] ])
+      context.send_text(I18n.t("bot.messages.input_target_gone"), keyboard)
+    end
 
-      case user.bot_state
-      when "creating_list" then "show_lists"
-      when "renaming_list" then "list_settings:#{payload['wishlist_id']}"
-      when "adding_item", "adding_item_url", "adding_item_title" then "open_list:#{payload['wishlist_id']}"
-      when "editing_item" then "open_item:#{payload['item_id']}"
-      end
+    def source_message_id
+      source = context.try(:source)
+      source.message_id if source.is_a?(Telegram::Bot::Types::Message)
+    end
+
+    # A list name must never be consumed as a gift name by a later delivery,
+    # even after cancellation or another draft. Recheck under each write lock.
+    def replayed_list_name?
+      source_message_id && user.last_list_creation_message_id && source_message_id <= user.last_list_creation_message_id
     end
   end
 end

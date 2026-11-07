@@ -126,7 +126,7 @@ class BotPendingInputTest < ActiveSupport::TestCase
   test "prompts offer a cancel button back to where the user was" do
     @api.expects(:edit_message_text).with do |params|
       button = params[:reply_markup].inline_keyboard.first.first
-      screen_text(params[:text]) == I18n.t("bot.messages.enter_item_name") &&
+      screen_text(params[:text]) == [ I18n.t("bot.messages.list_context", list: "Birthday"), I18n.t("bot.messages.enter_item_name") ].join("\n") &&
         button.text == I18n.t("bot.buttons.cancel") && button.callback_data == "open_list:#{@wishlist.id}"
     end
 
@@ -137,7 +137,7 @@ class BotPendingInputTest < ActiveSupport::TestCase
 
   test "skip saves the draft without a link" do
     draft_id = start_draft("Puzzle")
-    @api.expects(:edit_message_text).with { |params| screen_text(params[:text]) == I18n.t("bot.messages.item_added") }
+    @api.expects(:edit_message_text).with { |params| screen_text(params[:text]) == I18n.t("bot.messages.item_added", title: "Puzzle", list: "Birthday") }
 
     assert_difference("Item.count", 1) do
       Bot::Callbacks.handle(@bot, callback("skip_item_url:#{draft_id}"))
@@ -149,7 +149,7 @@ class BotPendingInputTest < ActiveSupport::TestCase
   test "skip still finishes a gift started before drafts" do
     item = @wishlist.items.create!(title: "Puzzle", url: nil)
     @user.update!(bot_state: "adding_item_url", bot_payload: { "item_id" => item.id, "wishlist_id" => @wishlist.id })
-    @api.expects(:edit_message_text).with { |params| screen_text(params[:text]) == I18n.t("bot.messages.item_added") }
+    @api.expects(:edit_message_text).with { |params| screen_text(params[:text]) == I18n.t("bot.messages.item_added", title: "Puzzle", list: "Birthday") }
 
     Bot::Callbacks.handle(@bot, callback("skip_item_url"))
 
