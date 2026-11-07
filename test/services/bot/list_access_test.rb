@@ -60,7 +60,10 @@ class BotListAccessTest < ActiveSupport::TestCase
 
   test "an unknown token lets nobody in" do
     start(@stranger, "l_wrongtoken") do |context|
-      context.expects(:send_text).with(I18n.t("bot.commands.list_not_found"))
+      context.expects(:send_text).with do |text, keyboard|
+        text == I18n.t("bot.commands.invitation_unavailable") &&
+          keyboard.inline_keyboard.flatten.map(&:callback_data) == %w[main_menu help]
+      end
     end
 
     refute @wishlist.has_viewer?(@stranger)
@@ -68,7 +71,10 @@ class BotListAccessTest < ActiveSupport::TestCase
 
   test "an old id link no longer lets strangers in" do
     start(@stranger, "list_#{@wishlist.id}") do |context|
-      context.expects(:send_text).with(I18n.t("bot.commands.link_outdated"))
+      context.expects(:send_text).with do |text, keyboard|
+        text == I18n.t("bot.commands.invitation_unavailable") &&
+          keyboard.inline_keyboard.flatten.map(&:callback_data) == %w[main_menu help]
+      end
       context.expects(:render).never
     end
 

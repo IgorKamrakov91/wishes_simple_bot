@@ -59,6 +59,11 @@ module Bot
         else
           handle_unrecognized(context)
         end
+      rescue StandardError => e
+        # Exception messages can contain submitted values, SQL or invitation
+        # tokens. Keep the error kind without logging their private contents.
+        Rails.logger.error("Bot message handling failed (#{e.class})")
+        reply_after_error(bot, message)
       end
 
       private
@@ -83,6 +88,32 @@ module Bot
         context.send_text(prompt.with_input_note(text), build_keyboard(rows))
       end
 
+      def recovery_navigation
+        [ inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu"), inline_btn(I18n.t("bot.buttons.help"), "help") ]
+      end
+
+      def reply_after_error(bot, message)
+        return unless message.chat&.type == "private"
+
+        rows = [
+          [ inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists"),
+            inline_btn(I18n.t("bot.screens.reservations.title"), "show_reservations") ],
+          recovery_navigation
+        ]
+        # Recovery must also work when finding the user failed. Sending this
+        # neutral response needs neither a database lookup nor a state change.
+        context = Context.new(bot: bot, user: nil, source: message)
+        context.send_text(I18n.t("bot.commands.message_failed"), build_keyboard(rows))
+      rescue StandardError => e
+        # Telegram may be unavailable too. A failed fallback must not turn an
+        # already handled update into a replay of a possibly committed action.
+        Rails.logger.warn("Bot message fallback failed (#{e.class})")
+      end
+
+      def reply_with_unavailable_invitation(context)
+        context.send_text(I18n.t("bot.commands.invitation_unavailable"), build_keyboard([ recovery_navigation ]))
+      end
+
       def handle_start(context)
         Callbacks::WishlistHandler.new(context).main_menu
       end
@@ -91,7 +122,7 @@ module Bot
         wishlist = Wishlist.find_by(share_token: token)
 
         unless wishlist
-          context.send_text(I18n.t("bot.commands.list_not_found"))
+          reply_with_unavailable_invitation(context)
           return
         end
 
@@ -104,7 +135,7 @@ module Bot
         if Wishlist.accessible_to(context.user).exists?(wishlist_id)
           Callbacks::WishlistHandler.new(context).open_list(wishlist_id)
         else
-          context.send_text(I18n.t("bot.commands.link_outdated"))
+          reply_with_unavailable_invitation(context)
         end
       end
     end
