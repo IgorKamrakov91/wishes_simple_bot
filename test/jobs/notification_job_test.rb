@@ -26,9 +26,31 @@ class NotificationJobTest < ActiveJob::TestCase
 
   test "delivery uses the captured locale and sends to the recipient" do
     text = I18n.with_locale(:ru) { I18n.t("bot.notifications.own_reserved", **@details.symbolize_keys) }
-    @api.expects(:send_message).once.with(chat_id: @guest.telegram_id, text: text)
+    @api.expects(:send_message).once.with { |params| params[:chat_id] == @guest.telegram_id && params[:text] == text }
 
     I18n.with_locale(:en) { NotificationJob.perform_now(*arguments) }
+  end
+
+  def sent_buttons
+    buttons = nil
+    @api.expects(:send_message).once.with { |params| buttons = params[:reply_markup].inline_keyboard.flatten; true }
+    NotificationJob.perform_now(*arguments)
+    buttons
+  end
+
+  test "the notification opens the gift and the settings" do
+    @details = @details.merge("wishlist_id" => 5, "item_id" => 7)
+
+    buttons = sent_buttons
+
+    assert_equal [ "open_item:7", "settings" ], buttons.map(&:callback_data)
+    assert_equal I18n.t("bot.buttons.open_item", locale: :ru), buttons.first.text
+  end
+
+  test "a notification queued before item ids opens the list" do
+    @details = @details.merge("wishlist_id" => 5)
+
+    assert_equal [ "open_list:5", "settings" ], sent_buttons.map(&:callback_data)
   end
 
   test "a recipient who deleted their account is skipped" do
