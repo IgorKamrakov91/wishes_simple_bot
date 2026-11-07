@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_193000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_08_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -27,6 +27,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_193000) do
     t.index ["owner_id"], name: "index_birthday_reminder_deliveries_on_owner_id"
     t.index ["recipient_id", "owner_id", "birthday_year"], name: "index_birthday_reminders_on_recipient_owner_year", unique: true
     t.index ["recipient_id"], name: "index_birthday_reminder_deliveries_on_recipient_id"
+  end
+
+  create_table "bot_update_receipts", primary_key: "update_id", force: :cascade do |t|
+    t.bigint "telegram_user_id", null: false
+    t.string "result_kind", default: "processed", null: false
+    t.bigint "result_id"
+    t.datetime "delivered_at"
+    t.datetime "created_at", null: false
+    t.index ["created_at"], name: "index_bot_update_receipts_on_created_at"
   end
 
   create_table "items", force: :cascade do |t|

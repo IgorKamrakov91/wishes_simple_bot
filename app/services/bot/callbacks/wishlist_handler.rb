@@ -91,6 +91,7 @@ module Bot
       def delete_list(wishlist_id)
         wishlist = user.wishlists.find(wishlist_id)
         wishlist.destroy!
+        UpdateDelivery.record_result("list_deleted", wishlist.id)
 
         context.notice = I18n.t("bot.messages.list_deleted")
         show_lists
@@ -98,6 +99,7 @@ module Bot
 
       def open_list(wishlist_id, page = 0)
         wishlist = Wishlist.accessible_to(user).includes(:items, :user).find(wishlist_id)
+        UpdateDelivery.record_view("list_view", wishlist.id)
 
         presenter = Presenters::WishlistPresenter.new(wishlist, user, context, page: page)
         context.render(presenter.text, presenter.keyboard)

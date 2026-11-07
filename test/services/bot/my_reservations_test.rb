@@ -27,7 +27,8 @@ class BotMyReservationsTest < ActiveJob::TestCase
       from: { id: @guest.telegram_id, is_bot: false, first_name: @guest.first_name },
       message: { message_id: 1, date: 1, chat: { id: @guest.telegram_id, type: type }, text: "Menu" }
     )
-    Bot::Dispatcher.dispatch(@bot, Telegram::Bot::Types::Update.new(update_id: 1, callback_query: callback))
+    @update_id = (@update_id || 0) + 1
+    Bot::Dispatcher.dispatch(@bot, Telegram::Bot::Types::Update.new(update_id: @update_id, callback_query: callback))
   end
 
   def buttons

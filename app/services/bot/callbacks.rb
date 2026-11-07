@@ -76,6 +76,8 @@ module Bot
         Rails.logger.warn("Record not found in callback handler: #{e.message}")
         answer(bot, callback, text: I18n.t("bot.messages.not_available"), show_alert: true)
       rescue StandardError => e
+        raise if UpdateDelivery.current
+
         Rails.logger.error("Error in callback handler: #{e.message}\n#{e.backtrace.join("\n")}")
         answer(bot, callback, text: I18n.t("bot.messages.error"), show_alert: true)
       end
@@ -100,6 +102,10 @@ module Bot
       # A repeated or late update carries a callback that can't be answered
       # anymore; the screen is already updated, so this is not the user's problem
       def answer(bot, callback, **options)
+        if (delivery = UpdateDelivery.current)
+          return delivery.defer { answer(bot, callback, **options) }
+        end
+
         bot.api.answer_callback_query(callback_query_id: callback.id, **options.compact)
       rescue Telegram::Bot::Exceptions::ResponseError, Faraday::Error => e
         Rails.logger.warn("Could not answer callback query: #{e.message}")

@@ -67,7 +67,10 @@ module Bot
         attributes[:last_list_creation_message_id] = source_message_id if source_message_id
         user.update!(attributes)
       end
-      InputPrompt.new(context).render if wishlist
+      if wishlist
+        UpdateDelivery.record_result("list_created", wishlist.id)
+        InputPrompt.new(context).render
+      end
     end
 
     def rename_list
@@ -79,7 +82,10 @@ module Bot
         wishlist.update!(title: text)
         user.clear_state!
       end
-      Callbacks::WishlistHandler.new(context).open_list(wishlist.id) if wishlist
+      if wishlist
+        UpdateDelivery.record_result("list_renamed", wishlist.id)
+        Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
+      end
     end
 
     # The gift stays a draft until its name and optional link are settled.
@@ -162,6 +168,7 @@ module Bot
     end
 
     def show_saved_item(item)
+      UpdateDelivery.record_result("gift_added", item.id)
       details = []
       details << inline_btn(I18n.t("bot.buttons.add_price"), "edit_item_field:price:#{item.id}") unless item.price
       details << inline_btn(I18n.t("bot.buttons.add_description"), "edit_item_field:description:#{item.id}") if item.description.blank?
@@ -188,7 +195,10 @@ module Bot
         item.update!(field => item_field_value(field, text))
         user.clear_state!
       end
-      Callbacks::ItemHandler.new(context).show_item(item.id) if item
+      if item
+        UpdateDelivery.record_result("gift_updated", item.id)
+        Callbacks::ItemHandler.new(context).show_item(item.id)
+      end
     end
 
     def item_field_value(field, value)

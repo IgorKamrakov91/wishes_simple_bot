@@ -30,11 +30,19 @@ module Bot
 
     # Helper to send text to the current chat
     def send_text(text, keyboard = nil, parse_mode: nil, link_preview_options: nil)
+      if (delivery = UpdateDelivery.current)
+        return delivery.defer { send_text(text, keyboard, parse_mode: parse_mode, link_preview_options: link_preview_options) }
+      end
+
       super(bot, chat_id, widen(text, keyboard), keyboard, parse_mode: parse_mode, link_preview_options: link_preview_options)
     end
 
     # Helper to edit the message a callback came from
     def edit_message(text, keyboard = nil, parse_mode: nil, link_preview_options: nil)
+      if (delivery = UpdateDelivery.current)
+        return delivery.defer { edit_message(text, keyboard, parse_mode: parse_mode, link_preview_options: link_preview_options) }
+      end
+
       return unless editable_message?
 
       bot.api.edit_message_text(**{
@@ -50,6 +58,10 @@ module Bot
     # Shows a screen: buttons update the message they belong to in place,
     # commands and typed replies get a new message.
     def render(text, keyboard = nil, link_preview_options: no_link_preview)
+      if (delivery = UpdateDelivery.current)
+        return delivery.defer { render(text, keyboard, link_preview_options: link_preview_options) }
+      end
+
       if editable_message?
         edit_message(text, keyboard, parse_mode: "HTML", link_preview_options: link_preview_options)
       else
