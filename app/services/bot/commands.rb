@@ -4,8 +4,9 @@ module Bot
     # Links from before share tokens: they no longer let anyone in
     START_LEGACY_LIST_PATTERN = %r{\A/start list_(\d+)\z}
 
-    # Looking something up doesn't abandon what the user is typing
-    KEEP_INPUT_COMMANDS = %w[/help /settings].freeze
+    # Only intentional navigation abandons input. Help, settings and command
+    # typos keep the draft so the next answer can still finish it.
+    EXIT_INPUT_COMMANDS = %w[/start /my /new /reservations /cancel].freeze
 
     extend Bot::Helpers
 
@@ -21,8 +22,10 @@ module Bot
             return
           end
 
-          # Other commands mean the user gave up on the pending input
-          user.clear_state! unless KEEP_INPUT_COMMANDS.include?(context.text)
+          if EXIT_INPUT_COMMANDS.include?(context.text) ||
+              START_SHARED_LIST_PATTERN.match?(context.text) || START_LEGACY_LIST_PATTERN.match?(context.text)
+            user.clear_state!
+          end
         end
 
         # Otherwise, handle as a command
@@ -74,10 +77,10 @@ module Bot
       end
 
       def reply_with_menu(context, text)
-        keyboard = build_keyboard([
-          [ inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists"), inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ]
-        ])
-        context.send_text(text, keyboard)
+        prompt = InputPrompt.new(context)
+        rows = prompt.resume_rows
+        rows << [ inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists"), inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ]
+        context.send_text(prompt.with_input_note(text), build_keyboard(rows))
       end
 
       def handle_start(context)
