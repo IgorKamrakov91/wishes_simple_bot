@@ -40,6 +40,13 @@ class BotReservationNotificationsTest < ActiveJob::TestCase
     assert_equal [ [ @owner.telegram_id, "own_reserved" ], [ @friend.telegram_id, "friend_reserved" ] ].sort, recipients.sort
   end
 
+  test "a notification carries the gift so its buttons can open it" do
+    press("reserve_item:#{@item.id}:0")
+
+    details = enqueued_jobs.select { |job| job["job_class"] == "NotificationJob" }.map { |job| job["arguments"][2] }
+    assert(details.all? { |detail| detail["item_id"] == @item.id && detail["wishlist_id"] == @wishlist.id })
+  end
+
   test "pressing reserve twice notifies once" do
     2.times { press("reserve_item:#{@item.id}:0") }
 

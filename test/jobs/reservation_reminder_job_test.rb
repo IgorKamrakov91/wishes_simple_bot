@@ -45,7 +45,7 @@ class ReservationReminderJobTest < ActiveJob::TestCase
     assert_equal 1, @messages.size
     message = @messages.sole
     assert_equal @guest.telegram_id, message[:chat_id]
-    assert_includes message[:text], "Puzzle — «Birthday»"
+    assert_includes message[:text], "Puzzle — Owner, «Birthday»"
     %w[Bought Revoked Owned Someone].each { |name| refute_includes message[:text], name }
     assert_equal %w[show_reservations settings], message[:reply_markup].inline_keyboard.flatten.map(&:callback_data)
     assert_equal Time.current, @guest.reload.reservation_reminder_last_sent_at

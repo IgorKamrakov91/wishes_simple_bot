@@ -18,7 +18,7 @@ module Bot
     def notify(item, actor, event)
       wishlist = item.wishlist
       owner = wishlist.owner
-      details = { "wishlist_id" => wishlist.id,
+      details = { "wishlist_id" => wishlist.id, "item_id" => item.id,
                   "title" => item.title.to_s.truncate(100), "list" => wishlist.title.to_s.truncate(100),
                   "owner" => (owner.first_name.presence || owner.full_name).truncate(100) }
 

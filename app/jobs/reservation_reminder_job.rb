@@ -27,7 +27,7 @@ class ReservationReminderJob < ApplicationJob
     @recipient.reload
     return unless @recipient.reservation_reminder_days == @days
 
-    gifts = unpurchased.includes(:wishlist).limit(5).to_a
+    gifts = unpurchased.includes(wishlist: :user).limit(5).to_a
     return if gifts.empty?
 
     text = reminder_text(gifts, unpurchased.count)
@@ -75,9 +75,15 @@ class ReservationReminderJob < ApplicationJob
 
   def reminder_text(gifts, total)
     lines = [ I18n.t("bot.reminders.reservations.heading"), I18n.t("bot.reminders.reservations.count", count: total), "" ]
-    gifts.each { |item| lines << "• #{item.title.to_s.truncate(60)} — «#{item.wishlist.title.to_s.truncate(40)}»" }
+    gifts.each { |item| lines << "• #{item.title.to_s.truncate(60)} — #{owner_name(item)}, «#{item.wishlist.title.to_s.truncate(40)}»" }
     lines << I18n.t("bot.reminders.reservations.more", count: total - gifts.size) if total > gifts.size
     lines << "\n#{I18n.t('bot.reminders.reservations.hint')}"
     lines.join("\n")
+  end
+
+  # Two friends can both have a "Birthday" list: the owner tells them apart
+  def owner_name(item)
+    owner = item.wishlist.owner
+    (owner.first_name.presence || owner.full_name).to_s.truncate(30)
   end
 end
