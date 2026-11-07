@@ -8,24 +8,22 @@ class BotStateHandlerTest < ActiveSupport::TestCase
   end
 
   def context_for(text)
-    mock("BotContext").tap do |context|
-      context.stubs(:user).returns(@user)
+    Bot::Context.new(bot: nil, user: @user, source: nil).tap do |context|
       context.stubs(:text).returns(text)
-      context.stubs(:bot).returns(nil)
       context.stubs(:chat_id).returns(@user.telegram_id)
     end
   end
 
-  test "creating list state creates wishlist and clears state" do
+  test "creating list state creates wishlist and prompts for its first gift" do
     @user.start_creating_list!
     context = context_for("Travel gifts")
-    Bot::Callbacks::WishlistHandler.any_instance.expects(:open_list).with(kind_of(Integer))
+    context.expects(:render).with(regexp_matches(/Travel gifts/), anything)
 
     Bot::StateHandler.new(context).handle
 
     assert_equal [ "Travel gifts" ], @user.wishlists.pluck(:title)
-    assert_nil @user.reload.bot_state
-    assert_nil @user.bot_payload
+    assert_equal "adding_item", @user.reload.bot_state
+    assert @user.bot_payload["first_item"]
   end
 
   test "blank list title reports an error and allows retry" do
@@ -39,11 +37,11 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     assert_equal "creating_list", @user.reload.bot_state
 
     retry_context = context_for("Travel gifts")
-    Bot::Callbacks::WishlistHandler.any_instance.expects(:open_list).with(kind_of(Integer))
+    retry_context.expects(:render).with(regexp_matches(/Travel gifts/), anything)
     Bot::StateHandler.new(retry_context).handle
 
     assert_equal [ "Travel gifts" ], @user.wishlists.pluck(:title)
-    assert_nil @user.reload.bot_state
+    assert_equal "adding_item", @user.reload.bot_state
   end
 
   test "blank renamed list title preserves the original title and state" do
@@ -160,7 +158,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     @user.update!(bot_state: "adding_item_url", bot_payload: { "item_id" => item.id, "wishlist_id" => wishlist.id })
     context = context_for("-")
     context.expects(:render).with(
-      I18n.t("bot.messages.item_added"),
+      I18n.t("bot.messages.item_added", title: "Puzzle", list: "Birthday"),
       kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
     )
 
@@ -177,7 +175,7 @@ class BotStateHandlerTest < ActiveSupport::TestCase
     @user.update!(bot_state: "adding_item_url", bot_payload: { "item_id" => item.id, "wishlist_id" => wishlist.id })
     context = context_for("  https://example.com/gift  ")
     context.expects(:render).with(
-      I18n.t("bot.messages.item_added"),
+      I18n.t("bot.messages.item_added", title: "Puzzle", list: "Birthday"),
       kind_of(Telegram::Bot::Types::InlineKeyboardMarkup)
     )
 

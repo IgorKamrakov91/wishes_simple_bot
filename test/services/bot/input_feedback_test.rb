@@ -63,7 +63,7 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
 
     assert_equal I18n.t("bot.input_errors.price.not_a_number"), last_text
     assert widened?, "an error with buttons is as wide as the prompt before it"
-    assert_equal [ "open_item:#{@item.id}" ], last_buttons.map(&:callback_data)
+    assert_equal [ "clear_item_field:price:#{@item.id}", "open_item:#{@item.id}" ], last_buttons.map(&:callback_data)
     assert_equal "editing_item", @user.reload.bot_state
     assert_equal 10, @item.reload.price
   end

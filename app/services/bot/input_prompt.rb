@@ -42,9 +42,18 @@ module Bot
       when "creating_list"
         [ I18n.t("bot.messages.enter_list_name"), cancel_keyboard("show_lists") ]
       when "renaming_list"
-        [ I18n.t("bot.messages.enter_new_list_name"), cancel_keyboard("list_settings:#{payload[:wishlist_id]}") ]
+        text = [ I18n.t("bot.messages.enter_new_list_name"), list_context ].join("\n")
+        [ text, cancel_keyboard("list_settings:#{payload[:wishlist_id]}") ]
       when "adding_item"
-        [ I18n.t("bot.messages.enter_item_name"), cancel_keyboard("open_list:#{payload[:wishlist_id]}") ]
+        if payload[:first_item]
+          text = I18n.t("bot.messages.first_item_prompt", list: list_title)
+          keyboard = context.build_keyboard([
+            [ context.inline_btn(I18n.t("bot.messages.add_item_later"), "open_list:#{payload[:wishlist_id]}") ]
+          ])
+          [ text, keyboard ]
+        else
+          [ [ list_context, I18n.t("bot.messages.enter_item_name") ].join("\n"), cancel_keyboard("open_list:#{payload[:wishlist_id]}") ]
+        end
       when "adding_item_title"
         [ I18n.t("bot.messages.name_linked_item", list: list_title), cancel_keyboard("open_list:#{payload[:wishlist_id]}") ]
       when "adding_item_url"
@@ -68,6 +77,10 @@ module Bot
       escape_html(user.wishlists.find(payload[:wishlist_id]).title.to_s.truncate(100))
     end
 
+    def list_context
+      I18n.t("bot.messages.list_context", list: list_title)
+    end
+
     def item_url_prompt
       skip = [ "skip_item_url", payload[:draft_id] ].compact.join(":")
       keyboard = context.build_keyboard([
@@ -86,15 +99,18 @@ module Bot
 
       rows = []
       if current.present? && Item::OPTIONAL_FIELDS.include?(field)
-        rows << [ context.inline_btn(I18n.t("bot.buttons.clear_field"), "clear_item_field:#{field}:#{item.id}") ]
+        label = I18n.t("bot.buttons.clear_field", field: I18n.t("bot.messages.clear_fields.#{field}"))
+        rows << [ context.inline_btn(label, "clear_item_field:#{field}:#{item.id}") ]
       end
       rows << [ context.inline_btn(I18n.t("bot.buttons.cancel"), "open_item:#{item.id}") ]
 
-      [ edit_prompt_text(field, current), context.build_keyboard(rows) ]
+      [ edit_prompt_text(item, field, current), context.build_keyboard(rows) ]
     end
 
-    def edit_prompt_text(field, current)
+    def edit_prompt_text(item, field, current)
       lines = [ I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.#{field}")) ]
+      lines << I18n.t("bot.messages.item_context", title: escape_html(item.title.to_s.truncate(100)),
+                     list: escape_html(item.wishlist.title.to_s.truncate(100)))
       hint = I18n.t("bot.input_hints.#{field}", default: nil)
       lines << "<i>#{hint}</i>" if hint
       if current.present?

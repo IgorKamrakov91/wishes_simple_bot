@@ -66,7 +66,7 @@ class TelegramMessageRecoveryTest < ActionDispatch::IntegrationTest
 
     assert_response :ok
     assert_equal [ "Birthday", "New list" ], @user.wishlists.order(:id).pluck(:title)
-    assert_nil @user.reload.bot_state
+    assert_equal "adding_item", @user.reload.bot_state
     assert_includes @sent.last[:text], I18n.t("bot.commands.message_failed")
     refute_includes @sent.last[:text], "ничего не сохранено"
     assert_includes callbacks, "show_lists"

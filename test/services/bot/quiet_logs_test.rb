@@ -49,13 +49,9 @@ class BotListCreationLockTest < ActiveSupport::TestCase
 
   def handler_for(text)
     user = User.find(@user.id) # each delivery loads its own copy
-    context = mock("BotContext")
-    context.stubs(:user).returns(user)
+    context = Bot::Context.new(bot: nil, user: user, source: nil)
     context.stubs(:text).returns(text)
-    context.stubs(:non_text_message?).returns(false)
-    context.stubs(:bot).returns(nil)
     context.stubs(:chat_id).returns(user.telegram_id)
-    context.stubs(:try).with(:non_text_message?).returns(false)
     Bot::StateHandler.new(context)
   end
 
@@ -63,13 +59,13 @@ class BotListCreationLockTest < ActiveSupport::TestCase
     @user.start_creating_list!
     first = handler_for("ДР")
     second = handler_for("ДР")
-    Bot::Callbacks::WishlistHandler.any_instance.expects(:open_list).once
+    Bot::InputPrompt.any_instance.expects(:render).once
 
     assert_difference("Wishlist.count", 1) do
       first.handle
       second.handle
     end
-    assert_nil @user.reload.bot_state
+    assert_equal "adding_item", @user.reload.bot_state
   end
 
   test "a rename delivered after the input ended changes nothing" do

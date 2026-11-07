@@ -36,7 +36,7 @@ class BotItemAuthorizationTest < ActiveSupport::TestCase
 
   test "owners can start adding and editing items" do
     context = context_for(@owner)
-    context.expects(:render).with(I18n.t("bot.messages.enter_item_name"), :cancel_keyboard)
+    context.expects(:render).with([ I18n.t("bot.messages.list_context", list: "Birthday"), I18n.t("bot.messages.enter_item_name") ].join("\n"), :cancel_keyboard)
     context.expects(:render).with(regexp_matches(/\A#{Regexp.escape(I18n.t("bot.messages.enter_new_value", field: I18n.t("bot.fields.title")))}/), :cancel_keyboard)
     handler = Bot::Callbacks::ItemHandler.new(context)
 
