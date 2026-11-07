@@ -95,6 +95,56 @@ class BotHelpAndSettingsKeepInputTest < ActiveSupport::TestCase
     refute_includes last_buttons.map(&:callback_data), "resume_input"
   end
 
+  test "an unknown command keeps a gift draft and offers to continue" do
+    press("add_item:#{@wishlist.id}")
+    say("Puzzle")
+    draft = @user.reload.bot_payload
+
+    say("/hlep")
+
+    assert_includes last_text, I18n.t("bot.commands.unknown_command")
+    assert_includes last_text, I18n.t("bot.commands.input_active")
+    assert_equal %w[resume_input cancel_input show_lists main_menu], last_buttons.map(&:callback_data)
+    assert_equal "adding_item_url", @user.reload.bot_state
+    assert_equal draft, @user.bot_payload
+    assert_empty @wishlist.items
+
+    press("resume_input")
+    assert_includes last_text, "«Puzzle»"
+    say("ozon.ru/t/abc")
+
+    assert_equal [ "Puzzle", "https://ozon.ru/t/abc" ], @wishlist.items.sole.attributes.values_at("title", "url")
+    assert_nil @user.reload.bot_state
+  end
+
+  test "an unknown command keeps an item edit ready for the next answer" do
+    item = @wishlist.items.create!(title: "Puzzle", price: 10)
+    press("edit_item_field:price:#{item.id}")
+    payload = @user.reload.bot_payload
+
+    say("/setings")
+
+    assert_equal "editing_item", @user.reload.bot_state
+    assert_equal payload, @user.bot_payload
+    assert_equal 10, item.reload.price
+
+    say("20")
+    assert_equal 20, item.reload.price
+    assert_nil @user.reload.bot_state
+  end
+
+  test "an input preserved after an unknown command can still be cancelled" do
+    press("new_list")
+    say("/unknown")
+    say("/cancel")
+
+    assert_nil @user.reload.bot_state
+    assert_nil @user.bot_payload
+    assert_equal I18n.t("bot.commands.cancelled"), screen_text(last_text)
+    refute_includes last_buttons.map(&:callback_data), "resume_input"
+    assert_equal [ "Birthday" ], @user.wishlists.pluck(:title)
+  end
+
   test "other commands still abandon the input" do
     press("new_list")
     say("/reservations")
