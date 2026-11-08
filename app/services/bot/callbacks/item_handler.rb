@@ -131,6 +131,9 @@ module Bot
         if reservations_page && !item.reserved_by?(user)
           ReservationsHandler.new(context).show_reservations(reservations_page)
         else
+          # Bought gifts move after the ones still to buy, so "back" goes to
+          # the page where the gift is now
+          reservations_page &&= Presenters::ReservationsPresenter.page_for(item, user)
           show_item(item.id, reservations_page: reservations_page)
         end
       end
