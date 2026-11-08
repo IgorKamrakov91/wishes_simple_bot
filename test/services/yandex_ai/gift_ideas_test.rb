@@ -20,6 +20,18 @@ class YandexAiGiftIdeasTest < ActiveSupport::TestCase
     assert_equal "json_schema", options[:response_format][:type]
   end
 
+  test "sends earlier ideas and drops any the model repeats" do
+    sent = nil
+    @client.expects(:chat).with { |messages, **| sent = JSON.parse(messages.last[:content]); true }
+      .returns('{"ideas":["Лампа", "кружка", "Пазл"]}')
+
+    ideas = YandexAi::GiftIdeas.new(client: @client).call("List", [ "Плед" ], suggested: [ "Лампа", "Кружка" ])
+
+    assert_equal [ "Пазл" ], ideas
+    assert_equal [ "Лампа", "Кружка" ], sent["suggested"]
+    assert_includes YandexAi::GiftIdeas::SYSTEM_PROMPT, "suggested"
+  end
+
   test "keeps only the last 20 gifts" do
     titles = (1..25).map { |n| "Gift #{n}" }
     @client.expects(:chat).with { |messages, **| JSON.parse(messages.last[:content])["gifts"] == titles.last(20) }

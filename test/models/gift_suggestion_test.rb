@@ -104,9 +104,23 @@ class GiftSuggestionTest < ActiveJob::TestCase
     end
   end
 
-  test "cleanup removes requests older than two days" do
+  test "earlier ideas for the same list are remembered for three days, newest first" do
+    other_list = @owner.wishlists.create!(title: "Other")
+    oldest = ready_suggestion([ "Старая" ])
+    oldest.update_columns(created_at: 4.days.ago)
+    ready_suggestion([ "Лампа", "Плед" ]).update_columns(created_at: 2.days.ago)
+    ready_suggestion([ "Кружка", "Лампа" ])
+    GiftSuggestion.create!(user: @owner, wishlist: @wishlist, status: "failed")
+    GiftSuggestion.create!(user: @owner, wishlist: other_list, status: "ready",
+                           ideas: [ { "title" => "Чужая", "item_id" => nil } ])
+    current = GiftSuggestion.create!(user: @owner, wishlist: @wishlist)
+
+    assert_equal [ "Кружка", "Лампа", "Плед" ], current.previous_titles
+  end
+
+  test "cleanup removes requests older than three days" do
     old = ready_suggestion([ "A" ])
-    old.update_columns(created_at: 3.days.ago)
+    old.update_columns(created_at: 4.days.ago)
     recent = ready_suggestion([ "B" ])
 
     CleanupGiftSuggestionsJob.perform_now

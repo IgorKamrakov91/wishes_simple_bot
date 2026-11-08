@@ -38,7 +38,9 @@ class GiftIdeasJobTest < ActiveJob::TestCase
   end
 
   test "saves ideas before sending them to the owner" do
-    @ideas.expects(:call).with("Birthday", [ "Плед" ]).returns([ "Лампа", "Кружка" ])
+    GiftSuggestion.create!(user: @owner, wishlist: @wishlist, status: "ready",
+                           ideas: [ { "title" => "Пазл", "item_id" => nil } ])
+    @ideas.expects(:call).with("Birthday", [ "Плед" ], suggested: [ "Пазл" ]).returns([ "Лампа", "Кружка" ])
     @api.expects(:send_message).with { |params| params[:chat_id] == 97101 && @suggestion.reload.ready? }
 
     GiftIdeasJob.perform_now(@suggestion.id)
