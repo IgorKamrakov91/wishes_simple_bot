@@ -157,7 +157,21 @@ class BotHelpAndSettingsKeepInputTest < ActiveSupport::TestCase
     @user.wishlists.first.items.create!(title: "Puzzle")
     say("/start")
 
-    assert_equal [ "settings", "help" ], @sent.last[:reply_markup].inline_keyboard.last.map(&:callback_data)
+    rows = @sent.last[:reply_markup].inline_keyboard.map { |row| row.map(&:callback_data) }
+    assert_includes rows, [ "show_reservations", "settings", "help" ]
+  end
+
+  test "the main menu counts reservations still to buy" do
+    owner = User.create!(telegram_id: 71002, first_name: "Friend")
+    list = owner.wishlists.create!(title: "Party")
+    list.admit!(@user)
+    bought, pending = list.items.create!(title: "Puzzle"), list.items.create!(title: "Book")
+    [ bought, pending ].each { |item| item.reserve_for!(@user) }
+    bought.update!(purchased_at: Time.current)
+
+    say("/start")
+
+    assert_includes last_text, I18n.t("bot.screens.main.reservations_unbought", number: 2, unbought: 1)
   end
 
   private

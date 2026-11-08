@@ -78,7 +78,7 @@ class BotListPaginationTest < ActiveSupport::TestCase
     lists.last.destroy!
     callback("show_lists:999999999999999999")
     assert_equal lists.first(5).map(&:id), list_ids
-    assert_includes @rendered.last[:text], "Страница 1 из 1"
+    refute_includes @rendered.last[:text], "Страница"
 
     shared = create_lists(@owner, 6)
     shared.each { |list| list.admit!(@user) }
@@ -100,15 +100,17 @@ class BotListPaginationTest < ActiveSupport::TestCase
   test "return from a list goes to its current collection page" do
     lists = create_lists(@user, 7)
     callback("open_list:#{lists.last.id}")
-    assert_equal "show_lists:1", buttons.last.callback_data
-    callback(buttons.last.callback_data)
+    back = buttons.find { |button| button.callback_data&.start_with?("show_lists") }
+    assert_equal "show_lists:1", back.callback_data
+    callback(back.callback_data)
     assert_equal lists.last(2).map(&:id), list_ids
 
     lists = create_lists(@owner, 7)
     lists.each { |list| list.admit!(@user) }
     callback("open_list:#{lists.last.id}")
-    assert_equal "show_shared_lists:1", buttons.last.callback_data
-    callback(buttons.last.callback_data)
+    back = buttons.find { |button| button.callback_data&.start_with?("show_shared_lists") }
+    assert_equal "show_shared_lists:1", back.callback_data
+    callback(back.callback_data)
     assert_equal lists.last(2).map(&:id), list_ids
   end
 

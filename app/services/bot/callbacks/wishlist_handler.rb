@@ -24,6 +24,9 @@ module Bot
           lines << I18n.t("bot.screens.main.own", lists: lists, items: items)
         end
         lines << I18n.t("bot.screens.main.shared", shared: shared) if shared.positive?
+        lines << reservations_line if reservations_line
+        # Counters read as one block under the greeting
+        lines = [ lines.first, lines.drop(1).join("\n") ].reject(&:blank?)
         lines << I18n.t("bot.screens.main.own_hint") if lists.zero?
 
         keyboard = context.build_keyboard([
@@ -31,12 +34,12 @@ module Bot
             context.inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists"),
             context.inline_btn(I18n.t("bot.buttons.shared_lists"), "show_shared_lists")
           ],
-          [ context.inline_btn(I18n.t("bot.screens.reservations.title"), "show_reservations") ],
-          [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", style: "primary") ],
           [
+            context.inline_btn(I18n.t("bot.screens.reservations.title"), "show_reservations"),
             context.inline_btn(I18n.t("bot.buttons.settings"), "settings"),
             context.inline_btn(I18n.t("bot.buttons.help"), "help")
-          ]
+          ],
+          [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", style: "primary") ]
         ])
 
         context.render(lines.join("\n\n"), keyboard)
@@ -107,6 +110,22 @@ module Bot
 
       def open_shared_list(wishlist_id)
         open_list(wishlist_id)
+      end
+
+      private
+
+      def reservations_line
+        return @reservations_line if defined?(@reservations_line)
+
+        reservations = Presenters::ReservationsPresenter.scope_for(user)
+        total = reservations.count
+        @reservations_line = if total.zero?
+          nil
+        elsif (unbought = reservations.where(purchased_at: nil).count).positive?
+          I18n.t("bot.screens.main.reservations_unbought", number: total, unbought: unbought)
+        else
+          I18n.t("bot.screens.main.reservations", number: total)
+        end
       end
     end
   end

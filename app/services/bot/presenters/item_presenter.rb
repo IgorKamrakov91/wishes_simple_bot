@@ -13,7 +13,7 @@ module Bot
       def text
         blocks = [ heading ]
         blocks << details if details.present?
-        blocks << guest_status unless owner?
+        blocks << (owner? ? owner_status : guest_status)
         blocks.join("\n\n")
       end
 
@@ -21,31 +21,29 @@ module Bot
         context.build_keyboard(buttons)
       end
 
-      # Shows the shop's preview (title and photo) under the card
+      # The shop's preview (title and a large photo) tops the card
       def link_preview_options
         return no_link_preview unless web_url
 
-        Telegram::Bot::Types::LinkPreviewOptions.new(url: web_url.to_s, prefer_large_media: true)
+        Telegram::Bot::Types::LinkPreviewOptions.new(url: web_url.to_s, prefer_large_media: true, show_above_text: true)
       end
 
       private
 
       def heading
         lines = []
-        lines << "<i>#{escape_html(wishlist.title)} · #{t('bot.screens.item.position', index: position + 1, total: item_ids.size)}</i>"
+        lines << "<i>🎁 #{escape_html(wishlist.title)} · #{t('bot.screens.item.position', index: position + 1, total: item_ids.size)}</i>"
         lines << "<b>#{escape_html(item.title)}</b>"
-        lines << "<i>#{escape_html(item.description)}</i>" if item.description.present?
+        lines << "<blockquote>#{escape_html(item.description)}</blockquote>" if item.description.present?
         lines.join("\n")
       end
 
+      # Price and shop on one line: "6 000 ₽ · ozon.ru"
       def details
-        @details ||= begin
-          lines = []
-          lines << "#{t('bot.screens.item.price')}: <b>#{format_price(item.price)}</b>" if item.price.present?
-          lines << "#{t('bot.screens.item.store')}: #{store_link}" if item.url.present?
-          lines << "#{t('bot.screens.item.status')}: #{owner_status}" if owner?
-          lines.join("\n")
-        end
+        @details ||= [
+          ("<b>#{format_price(item.price)}</b>" if item.price.present?),
+          (store_link if item.url.present?)
+        ].compact.join(" · ")
       end
 
       def store_link
@@ -59,21 +57,29 @@ module Bot
         item.reserved? ? t("bot.screens.item.owner_reserved") : t("bot.screens.item.owner_free")
       end
 
+      # Who sees what stays one tap away in a collapsed quote
       def guest_status
         if !item.reserved?
-          t("bot.screens.item.guest_free", owner: escape_html(wishlist.owner.first_name.presence || wishlist.owner.full_name))
+          owner = escape_html(wishlist.owner.first_name.presence || wishlist.owner.full_name)
+          [ t("bot.screens.item.guest_free"), collapsed(t("bot.screens.item.guest_free_privacy", owner: owner)) ].join("\n")
         elsif reserved_by_me?
-          [ t("bot.screens.item.guest_mine"), (t("bot.screens.item.guest_purchased") if item.purchased?) ].compact.join("\n")
+          [ t("bot.screens.item.guest_mine"),
+            (t("bot.screens.item.guest_purchased") if item.purchased?),
+            collapsed(t("bot.screens.item.guest_mine_privacy")) ].compact.join("\n")
         else
           t("bot.screens.item.guest_taken", user: "<tg-spoiler>#{escape_html(reserver_label)}</tg-spoiler>")
         end
+      end
+
+      def collapsed(text)
+        "<blockquote expandable>#{text}</blockquote>"
       end
 
       def purchased_button
         value = item.purchased? ? 0 : 1
         data = [ "mark_purchased", item.id, item.reservation_version, value, @reservations_page ].compact.join(":")
         label = item.purchased? ? t("bot.buttons.not_purchased") : t("bot.buttons.purchased")
-        context.inline_btn(label, data, **(item.purchased? ? {} : { style: "success" }))
+        context.inline_btn(label, data, **(item.purchased? ? {} : { style: "primary" }))
       end
 
       def reserver_label
@@ -90,13 +96,12 @@ module Bot
           if !item.reserved?
             buttons << [ context.inline_btn(t("bot.buttons.reserve"), "reserve_item:#{item.id}:#{item.reservation_version}", style: "success") ]
           elsif reserved_by_me?
-            buttons << [ purchased_button ]
             release = if @reservations_page
               "release_book:#{item.id}:#{item.reservation_version}:#{@reservations_page}"
             else
               "unreserve_item:#{item.id}:#{item.reservation_version}"
             end
-            buttons << [ context.inline_btn(t("bot.buttons.unreserve"), release) ]
+            buttons << [ purchased_button, context.inline_btn(t("bot.buttons.unreserve"), release) ]
           end
         end
 
@@ -109,27 +114,29 @@ module Bot
           ]
         end
 
-        buttons << neighbours_row if @reservations_page.nil? && neighbours_row.any?
-        buttons << [ context.inline_btn(t("bot.buttons.back_to_list"), "list_page:#{wishlist.id}:#{WishlistPresenter.page_of(position)}") ]
+        back_to_list = context.inline_btn(t("bot.buttons.back_to_list"), "list_page:#{wishlist.id}:#{WishlistPresenter.page_of(position)}")
         if @reservations_page
-          buttons << [ context.inline_btn(t("bot.screens.reservations.back"), "show_reservations:#{@reservations_page}") ]
-        elsif !owner? && (reserved_by_me? || ReservationsPresenter.scope_for(user).exists?)
-          page = reserved_by_me? ? ReservationsPresenter.page_for(item, user) : 0
-          buttons << [ context.inline_btn(t("bot.screens.reservations.back"), "show_reservations:#{page}") ]
+          # Opened from My reservations: back to either, no neighbours
+          buttons << [ back_to_list, context.inline_btn(t("bot.screens.reservations.back"), "show_reservations:#{@reservations_page}") ]
+        else
+          buttons << navigation_row(back_to_list)
+          if !owner? && (reserved_by_me? || ReservationsPresenter.scope_for(user).exists?)
+            page = reserved_by_me? ? ReservationsPresenter.page_for(item, user) : 0
+            buttons << [ context.inline_btn(t("bot.screens.reservations.back"), "show_reservations:#{page}") ]
+          end
         end
         buttons
       end
 
-      # Previous and next gifts with words, and no placeholder buttons
-      def neighbours_row
-        @neighbours_row ||= begin
-          previous_id = item_ids[position - 1] if position.positive?
-          next_id = item_ids[position + 1]
-          [
-            (context.inline_btn(t("bot.buttons.prev_item"), "open_item:#{previous_id}") if previous_id),
-            (context.inline_btn(t("bot.buttons.next_item"), "open_item:#{next_id}") if next_id)
-          ].compact
-        end
+      # One row: ‹ previous, back to the list, next ›; only the steps that exist
+      def navigation_row(back_to_list)
+        previous_id = item_ids[position - 1] if position.positive?
+        next_id = item_ids[position + 1]
+        [
+          (context.inline_btn(t("bot.buttons.prev_item"), "open_item:#{previous_id}") if previous_id),
+          back_to_list,
+          (context.inline_btn(t("bot.buttons.next_item"), "open_item:#{next_id}") if next_id)
+        ].compact
       end
 
       # Only http(s) links can go into a URL button, anything else is shown as text

@@ -31,33 +31,49 @@ module Bot
           lines << t("bot.screens.reservations.empty")
         else
           lines << t("bot.screens.reservations.hint")
+          lines << items.map { |item| entry(item) }.join("\n\n")
           lines << t("bot.screens.collections.page", page: page + 1, total: total_pages) if total_pages > 1
         end
         lines.join("\n\n")
       end
 
       def keyboard
-        # One button per gift, with whose list it is in; marking it bought
-        # and releasing it are on the card
+        # One button per gift; marking it bought and releasing it are on the
+        # card. Gifts still to buy are blue, bought ones plain with a ✓
         rows = items.map do |item|
-          [ context.inline_btn(item_label(item), "open_booked_item:#{item.id}:#{page}", style: "success") ]
+          options = item.purchased? ? {} : { style: "primary" }
+          [ context.inline_btn(item_label(item), "open_booked_item:#{item.id}:#{page}", **options) ]
         end
         rows << pager_row if pager_row.any?
-        rows << [ context.inline_btn(t("bot.buttons.shared_lists"), "show_shared_lists") ]
-        rows << [ context.inline_btn(t("bot.buttons.back_to_menu"), "main_menu") ]
+        rows << [
+          context.inline_btn(t("bot.buttons.back_to_menu"), "main_menu"),
+          context.inline_btn(t("bot.buttons.shared_lists"), "show_shared_lists")
+        ]
         context.build_keyboard(rows)
       end
 
       private
 
-      def item_label(item)
+      # The text names the list; the button keeps the gift and its owner
+      def entry(item)
         wishlist = item.wishlist
-        owner = wishlist.owner.first_name.presence || wishlist.owner.full_name
-        # Buttons have one line and one font size, so the list follows the name
-        label = +"#{item.title.to_s.truncate(TITLE_LIMIT)} · #{owner.to_s.truncate(OWNER_LIMIT)}, " \
-                 "«#{wishlist.title.to_s.truncate(LIST_LIMIT)}»"
+        key = item.purchased? ? "entry_purchased" : "entry"
+        t("bot.screens.reservations.#{key}",
+          title: escape_html(item.title.to_s.truncate(TITLE_LIMIT * 2)),
+          price: (" · #{format_price(item.price)}" if item.price.present?),
+          owner: escape_html(owner_name(wishlist).truncate(OWNER_LIMIT)),
+          list: escape_html(wishlist.title.to_s.truncate(LIST_LIMIT * 2)))
+      end
+
+      def item_label(item)
+        label = +(item.purchased? ? "✓ " : "★ ")
+        label << "#{item.title.to_s.truncate(TITLE_LIMIT)} · #{owner_name(item.wishlist).truncate(OWNER_LIMIT)}"
         label << " · #{t('bot.screens.reservations.purchased')}" if item.purchased?
         label
+      end
+
+      def owner_name(wishlist)
+        (wishlist.owner.first_name.presence || wishlist.owner.full_name).to_s
       end
 
       def total_pages

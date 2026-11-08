@@ -53,8 +53,9 @@ class BotMyReservationsTest < ActiveJob::TestCase
     row = @edits.last[:reply_markup].inline_keyboard.first
     assert_equal 1, row.size
     booked = row.first
-    assert_equal "Gift <&> · Owner <&>, «Birthday <&>»", booked.text
-    assert_equal "success", booked.style
+    assert_equal "★ Gift <&> · Owner <&>", booked.text
+    assert_equal "primary", booked.style
+    assert_includes text, "Owner &lt;&amp;&gt; · «Birthday &lt;&amp;&gt;»"
     assert buttons.none? { |button| button.callback_data.start_with?("release_book:") }
 
     press(booked.callback_data)
@@ -146,7 +147,7 @@ class BotMyReservationsTest < ActiveJob::TestCase
     press("release_book:#{item.id}:0:9")
     assert_equal @guest.telegram_id, item.reload.reserved_by
     assert_includes text, I18n.t("bot.screens.reservations.empty")
-    assert_equal %w[show_shared_lists main_menu], buttons.map(&:callback_data)
+    assert_equal %w[main_menu show_shared_lists], buttons.map(&:callback_data)
     assert_equal I18n.t("bot.messages.not_available"), @answer[:text]
 
     item.destroy!
@@ -198,7 +199,7 @@ class BotMyReservationsTest < ActiveJob::TestCase
     end
 
     assert_includes text, I18n.t("bot.screens.reservations.empty")
-    assert_equal %w[show_shared_lists main_menu], buttons.map(&:callback_data)
+    assert_equal %w[main_menu show_shared_lists], buttons.map(&:callback_data)
     assert_nil item.reload.reserved_by
     assert_equal 1, item.reservation_version
   end

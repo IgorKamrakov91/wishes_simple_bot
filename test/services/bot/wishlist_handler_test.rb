@@ -51,7 +51,7 @@ class BotWishlistHandlerTest < ActiveSupport::TestCase
     Bot::Callbacks::WishlistHandler.new(context).show_lists
 
     refute_includes rendered[:text], "Holidays"
-    assert_includes rendered[:text], "Страница 1 из 1"
+    refute_includes rendered[:text], "Страница"
 
     row = rendered[:keyboard].inline_keyboard.first
     assert_equal "Holidays · 2 подарка", row.first.text
