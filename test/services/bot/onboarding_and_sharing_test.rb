@@ -40,11 +40,11 @@ class BotOnboardingAndSharingTest < ActiveSupport::TestCase
     @sent.last[:reply_markup].inline_keyboard.flatten
   end
 
-  def inline_query(text, user: @owner)
+  def inline_query(text, user: @owner, offset: "")
     results = nil
     @api.expects(:answer_inline_query).with { |params| results = params; true }
     Bot::Inline.handle_query(@bot, Telegram::Bot::Types::InlineQuery.new(
-      id: "q", query: text, offset: "",
+      id: "q", query: text, offset: offset,
       from: { id: user.telegram_id, is_bot: false, first_name: user.first_name }
     ))
     results
@@ -127,6 +127,53 @@ class BotOnboardingAndSharingTest < ActiveSupport::TestCase
     assert_equal [ "День рождения" ], inline_query("день").fetch(:results).map(&:title)
     assert_equal [ "Скидки 100%" ], inline_query("100%").fetch(:results).map(&:title)
     assert_empty inline_query("%%").fetch(:results)
+  end
+
+  test "inline browsing and search paginate all owned lists with a stable order" do
+    40.times { |i| @owner.wishlists.create!(title: "День #{i}") }
+    # Tied timestamps must not move results between pages.
+    @owner.wishlists.update_all(updated_at: Time.current.change(usec: 0))
+    foreign_list = @user.wishlists.create!(title: "День чужой")
+    foreign_list.admit!(@owner)
+    expected_ids = @owner.wishlists.order(id: :desc).pluck(:id).map(&:to_s)
+
+    [ "", "день" ].each do |query|
+      first = inline_query(query)
+      second = inline_query(query, offset: first[:next_offset])
+      last = inline_query(query, offset: second[:next_offset])
+
+      assert_equal [ 20, 20, 1 ], [ first, second, last ].map { |page| page[:results].size }
+      assert_equal [ "20", "40", "" ], [ first, second, last ].map { |page| page[:next_offset] }
+      assert_equal expected_ids, [ first, second, last ].flat_map { |page| page[:results].map(&:id) }
+      assert first[:is_personal]
+      assert_equal 0, first[:cache_time]
+    end
+  end
+
+  test "inline pagination ends on an exactly full page and beyond the last page" do
+    19.times { |i| @owner.wishlists.create!(title: "List #{i}") }
+
+    assert_equal "", inline_query("")[:next_offset]
+    beyond = inline_query("", offset: "20")
+    assert_empty beyond[:results]
+    assert_equal "", beyond[:next_offset]
+  end
+
+  test "malformed inline offsets safely restart at the first page" do
+    [ "-1", "abc", "1.5", "9" * 100 ].each do |offset|
+      result = inline_query("", offset: offset)
+      assert_equal [ @friends_list.id.to_s ], result[:results].map(&:id)
+      assert_equal "", result[:next_offset]
+    end
+  end
+
+  test "direct sharing returns only the requested list and no next page" do
+    result = inline_query("share_#{@friends_list.id}")
+
+    assert_equal [ @friends_list.id.to_s ], result[:results].map(&:id)
+    assert_equal "", result[:next_offset]
+    assert_empty inline_query("share_#{@friends_list.id}", offset: "20")[:results]
+    assert_empty inline_query("share_#{@friends_list.id}", user: @user, offset: "20")[:results]
   end
 
   test "Russian plural forms" do
