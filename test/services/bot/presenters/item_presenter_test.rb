@@ -48,7 +48,7 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     assert_equal "success", button_rows(presenter).first.first.style
     refute_includes callbacks(presenter), "edit_item:#{@item.id}"
     assert_equal "https://www.apple.com/iphone", button_rows(presenter)[1].first.url
-    assert_match "Owner в боте увидит только, что подарок занят, но не кем", presenter.text
+    assert_match "Owner в боте увидит только, что подарок занят, но не увидит, кто его забронировал", presenter.text
     refute callbacks(presenter).any? { |callback| callback.start_with?("show_reservations:") }
   end
 
