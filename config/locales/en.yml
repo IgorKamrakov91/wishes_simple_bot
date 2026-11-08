@@ -177,6 +177,7 @@ en:
         released: "The reservation was cancelled. Showing the current state."
         purchased: "The bought mark was saved."
         unpurchased: "The bought mark was removed."
+        thanked: "The thanks were already sent."
         settings_updated: "Settings were saved."
         reminder_updated: "Reminder frequency was saved."
       field_cleared: "Removed"
