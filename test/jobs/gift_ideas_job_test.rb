@@ -69,7 +69,9 @@ class GiftIdeasJobTest < ActiveJob::TestCase
   test "a request queued before the switch was turned off doesn't call the model" do
     GiftSuggestion.stubs(:enabled?).returns(false)
     @ideas.expects(:call).never
-    @api.expects(:send_message).with { |params| params[:text] == "failed" }
+    @api.expects(:send_message).with do |params|
+      params[:chat_id] == @owner.telegram_id && @suggestion.reload.failed?
+    end
 
     GiftIdeasJob.perform_now(@suggestion.id)
 

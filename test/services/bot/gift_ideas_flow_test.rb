@@ -93,6 +93,7 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     assert_includes last_text, "Paint &amp; paper"
     assert_includes callbacks, "open_item:#{item.id}"
     assert_includes callbacks, "show_gift_ideas:#{suggestion.id}"
+    assert_includes callbacks, "edit_item_field:url:#{item.id}"
     search = @edits.last[:reply_markup].inline_keyboard.flatten.find(&:url)
     uri = URI.parse(search.url)
     assert_equal "market.yandex.ru", uri.host
@@ -121,6 +122,29 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     assert_includes last_text, I18n.t("bot.commands.input_active")
     assert_includes callbacks, "resume_input"
     assert_includes callbacks, "cancel_input"
+  end
+
+  test "the add-link button opens URL input for the saved idea and saves the reply" do
+    suggestion = ready_suggestion
+    press("add_idea:#{suggestion.id}:0")
+    item = @wishlist.items.sole
+    press("edit_item_field:url:#{item.id}")
+
+    assert_equal "editing_item", @owner.reload.bot_state
+    assert_equal "url", @owner.bot_payload["field"]
+    assert_equal item.id, @owner.bot_payload["item_id"]
+    assert_includes last_text, "Paint &amp; paper"
+
+    @update_id += 1
+    dispatch(Telegram::Bot::Types::Update.new(update_id: @update_id, message: {
+      message_id: 101, date: 1, text: "https://market.yandex.ru/product/test",
+      from: { id: @owner.telegram_id, is_bot: false, first_name: @owner.first_name },
+      chat: { id: @owner.telegram_id, type: "private" }
+    }))
+
+    assert_equal "https://market.yandex.ru/product/test", item.reload.url
+    assert_nil @owner.reload.bot_state
+    assert_equal 1, @wishlist.items.count
   end
 
   test "a guest cannot request view or add the owner's ideas" do
@@ -161,8 +185,6 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
   end
 
   test "retry after a committed request does not spend quota again" do
-    # This case observes the request result and avoids transactional test
-    # deferral of the job enqueue, which is tested by the request case above.
     @answer_error = ProcessCrash.new
     update = callback_update("gift_ideas:#{@wishlist.id}")
     assert_raises(ProcessCrash) { dispatch(update) }
@@ -192,6 +214,7 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     assert_no_difference("Item.count") { dispatch(update) }
     assert receipt.reload.delivered_at
     assert_equal "market.yandex.ru", URI.parse(@edits.last[:reply_markup].inline_keyboard.first.first.url).host
+    assert_includes callbacks, "edit_item_field:url:#{@wishlist.items.sole.id}"
   end
 
   test "recovering a deleted AI gift does not expose old titles or create another gift" do

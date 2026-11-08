@@ -5,7 +5,7 @@ module Bot
     class GiftIdeasHandler < BaseHandler
       def request_ideas(wishlist_id)
         wishlist = user.wishlists.find(wishlist_id)
-        return disabled unless enabled?
+        return disabled unless GiftSuggestion.enabled?
 
         result = GiftSuggestion.request_for!(user, wishlist)
         if %i[created active].include?(result.status)
@@ -25,7 +25,7 @@ module Bot
 
       def add_idea(suggestion_id, index)
         suggestion = owned_suggestion(suggestion_id)
-        return disabled unless enabled?
+        return disabled unless GiftSuggestion.enabled?
 
         user.with_lock do
           # The callback keeps the draft; don't publish another gift alongside it.
@@ -50,7 +50,8 @@ module Bot
       def show_added_item(item_id, already: false, suggestion_id: nil)
         item = user.items.includes(:wishlist).find(item_id)
         rows = [
-          [ inline_btn(I18n.t("bot.gift_ideas.market"), nil, url: Presenters::GiftIdeasPresenter.market_url(item.title)) ]
+          [ inline_btn(I18n.t("bot.gift_ideas.market"), nil, url: Presenters::GiftIdeasPresenter.market_url(item.title)) ],
+          [ inline_btn(I18n.t("bot.gift_ideas.add_link"), "edit_item_field:url:#{item.id}") ]
         ]
         rows << [ inline_btn(I18n.t("bot.buttons.open_item"), "open_item:#{item.id}") ]
         if suggestion_id
@@ -65,15 +66,9 @@ module Bot
       private
 
       def owned_suggestion(suggestion_id)
-        raise ActiveRecord::RecordNotFound unless defined?(GiftSuggestion)
-
         suggestion = GiftSuggestion.where(user_id: user.id).find(suggestion_id)
         user.wishlists.find(suggestion.wishlist_id)
         suggestion
-      end
-
-      def enabled?
-        defined?(GiftSuggestion) && GiftSuggestion.enabled?
       end
 
       def disabled

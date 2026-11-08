@@ -230,6 +230,7 @@ en:
       expired: "These ideas have expired. Open the list to request new ideas or add a gift manually."
       finish_input: "Finish or cancel your current input first. The idea has not been added yet."
       market: "🔎 Find on Yandex Market"
+      add_link: "🔗 Add a link"
       back_to_ideas: "← Ideas"
       already_added: "Gift “%{title}” is already in “%{list}”."
       requests:
