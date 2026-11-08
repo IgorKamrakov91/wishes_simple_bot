@@ -21,7 +21,7 @@ en:
 
         Gift ideas:
         • Yandex AI receives the list name and names of recent gifts to suggest ideas. Telegram profile names, prices, links, descriptions and reservation details are not sent.
-        • You can request two sets of ideas per day, using Moscow time. AI suggests ideas; check product availability and prices yourself. After adding an idea, you can search for the gift on Yandex Market.
+        • You can request two sets of ideas per day, using Moscow time. AI suggests ideas; check product availability and prices yourself. After adding an idea, you can search for the gift on Yandex Market, Ozon or Wildberries.
 
         Almost everything works through the buttons under messages. Commands:
       help_cancel: "While typing: /cancel — cancel input"
@@ -229,7 +229,10 @@ en:
       failed: "I couldn't pick ideas. Try later or add a gift manually from the list."
       expired: "These ideas have expired. Open the list to request new ideas or add a gift manually."
       finish_input: "Finish or cancel your current input first. The idea has not been added yet."
-      market: "🔎 Find on Yandex Market"
+      search:
+        market: "🔎 Market"
+        ozon: "🔎 Ozon"
+        wildberries: "🔎 WB"
       add_link: "🔗 Add a link"
       back_to_ideas: "← Ideas"
       already_added: "Gift “%{title}” is already in “%{list}”."

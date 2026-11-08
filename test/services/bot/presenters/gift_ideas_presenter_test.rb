@@ -64,19 +64,26 @@ class BotPresentersGiftIdeasPresenterTest < ActiveSupport::TestCase
     assert_includes Bot::Presenters::GiftIdeasPresenter.new(@suggestion).text, I18n.t("bot.gift_ideas.failed")
   end
 
-  test "the job can use either locale and the search URL only targets Market" do
+  test "the job can use either locale and search URLs escape the title" do
     I18n.with_locale(:en) do
       presenter = Bot::Presenters::GiftIdeasPresenter.new(@suggestion)
       assert_includes presenter.text, "Ideas for"
       assert_includes presenter.text, I18n.t("bot.gift_ideas.ready_hint")
     end
     title = "Краски & бумага #1 / 2?"
-    url = URI.parse(Bot::Presenters::GiftIdeasPresenter.market_url(title))
+    expected = {
+      market: [ "market.yandex.ru", "/search", "text" ],
+      ozon: [ "www.ozon.ru", "/search/", "text" ],
+      wildberries: [ "www.wildberries.ru", "/catalog/0/search.aspx", "search" ]
+    }
+    expected.each do |store, (host, path, param)|
+      url = URI.parse(Bot::Presenters::GiftIdeasPresenter.search_url(store, title))
 
-    assert_equal "https", url.scheme
-    assert_equal "market.yandex.ru", url.host
-    assert_equal "/search", url.path
-    assert_equal({ "text" => title }, CGI.parse(url.query).transform_values(&:first))
-    assert_nil url.fragment
+      assert_equal "https", url.scheme
+      assert_equal host, url.host
+      assert_equal path, url.path
+      assert_equal({ param => title }, CGI.parse(url.query).transform_values(&:first))
+      assert_nil url.fragment
+    end
   end
 end

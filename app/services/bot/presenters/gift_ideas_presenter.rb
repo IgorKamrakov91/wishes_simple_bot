@@ -12,8 +12,15 @@ module Bot
         @suggestion = suggestion
       end
 
-      def self.market_url(title)
-        "https://market.yandex.ru/search?text=#{CGI.escape(title.to_s)}"
+      # Plain search links; opening them costs nothing and never calls Yandex AI.
+      SEARCH_URLS = {
+        market: "https://market.yandex.ru/search?text=%s",
+        ozon: "https://www.ozon.ru/search/?text=%s",
+        wildberries: "https://www.wildberries.ru/catalog/0/search.aspx?search=%s"
+      }.freeze
+
+      def self.search_url(store, title)
+        format(SEARCH_URLS.fetch(store), CGI.escape(title.to_s))
       end
 
       def text
