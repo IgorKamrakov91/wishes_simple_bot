@@ -9,6 +9,8 @@ class GiftSuggestion < ApplicationRecord
   STALE_AFTER = 2.minutes
   KEEP_FOR = 2.days
   TIME_ZONE = "Europe/Moscow"
+  # Serializes the app-wide count across users (the user lock covers one person)
+  GLOBAL_LOCK_KEY = 74_201_108
 
   Request = Struct.new(:status, :suggestion)
 
@@ -39,6 +41,8 @@ class GiftSuggestion < ApplicationRecord
       next Request.new(:active, active) if active && !active.stale?
 
       next Request.new(:user_limit) if where(user: user).today.count >= DAILY_LIMIT
+
+      connection.execute("SELECT pg_advisory_xact_lock(#{GLOBAL_LOCK_KEY})")
       next Request.new(:global_limit) if today.count >= global_daily_limit
 
       suggestion = create!(user: user, wishlist: wishlist, locale: I18n.locale.to_s)

@@ -21,6 +21,7 @@ class GiftIdeasJobTest < ActiveJob::TestCase
     Bot::Presenters.const_set(:GiftIdeasPresenter, FakePresenter) unless @defined_presenter
     @previous_token = ENV["TELEGRAM_BOT_TOKEN"]
     ENV["TELEGRAM_BOT_TOKEN"] = "token"
+    GiftSuggestion.stubs(:enabled?).returns(true)
     @ideas = mock("GiftIdeas")
     YandexAi::GiftIdeas.stubs(:new).returns(@ideas)
     @owner = User.create!(telegram_id: 97101, first_name: "Owner")
@@ -63,6 +64,16 @@ class GiftIdeasJobTest < ActiveJob::TestCase
 
     assert @suggestion.reload.ready?
     assert_equal [ "Лампа" ], @suggestion.titles
+  end
+
+  test "a request queued before the switch was turned off doesn't call the model" do
+    GiftSuggestion.stubs(:enabled?).returns(false)
+    @ideas.expects(:call).never
+    @api.expects(:send_message).with { |params| params[:text] == "failed" }
+
+    GiftIdeasJob.perform_now(@suggestion.id)
+
+    assert_equal [ "failed", "disabled" ], [ @suggestion.reload.status, @suggestion.error_code ]
   end
 
   test "logs no titles or ideas" do

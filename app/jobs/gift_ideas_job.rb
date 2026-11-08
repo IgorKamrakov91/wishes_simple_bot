@@ -14,7 +14,13 @@ class GiftIdeasJob < ApplicationJob
     suggestion = GiftSuggestion.find_by(id: suggestion_id)
     return unless suggestion&.claim!
 
-    generate(suggestion)
+    # Switched off after the request was queued: don't call the model, but
+    # finish the request so it doesn't keep the owner waiting
+    if GiftSuggestion.enabled?
+      generate(suggestion)
+    else
+      suggestion.fail!("disabled")
+    end
     deliver(suggestion)
   end
 
