@@ -229,7 +229,7 @@ en:
       own_released: "🔓 The reservation of “%{title}” in your list “%{list}” was released, it is free again."
       friend_reserved: "🎁 “%{title}” was reserved in the list “%{list}” (%{owner})."
       friend_released: "🔓 “%{title}” is free again in the list “%{list}” (%{owner})."
-      thanks: "💌 %{owner} says thanks for reserving “%{title}” from the list “%{list}”."
+      thanks: "💌 %{owner} says thanks for the gift “%{title}” from the list “%{list}”."
     input_hints:
       price: "A number in rubles, e.g. 2500 or 1499.90"
       url: "A link to the product, e.g. https://ozon.ru/…"
