@@ -10,6 +10,7 @@ class GiftSuggestion < ApplicationRecord
   # Old requests are kept a little longer than they can be opened, so a new
   # request for the same list can avoid repeating recent ideas
   KEEP_FOR = 3.days
+  OPEN_FOR = 2.days
   MAX_PREVIOUS_IDEAS = 40
   TIME_ZONE = "Europe/Moscow"
   # Serializes the app-wide count across users (the user lock covers one person)
@@ -23,6 +24,15 @@ class GiftSuggestion < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
 
   scope :today, -> { where(created_at: Time.current.in_time_zone(TIME_ZONE).beginning_of_day..) }
+  scope :unexpired, -> { where(created_at: OPEN_FOR.ago..) }
+
+  def self.remaining_requests_for(user)
+    (DAILY_LIMIT - where(user_id: user.id).today.count).clamp(0, DAILY_LIMIT)
+  end
+
+  def self.latest_ready_for(user, wishlist)
+    unexpired.where(user_id: user.id, wishlist_id: wishlist.id, status: "ready").order(id: :desc).first
+  end
 
   def self.enabled?
     ENV["YANDEX_AI_API_KEY"].present? && ENV["YANDEX_AI_FOLDER_ID"].present? && ENV["YANDEX_AI_ENABLED"] != "false"
