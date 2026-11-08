@@ -19,6 +19,10 @@ en:
         • If your Telegram profile's birthdate is available to the bot, it may remind guests of your lists. Dates are refreshed daily.
         • Find your reservations in “My reservations”; notifications are in “Settings”.
 
+        Gift ideas:
+        • Yandex AI receives the list name and names of recent gifts to suggest ideas. Telegram profile names, prices, links, descriptions and reservation details are not sent.
+        • You can request two sets of ideas per day, using Moscow time. AI suggests ideas; check product availability and prices yourself. After adding an idea, you can search for the gift on Yandex Market.
+
         Almost everything works through the buttons under messages. Commands:
       help_cancel: "While typing: /cancel — cancel input"
       help_contact: "Questions and suggestions: @ikamrakov"
@@ -178,6 +182,8 @@ en:
         purchased: "The bought mark was saved."
         unpurchased: "The bought mark was removed."
         thanked: "The thanks were already sent."
+        gift_ideas: "The idea request was already accepted. Showing its current state."
+        gift_idea_added: "The idea was already added to the list."
         settings_updated: "Settings were saved."
         reminder_updated: "Reminder frequency was saved."
       field_cleared: "Removed"
@@ -214,6 +220,28 @@ en:
       not_available: "This list or gift was deleted or is no longer available."
       private_chat_only: "Manage lists and reserve gifts in a private chat with the bot."
       name_linked_item: "What is the gift called? Once you send a name, I'll add it with this link to “%{list}”."
+    gift_ideas:
+      button: "💡 Gift ideas"
+      recent: "Open the latest request"
+      heading: "<b>💡 Ideas for “%{list}”</b>"
+      ready_hint: "Choose an idea to add a gift without a link. Check product availability and prices yourself."
+      waiting: "Picking ideas. I'll send the result in a separate message."
+      failed: "I couldn't pick ideas. Try later or add a gift manually from the list."
+      expired: "These ideas have expired. Open the list to request new ideas or add a gift manually."
+      finish_input: "Finish or cancel your current input first. The idea has not been added yet."
+      market: "🔎 Find on Yandex Market"
+      add_link: "🔗 Add a link"
+      back_to_ideas: "← Ideas"
+      already_added: "Gift “%{title}” is already in “%{list}”."
+      requests:
+        created: "Picking ideas. I'll send them in a separate message."
+        active: "I'm already picking ideas. I'll send the result in a separate message."
+        user_limit: "You've used today's two requests. Try tomorrow, using Moscow time."
+        global_limit: "Gift ideas are unavailable for today. Try tomorrow."
+        disabled: "Gift ideas are unavailable right now. You can add a gift manually."
+      add_results:
+        gone: "The gift from this idea was deleted. You can add it again manually."
+        unavailable: "This idea is no longer available."
     reminders:
       birthdays:
         text: "Birthday coming up: %{name} — %{date}.\nChoose a gift from the lists you have access to.\n\nYou can turn birthday reminders off in settings."
