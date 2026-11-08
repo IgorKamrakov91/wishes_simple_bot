@@ -135,6 +135,24 @@ module Bot
         end
       end
 
+      # The owner's "Say thanks": the bot passes it on, so the owner still
+      # doesn't learn who reserved the gift
+      def thank_reserver(item_id, reservation_version)
+        item = user.items.find(item_id)
+        context.notice = if item.thank_reserver!(expected_version: reservation_version)
+          UpdateDelivery.record_result("thanked", item.id)
+          ReservationNotifier.thanked(item)
+          I18n.t("bot.messages.thanked_notice")
+        elsif item.thanked? && item.reservation_version == reservation_version
+          UpdateDelivery.record_result("thanked", item.id)
+          I18n.t("bot.messages.thanked_notice")
+        else
+          I18n.t("bot.messages.reservation_changed")
+        end
+
+        show_item(item.id)
+      end
+
       def toggle_reserve(item_id)
         item = Item.accessible_to(user).find(item_id)
         context.notice = I18n.t("bot.messages.reservation_changed")

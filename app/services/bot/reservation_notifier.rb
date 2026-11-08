@@ -15,18 +15,31 @@ module Bot
       notify(item, by, "released")
     end
 
+    # Thanks from the owner go to the guest holding the reservation only.
+    # Not a setting: it answers that guest's own action and comes once.
+    def thanked(item)
+      reserver = item.reserver
+      enqueue(reserver, "thanks", details(item)) if reserver
+    end
+
     def notify(item, actor, event)
       wishlist = item.wishlist
       owner = wishlist.owner
-      details = { "wishlist_id" => wishlist.id, "item_id" => item.id,
-                  "title" => item.title.to_s.truncate(100), "list" => wishlist.title.to_s.truncate(100),
-                  "owner" => (owner.first_name.presence || owner.full_name).truncate(100) }
+      details = details(item)
 
       enqueue(owner, "own_#{event}", details) if owner.notify_own_reservations && owner != actor
 
       wishlist.viewers.where(notify_friend_reservations: true).where.not(id: [ actor.id, owner.id ]).find_each do |guest|
         enqueue(guest, "friend_#{event}", details)
       end
+    end
+
+    def details(item)
+      wishlist = item.wishlist
+      owner = wishlist.owner
+      { "wishlist_id" => wishlist.id, "item_id" => item.id,
+        "title" => item.title.to_s.truncate(100), "list" => wishlist.title.to_s.truncate(100),
+        "owner" => (owner.first_name.presence || owner.full_name).truncate(100) }
     end
 
     # Only after the reservation is committed (right away when there is no

@@ -78,12 +78,27 @@ class Item < ApplicationRecord
     changed || (reserved_by?(user) && purchased? == purchased)
   end
 
+  def thanked?
+    thanked_at.present?
+  end
+
+  # The owner thanks whoever holds the reservation, once per reservation:
+  # reserving or releasing clears the mark. The version from the button keeps
+  # a late press from thanking someone who reserved after the card was shown.
+  def thank_reserver!(expected_version: reservation_version)
+    changed = self.class.where(id: id, reservation_version: expected_version, thanked_at: nil)
+      .where.not(reserved_by: nil)
+      .update_all(thanked_at: Time.current, updated_at: Time.current) == 1
+    reload
+    changed
+  end
+
   private
 
   def change_reservation(previous_reserver, next_reserver, expected_version)
     changed = self.class.where(id: id, reserved_by: previous_reserver, reservation_version: expected_version)
       .update_all(reserved_by: next_reserver, reservation_version: expected_version + 1,
-                  purchased_at: nil, updated_at: Time.current) == 1
+                  purchased_at: nil, thanked_at: nil, updated_at: Time.current) == 1
 
     reload
     changed
