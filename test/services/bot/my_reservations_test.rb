@@ -270,6 +270,29 @@ class BotMyReservationsTest < ActiveJob::TestCase
     assert buttons.select { |button| button.callback_data.start_with?("open_booked_item:") }.all? { |button| button.text.length <= 80 }
   end
 
+  test "gifts still to buy come first, and the card's back button follows the gift" do
+    items = 7.times.map { |index| book("Gift #{index}") }
+    items.first(2).each { |item| item.mark_purchased_by!(@guest, true) }
+
+    press("show_reservations")
+    assert_equal items[2..6].map(&:id), opened_ids
+    press("show_reservations:1")
+    assert_equal items.first(2).map(&:id), opened_ids
+    assert_equal 1, Bot::Presenters::ReservationsPresenter.page_for(items.first.reload, @guest)
+    assert_equal 0, Bot::Presenters::ReservationsPresenter.page_for(items.last, @guest)
+
+    last = items.last
+    press("open_booked_item:#{last.id}:0")
+    press("mark_purchased:#{last.id}:0:1:0")
+    assert last.reload.purchased?
+    assert_includes buttons.map(&:callback_data), "show_reservations:1"
+
+    press("show_reservations:0")
+    assert_equal [ *items[2..5], items[0] ].map(&:id), opened_ids
+    press("show_reservations:1")
+    assert_equal [ items[1], last ].map(&:id), opened_ids
+  end
+
   test "releasing a gift marked as bought asks first and changes nothing until confirmed" do
     item = book
     item.mark_purchased_by!(@guest, true)

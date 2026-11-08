@@ -15,8 +15,17 @@ module Bot
           .where.not(wishlist_id: user.wishlists.select(:id))
       end
 
+      # Gifts still to buy come first, bought ones after; by id within each
+      ORDER = Arel.sql("items.purchased_at IS NOT NULL, items.id")
+
       def self.page_for(item, user)
-        scope_for(user).where("items.id < ?", item.id).count / PER_PAGE
+        scope = scope_for(user)
+        before = if item.purchased?
+          scope.where(purchased_at: nil).or(scope.where.not(purchased_at: nil).where("items.id < ?", item.id))
+        else
+          scope.where(purchased_at: nil).where("items.id < ?", item.id)
+        end
+        before.count / PER_PAGE
       end
 
       def initialize(user, context, page: 0)
@@ -81,7 +90,7 @@ module Bot
       end
 
       def items
-        @items ||= model.order(:id).limit(PER_PAGE).offset(page * PER_PAGE).includes(wishlist: :user).to_a
+        @items ||= model.order(ORDER).limit(PER_PAGE).offset(page * PER_PAGE).includes(wishlist: :user).to_a
       end
 
       def pager_row
