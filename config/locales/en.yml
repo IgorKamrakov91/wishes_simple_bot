@@ -139,7 +139,7 @@ en:
         price: "Price"
         store: "Store"
         status: "Status"
-        owner_reserved: "🔒 Reserved — we don't say by whom"
+        owner_reserved: "🔒 Reserved — we won't say by whom"
         owner_free: "🟢 Still available"
         guest_free: "🟢 <b>Available</b>"
         guest_free_privacy: "If you reserve it, other guests will see it's taken and your name under a spoiler. %{owner} will only see in the bot that it's taken, not by whom."
