@@ -60,6 +60,8 @@ module Bot
           handle_unrecognized(context)
         end
       rescue StandardError => e
+        raise if UpdateDelivery.current
+
         # Exception messages can contain submitted values, SQL or invitation
         # tokens. Keep the error kind without logging their private contents.
         Rails.logger.error("Bot message handling failed (#{e.class})")

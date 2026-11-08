@@ -6,6 +6,7 @@ module Bot
       def show_item(item_id, reservations_page: nil)
         scope = reservations_page.nil? ? Item.accessible_to(user) : Presenters::ReservationsPresenter.scope_for(user)
         item = scope.includes(wishlist: :user).find(item_id)
+        UpdateDelivery.record_view("item_view", item.id)
         presenter = Presenters::ItemPresenter.new(item, user, context, reservations_page: reservations_page)
         context.render(presenter.text, presenter.keyboard, link_preview_options: presenter.link_preview_options)
       end
@@ -47,6 +48,7 @@ module Bot
         return unless Item::OPTIONAL_FIELDS.include?(field)
 
         item.update!(field => nil)
+        UpdateDelivery.record_result("gift_updated", item.id)
         context.notice = I18n.t("bot.messages.field_cleared")
         show_item(item.id)
       end
@@ -70,9 +72,11 @@ module Bot
         if wishlist.user_id == user.id
           context.notice = I18n.t("bot.messages.cannot_reserve_own")
         elsif item.reserve_for!(user, expected_version: reservation_version)
+          UpdateDelivery.record_result("reserved", item.id)
           context.notice = I18n.t("bot.messages.reserved_notice")
           ReservationNotifier.reserved(item, by: user)
         elsif item.reserved_by?(user)
+          UpdateDelivery.record_result("reserved", item.id)
           context.notice = I18n.t("bot.messages.reserved_notice")
         elsif item.reserved_by_other?(user)
           context.notice = I18n.t("bot.messages.already_reserved")
@@ -90,9 +94,11 @@ module Bot
         if wishlist.user_id == user.id
           context.notice = I18n.t("bot.messages.cannot_reserve_own")
         elsif item.release_for!(user, expected_version: reservation_version)
+          UpdateDelivery.record_result("released", item.id)
           context.notice = I18n.t("bot.messages.unreserved_notice")
           ReservationNotifier.released(item, by: user)
         elsif !item.reserved?
+          UpdateDelivery.record_result("released", item.id)
           context.notice = I18n.t("bot.messages.unreserved_notice")
         elsif item.reserved_by_other?(user)
           context.notice = I18n.t("bot.messages.already_reserved")
@@ -116,6 +122,7 @@ module Bot
         item = Item.accessible_to(user).find(item_id)
         purchased = value == 1
         context.notice = if item.mark_purchased_by!(user, purchased, expected_version: reservation_version)
+          UpdateDelivery.record_result(purchased ? "purchased" : "unpurchased", item.id)
           I18n.t(purchased ? "bot.messages.purchased_notice" : "bot.messages.not_purchased_notice")
         else
           I18n.t("bot.messages.button_outdated")
@@ -153,6 +160,7 @@ module Bot
         page = Presenters::WishlistPresenter.page_of(wishlist.items.pluck(:id).index(item.id).to_i)
 
         item.destroy!
+        UpdateDelivery.record_result("gift_deleted", wishlist.id)
 
         context.notice = I18n.t("bot.messages.item_deleted_success")
         WishlistHandler.new(context).open_list(wishlist.id, page)

@@ -27,6 +27,7 @@ module Bot
 
         enabled = value == 1
         user.update!(setting => enabled)
+        UpdateDelivery.record_result("settings_updated")
         context.notice = I18n.t(enabled ? "bot.screens.settings.turned_on" : "bot.screens.settings.turned_off",
                                list_scope: I18n.t("bot.screens.settings.scopes.#{setting}"))
         show_settings
@@ -46,6 +47,7 @@ module Bot
 
       def set_reminder_days(days)
         user.configure_reservation_reminders!(days)
+        UpdateDelivery.record_result("reminder_updated")
         context.notice = I18n.t("bot.screens.reservation_reminders.updated", frequency: reminder_frequency)
         show_reservation_reminders
       end

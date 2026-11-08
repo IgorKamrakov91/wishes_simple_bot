@@ -239,7 +239,8 @@ class BotPrivateChatGateTest < ActiveSupport::TestCase
     message = { message_id: 1, date: 1, from: telegram_user(user),
                 chat: { id: type == "private" ? user.telegram_id : -71001, type: type } }
     message[:text] = text if text
-    Bot::Dispatcher.dispatch(@bot, Telegram::Bot::Types::Update.new(update_id: 1, message: message))
+    @update_id = (@update_id || 0) + 1
+    Bot::Dispatcher.dispatch(@bot, Telegram::Bot::Types::Update.new(update_id: @update_id, message: message))
   end
 
   def dispatch_callback(data, user: @owner, type: "group", inline: false, date: 1)
@@ -250,6 +251,7 @@ class BotPrivateChatGateTest < ActiveSupport::TestCase
       callback[:message] = { message_id: 1, date: date,
                              chat: { id: type == "private" ? user.telegram_id : -71001, type: type }, text: "Old screen" }
     end
-    Bot::Dispatcher.dispatch(@bot, Telegram::Bot::Types::Update.new(update_id: 1, callback_query: callback))
+    @update_id = (@update_id || 0) + 1
+    Bot::Dispatcher.dispatch(@bot, Telegram::Bot::Types::Update.new(update_id: @update_id, callback_query: callback))
   end
 end

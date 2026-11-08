@@ -102,7 +102,8 @@ class BotPurchasedReservationsTest < ActiveSupport::TestCase
       from: { id: as.telegram_id, is_bot: false, first_name: as.first_name },
       message: { message_id: 1, date: 1, chat: { id: as.telegram_id, type: "private" }, text: "Screen" }
     )
-    Bot::Dispatcher.dispatch(@bot, Telegram::Bot::Types::Update.new(update_id: 1, callback_query: callback))
+    @update_id = (@update_id || 0) + 1
+    Bot::Dispatcher.dispatch(@bot, Telegram::Bot::Types::Update.new(update_id: @update_id, callback_query: callback))
   end
 
   def text

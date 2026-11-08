@@ -10,6 +10,9 @@
 #     schedule: at 5am every day
 
 production:
+  clear_bot_update_receipts:
+    class: CleanupBotUpdateReceiptsJob
+    schedule: every hour at minute 20
   birthday_reminders:
     class: BirthdayRemindersJob
     schedule: "0 12 * * * Europe/Moscow"
