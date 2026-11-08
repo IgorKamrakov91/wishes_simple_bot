@@ -50,7 +50,10 @@ module Bot
       def show_added_item(item_id, already: false, suggestion_id: nil)
         item = user.items.includes(:wishlist).find(item_id)
         rows = [
-          [ inline_btn(I18n.t("bot.gift_ideas.market"), nil, url: Presenters::GiftIdeasPresenter.market_url(item.title)) ],
+          Presenters::GiftIdeasPresenter::SEARCH_URLS.keys.map do |store|
+            inline_btn(I18n.t("bot.gift_ideas.search.#{store}"), nil,
+                       url: Presenters::GiftIdeasPresenter.search_url(store, item.title))
+          end,
           [ inline_btn(I18n.t("bot.gift_ideas.add_link"), "edit_item_field:url:#{item.id}") ]
         ]
         rows << [ inline_btn(I18n.t("bot.buttons.open_item"), "open_item:#{item.id}") ]

@@ -83,7 +83,7 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     assert_equal I18n.t("bot.gift_ideas.requests.global_limit"), @answers.last[:text]
   end
 
-  test "adding an idea once shows Market search and keeps the other ideas reachable" do
+  test "adding an idea once shows marketplace search and keeps the other ideas reachable" do
     suggestion = ready_suggestion
 
     assert_difference("Item.count", 1) { press("add_idea:#{suggestion.id}:0") }
@@ -94,10 +94,11 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     assert_includes callbacks, "open_item:#{item.id}"
     assert_includes callbacks, "show_gift_ideas:#{suggestion.id}"
     assert_includes callbacks, "edit_item_field:url:#{item.id}"
-    search = @edits.last[:reply_markup].inline_keyboard.flatten.find(&:url)
-    uri = URI.parse(search.url)
-    assert_equal "market.yandex.ru", uri.host
-    assert_equal [ item.title ], CGI.parse(uri.query)["text"]
+    search_row = @edits.last[:reply_markup].inline_keyboard.first
+    hosts = search_row.map { |button| URI.parse(button.url).host }
+    assert_equal %w[market.yandex.ru www.ozon.ru www.wildberries.ru], hosts
+    queries = search_row.map { |button| CGI.parse(URI.parse(button.url).query).values.flatten }
+    assert_equal [ [ item.title ] ] * 3, queries
 
     assert_no_difference("Item.count") { press("add_idea:#{suggestion.id}:0") }
     assert_includes last_text, I18n.t("bot.gift_ideas.already_added", title: "Paint &amp; paper", list: "Books &amp; art")
@@ -200,7 +201,7 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     assert receipt.reload.delivered_at
   end
 
-  test "a committed add recovers the Market button after a Telegram timeout" do
+  test "a committed add recovers the search buttons after a Telegram timeout" do
     suggestion = ready_suggestion
     update = callback_update("add_idea:#{suggestion.id}:0")
     @edit_error = Faraday::TimeoutError.new
@@ -213,7 +214,7 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     assert_includes @answers.last[:text], I18n.t("bot.messages.update_results.gift_idea_added")
     assert_no_difference("Item.count") { dispatch(update) }
     assert receipt.reload.delivered_at
-    assert_equal "market.yandex.ru", URI.parse(@edits.last[:reply_markup].inline_keyboard.first.first.url).host
+    assert_equal 3, @edits.last[:reply_markup].inline_keyboard.first.count(&:url)
     assert_includes callbacks, "edit_item_field:url:#{@wishlist.items.sole.id}"
   end
 
