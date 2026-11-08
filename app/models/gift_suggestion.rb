@@ -7,7 +7,10 @@ class GiftSuggestion < ApplicationRecord
   STATUSES = %w[pending processing ready failed].freeze
   # A request stuck this long (lost job, crash during the call) counts as failed
   STALE_AFTER = 2.minutes
-  KEEP_FOR = 2.days
+  # Old requests are kept a little longer than they can be opened, so a new
+  # request for the same list can avoid repeating recent ideas
+  KEEP_FOR = 3.days
+  MAX_PREVIOUS_IDEAS = 40
   TIME_ZONE = "Europe/Moscow"
   # Serializes the app-wide count across users (the user lock covers one person)
   GLOBAL_LOCK_KEY = 74_201_108
@@ -65,6 +68,13 @@ class GiftSuggestion < ApplicationRecord
 
   def titles
     ideas.map { |idea| idea["title"] }
+  end
+
+  # Ideas already suggested for this list by the owner's earlier requests,
+  # newest first
+  def previous_titles
+    self.class.where(user_id: user_id, wishlist_id: wishlist_id, status: "ready", created_at: KEEP_FOR.ago..)
+      .where.not(id: id).order(id: :desc).flat_map(&:titles).uniq.first(MAX_PREVIOUS_IDEAS)
   end
 
   # Moves a pending request to processing exactly once

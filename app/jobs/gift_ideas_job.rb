@@ -29,7 +29,9 @@ class GiftIdeasJob < ApplicationJob
   def generate(suggestion)
     wishlist = suggestion.wishlist
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    suggestion.finish!(YandexAi::GiftIdeas.new.call(wishlist.title, wishlist.items.pluck(:title)))
+    ideas = YandexAi::GiftIdeas.new.call(wishlist.title, wishlist.items.pluck(:title),
+                                         suggested: suggestion.previous_titles)
+    suggestion.finish!(ideas)
     log(suggestion, "ready", started)
   rescue YandexAi::Client::Error => e
     suggestion.fail!(e.code)
