@@ -33,7 +33,7 @@ module Bot
         if owner?
           rows << [ context.inline_btn(t("bot.buttons.add_item"), "add_item:#{wishlist.id}", style: "primary") ]
           if GiftSuggestion.enabled?
-            label = t("bot.gift_ideas.button", remaining: GiftSuggestion.remaining_requests_for(user), limit: GiftSuggestion::DAILY_LIMIT)
+            label = t("bot.gift_ideas.button", remaining: GiftSuggestion.remaining_requests_for(user))
             rows << [ context.inline_btn(label, "gift_ideas:#{wishlist.id}") ]
             recent = GiftSuggestion.latest_ready_for(user, wishlist)
             rows << [ context.inline_btn(t("bot.gift_ideas.recent"), "show_gift_ideas:#{recent.id}") ] if recent

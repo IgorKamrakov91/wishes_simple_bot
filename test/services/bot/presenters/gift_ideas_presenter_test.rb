@@ -97,6 +97,9 @@ class BotPresentersGiftIdeasPresenterTest < ActiveSupport::TestCase
           @suggestion.error_code = code
           presenter = Bot::Presenters::GiftIdeasPresenter.new(@suggestion)
           assert_includes presenter.text, I18n.t("bot.gift_ideas.failed.#{key}")
+          unless code == "disabled"
+            assert_includes presenter.text, locale == :ru ? "попытка не засчитана" : "attempt wasn't counted"
+          end
           assert_equal [ "open_list:#{@wishlist.id}" ], presenter.keyboard.inline_keyboard.flatten.map(&:callback_data)
         end
       end

@@ -25,9 +25,14 @@ class GiftSuggestion < ApplicationRecord
 
   scope :today, -> { where(created_at: Time.current.in_time_zone(TIME_ZONE).beginning_of_day..) }
   scope :unexpired, -> { where(created_at: OPEN_FOR.ago..) }
+  scope :active, -> {
+    where(status: %w[pending processing]).where("COALESCE(started_at, created_at) >= ?", STALE_AFTER.ago)
+  }
+  # Failures and timed-out jobs free the person's allowance for another try.
+  scope :counted_for_personal_limit, -> { where(status: "ready").or(active) }
 
   def self.remaining_requests_for(user)
-    (DAILY_LIMIT - where(user_id: user.id).today.count).clamp(0, DAILY_LIMIT)
+    (DAILY_LIMIT - where(user_id: user.id).today.counted_for_personal_limit.count).clamp(0, DAILY_LIMIT)
   end
 
   def self.latest_ready_for(user, wishlist)
@@ -50,11 +55,12 @@ class GiftSuggestion < ApplicationRecord
     raise ActiveRecord::RecordNotFound unless wishlist.user_id == user.id
 
     user.with_lock do
-      active = where(user: user, status: %w[pending processing]).order(:id).last
-      next Request.new(:active, active) if active && !active.stale?
+      active = where(user: user).active.order(:id).last
+      next Request.new(:active, active) if active
 
-      next Request.new(:user_limit) if where(user: user).today.count >= DAILY_LIMIT
+      next Request.new(:user_limit) if remaining_requests_for(user).zero?
 
+      # The cost bound still includes every request, even failed or stale ones.
       connection.execute("SELECT pg_advisory_xact_lock(#{GLOBAL_LOCK_KEY})")
       next Request.new(:global_limit) if today.count >= global_daily_limit
 

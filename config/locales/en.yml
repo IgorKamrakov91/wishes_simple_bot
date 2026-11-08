@@ -21,7 +21,7 @@ en:
 
         Gift ideas:
         • Yandex AI receives the list name and names of recent gifts to suggest ideas. Telegram profile names, prices, links, descriptions and reservation details are not sent.
-        • You can request two sets of ideas per day, using Moscow time. AI suggests ideas; check product availability and prices yourself. After adding an idea, you can search for the gift on Yandex Market, Ozon or Wildberries.
+        • You can get two sets of ideas per day, using Moscow time. Failed attempts don't use your personal limit. AI suggests ideas; check product availability and prices yourself. After adding an idea, you can search for the gift on Yandex Market, Ozon or Wildberries.
 
         Almost everything works through the buttons under messages. Commands:
       help_cancel: "While typing: /cancel — cancel input"
@@ -223,14 +223,14 @@ en:
       private_chat_only: "Manage lists and reserve gifts in a private chat with the bot."
       name_linked_item: "What is the gift called? Once you send a name, I'll add it with this link to “%{list}”."
     gift_ideas:
-      button: "💡 Gift ideas · %{remaining}/%{limit}"
+      button: "💡 Gift ideas (%{remaining} left)"
       recent: "Open ideas"
       heading: "<b>💡 Ideas for “%{list}”</b>"
       ready_hint: "Choose an idea to add a gift without a link. Check product availability and prices yourself."
       waiting: "Picking ideas. I'll send the result in a separate message."
       failed:
-        no_ideas: "No new ideas were found. Try later or add a gift manually from the list."
-        technical: "A technical error prevented picking ideas. Try later or add a gift manually from the list."
+        no_ideas: "No new ideas were found — this attempt wasn't counted. Try later or add a gift manually from the list."
+        technical: "A technical error prevented picking ideas — this attempt wasn't counted. Try later or add a gift manually from the list."
         disabled: "Gift ideas are unavailable right now. You can add a gift manually from the list."
       deleted_title: "%{title} — deleted"
       deleted_button: "%{number}. Deleted · %{title}"
