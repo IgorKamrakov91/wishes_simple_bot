@@ -250,6 +250,7 @@ en:
     reminders:
       birthdays:
         text: "Birthday coming up: %{name} — %{date}.\nChoose a gift from the lists you have access to.\n\nYou can turn birthday reminders off in settings."
+        text_nothing_free: "Birthday coming up: %{name} — %{date}.\nThere are no free gifts in the lists you have access to right now, but you can still open them in case new ones appear.\n\nYou can turn birthday reminders off in settings."
       reservations:
         heading: "Gift reminder"
         count:
