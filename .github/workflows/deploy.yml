@@ -56,6 +56,8 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          YANDEX_AI_API_KEY: ${{ secrets.YANDEX_AI_API_KEY }}
+          YANDEX_AI_FOLDER_ID: ${{ secrets.YANDEX_AI_FOLDER_ID }}
         run: |
           umask 077
           printf '%s' "$RAILS_MASTER_KEY" > config/master.key
@@ -63,6 +65,8 @@ jobs:
             echo "TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN"
             echo "BOT_USERNAME=$BOT_USERNAME"
             echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
+            echo "YANDEX_AI_API_KEY=$YANDEX_AI_API_KEY"
+            echo "YANDEX_AI_FOLDER_ID=$YANDEX_AI_FOLDER_ID"
           } > .env.production
 
       # .kamal/hooks/post-deploy registers the Telegram webhook afterwards

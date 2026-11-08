@@ -4,6 +4,7 @@ class Wishlist < ApplicationRecord
   belongs_to :user
   has_many :items, -> { order(:id) }, dependent: :destroy
   has_many :list_viewers, dependent: :destroy
+  has_many :gift_suggestions, dependent: :delete_all
   has_many :viewers, through: :list_viewers, source: :user
 
   # Share links carry this token instead of the guessable id
