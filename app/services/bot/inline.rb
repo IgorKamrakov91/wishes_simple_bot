@@ -22,14 +22,23 @@ module Bot
             # Only the owner can share: the query is typed by whoever uses it
             user.wishlists.where(id: match[1])
           elsif query.empty?
-            user.wishlists.order(updated_at: :desc)
+            user.wishlists
           else
-            user.wishlists.where("title ILIKE ?", "%#{Wishlist.sanitize_sql_like(query)}%").order(updated_at: :desc)
+            user.wishlists.where("title ILIKE ?", "%#{Wishlist.sanitize_sql_like(query)}%")
           end
+
+        # Telegram requests the next page as the user scrolls. Fetch one extra
+        # list so a full final page does not advertise an empty continuation.
+        raw_offset = inline_query.offset.to_s
+        offset = raw_offset.match?(/\A\d{1,9}\z/) ? raw_offset.to_i : 0
+        page = lists.order(updated_at: :desc, id: :desc).offset(offset)
+          .limit(RESULTS_LIMIT + 1).includes(:user, :items).to_a
+        next_offset = page.size > RESULTS_LIMIT ? (offset + RESULTS_LIMIT).to_s : ""
 
         bot.api.answer_inline_query(
           inline_query_id: inline_query.id,
-          results: lists.includes(:user, :items).limit(RESULTS_LIMIT).map { |list| inline_result_for_list(list) },
+          results: page.first(RESULTS_LIMIT).map { |list| inline_result_for_list(list) },
+          next_offset: next_offset,
           cache_time: 0,
           is_personal: true
         )
