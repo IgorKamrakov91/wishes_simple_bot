@@ -17,7 +17,7 @@ class BirthdayReminderJob < ApplicationJob
     date = BirthdayReminders.upcoming(owner)
     return unless recipient.notify_birthdays && date&.year == @delivery.birthday_year && recipient != owner
 
-    lists = owner.wishlists.where(id: Wishlist.accessible_to(recipient).select(:id)).order(:id).limit(3).to_a
+    lists, any_free = lists_for(owner, recipient)
     return if lists.empty?
 
     opening = ReminderSchedule.next_send_at(Time.current)
@@ -29,7 +29,8 @@ class BirthdayReminderJob < ApplicationJob
       .update_all([ "claimed_at = ?, attempts = attempts + 1", Time.current ]) == 1
 
     profile_date = Date.new(2000, owner.birthdate_month, owner.birthdate_day).strftime("%d.%m")
-    text = I18n.t("bot.reminders.birthdays.text", name: owner.full_name.to_s.truncate(100), date: profile_date)
+    text = I18n.t(any_free ? "bot.reminders.birthdays.text" : "bot.reminders.birthdays.text_nothing_free",
+                  name: owner.full_name.to_s.truncate(100), date: profile_date)
     rows = lists.map { |list| [ inline_btn(list.title.to_s.truncate(50), "open_list:#{list.id}") ] }
     rows << [ inline_btn(I18n.t("bot.buttons.shared_lists"), "show_shared_lists") ]
     rows << [ inline_btn(I18n.t("bot.buttons.settings"), "settings") ]
@@ -55,6 +56,16 @@ class BirthdayReminderJob < ApplicationJob
   end
 
   private
+
+  # Up to three of the owner's lists the recipient can open: lists with free
+  # gifts first, then other non-empty ones, then empty ones
+  def lists_for(owner, recipient)
+    free = Item.where(reserved_by: nil).where("items.wishlist_id = wishlists.id").select("1").arel.exists
+    any = Item.where("items.wishlist_id = wishlists.id").select("1").arel.exists
+    scope = owner.wishlists.where(id: Wishlist.accessible_to(recipient).select(:id))
+    order = Arel.sql("CASE WHEN #{free.to_sql} THEN 0 WHEN #{any.to_sql} THEN 1 ELSE 2 END, wishlists.id")
+    [ scope.order(order).limit(3).to_a, scope.where(free).exists? ]
+  end
 
   def postpone(time)
     return unless BirthdayReminderDelivery.ready.where(id: @delivery.id).update_all(retry_at: time) == 1

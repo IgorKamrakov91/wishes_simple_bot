@@ -66,6 +66,31 @@ class BirthdayRemindersTest < ActiveJob::TestCase
     assert_equal 1, delivery.attempts
   end
 
+  test "lists with free gifts come first and the text doesn't promise free gifts when there are none" do
+    empty, reserved = @lists
+    reserved.items.create!(title: "Taken", reserved_by: @guest.telegram_id)
+    free = 2.times.map do |i|
+      @owner.wishlists.create!(title: "Free #{i}").tap { |list| list.admit!(@guest); list.items.create!(title: "Gift") }
+    end
+    sync
+    send_reminder
+
+    message = @messages.sole
+    callbacks = message[:reply_markup].inline_keyboard.flatten.map(&:callback_data)
+    assert_equal [ *free, reserved ].map { |list| "open_list:#{list.id}" }, callbacks.first(3)
+    refute_includes callbacks, "open_list:#{empty.id}"
+    assert_equal I18n.t("bot.reminders.birthdays.text", name: "Birthday Person", date: "06.12"), message[:text]
+  end
+
+  test "when every shared gift is reserved the reminder says so instead of promising a choice" do
+    @lists.first.items.create!(title: "Taken", reserved_by: @guest.telegram_id)
+    sync
+    send_reminder
+
+    assert_equal I18n.t("bot.reminders.birthdays.text_nothing_free", name: "Birthday Person", date: "06.12"),
+                 @messages.sole[:text]
+  end
+
   test "the daily scheduler fetches only owners with interested guests" do
     User.create!(telegram_id: 98203)
     quiet_owner = User.create!(telegram_id: 98204)
