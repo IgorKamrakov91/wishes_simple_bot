@@ -37,6 +37,8 @@ module Bot
       /^edit_item_field:(.+):(\d+)$/ => "Callbacks::ItemHandler#edit_item_field_prompt",
       /^reserve_item:(\d+):(\d+)$/ => "Callbacks::ItemHandler#reserve_item",
       /^unreserve_item:(\d+):(\d+)$/ => "Callbacks::ItemHandler#unreserve_item",
+      /^confirm_release:(\d+):(\d+)$/ => "Callbacks::ItemHandler#confirm_release",
+      /^confirm_release:(\d+):(\d+):(\d+)$/ => "Callbacks::ItemHandler#confirm_release",
       /^mark_purchased:(\d+):(\d+):([01])$/ => "Callbacks::ItemHandler#mark_purchased",
       /^mark_purchased:(\d+):(\d+):([01]):(\d+)$/ => "Callbacks::ItemHandler#mark_purchased",
       /^thank_reserver:(\d+):(\d+)$/ => "Callbacks::ItemHandler#thank_reserver",

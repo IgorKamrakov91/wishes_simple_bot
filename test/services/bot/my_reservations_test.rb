@@ -269,4 +269,66 @@ class BotMyReservationsTest < ActiveJob::TestCase
     assert buttons.none? { |button| button.callback_data == "noop" }
     assert buttons.select { |button| button.callback_data.start_with?("open_booked_item:") }.all? { |button| button.text.length <= 80 }
   end
+
+  test "releasing a gift marked as bought asks first and changes nothing until confirmed" do
+    item = book
+    item.mark_purchased_by!(@guest, true)
+    version = item.reservation_version
+
+    press("open_item:#{item.id}")
+    assert_includes buttons.map(&:callback_data), "confirm_release:#{item.id}:#{version}"
+    refute_includes buttons.map(&:callback_data), "unreserve_item:#{item.id}:#{version}"
+
+    press("confirm_release:#{item.id}:#{version}")
+    assert_includes text, I18n.t("bot.messages.confirm_release_purchased", title: "Gift &lt;&amp;&gt;")
+    assert_equal [ "unreserve_item:#{item.id}:#{version}", "open_item:#{item.id}" ], buttons.map(&:callback_data)
+    assert item.reload.purchased?
+
+    press("open_item:#{item.id}")
+    assert_equal @guest.telegram_id, item.reload.reserved_by
+
+    assert_enqueued_jobs 1, only: NotificationJob do
+      press("unreserve_item:#{item.id}:#{version}")
+    end
+    refute item.reload.reserved?
+    refute item.purchased?
+  end
+
+  test "from My reservations the confirmation keeps the reservations page" do
+    item = book
+    item.mark_purchased_by!(@guest, true)
+    version = item.reservation_version
+
+    press("open_booked_item:#{item.id}:0")
+    assert_includes buttons.map(&:callback_data), "confirm_release:#{item.id}:#{version}:0"
+
+    press("confirm_release:#{item.id}:#{version}:0")
+    assert_equal [ "release_book:#{item.id}:#{version}:0", "open_booked_item:#{item.id}:0" ], buttons.map(&:callback_data)
+
+    press("release_book:#{item.id}:#{version}:0")
+    refute item.reload.reserved?
+    assert_includes text, I18n.t("bot.screens.reservations.empty")
+  end
+
+  test "a stale confirmation shows the current card instead of asking" do
+    item = book
+    item.mark_purchased_by!(@guest, true)
+    old_version = item.reservation_version
+    item.mark_purchased_by!(@guest, false)
+
+    press("confirm_release:#{item.id}:#{old_version}")
+    assert_equal I18n.t("bot.messages.reservation_changed"), @answer[:text]
+    assert_includes buttons.map(&:callback_data), "unreserve_item:#{item.id}:#{item.reload.reservation_version}"
+    assert item.reserved_by?(@guest)
+  end
+
+  test "a guest who doesn't hold the gift cannot open its release confirmation" do
+    item = @wishlist.items.create!(title: "Other's", reserved_by: @other.telegram_id)
+    item.mark_purchased_by!(@other, true)
+
+    press("confirm_release:#{item.id}:#{item.reservation_version}")
+    assert_equal I18n.t("bot.messages.reservation_changed"), @answer[:text]
+    refute_includes text, I18n.t("bot.buttons.confirm_release")
+    assert_equal @other.telegram_id, item.reload.reserved_by
+  end
 end
