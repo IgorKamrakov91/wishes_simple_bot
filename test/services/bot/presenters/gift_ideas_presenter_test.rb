@@ -2,7 +2,7 @@ require "test_helper"
 require "telegram/bot"
 
 class BotPresentersGiftIdeasPresenterTest < ActiveSupport::TestCase
-  Suggestion = Struct.new(:id, :wishlist, :wishlist_id, :status, :ideas, :created_at, keyword_init: true) do
+  Suggestion = Struct.new(:id, :wishlist, :wishlist_id, :status, :ideas, :created_at, :error_code, keyword_init: true) do
     def failed?
       status == "failed"
     end
@@ -11,9 +11,10 @@ class BotPresentersGiftIdeasPresenterTest < ActiveSupport::TestCase
   setup do
     owner = User.create!(telegram_id: 98101, first_name: "Owner")
     @wishlist = owner.wishlists.create!(title: "Books & <art>")
+    @item = @wishlist.items.create!(title: "Sketchbook")
     @suggestion = Suggestion.new(id: 17, wishlist: @wishlist, wishlist_id: @wishlist.id, status: "ready",
                                 ideas: [ { "title" => "Paint & <paper>", "item_id" => nil },
-                                         { "title" => "Sketchbook", "item_id" => 45 } ], created_at: Time.current)
+                                         { "title" => "Sketchbook", "item_id" => @item.id } ], created_at: Time.current)
   end
 
   test "ready ideas escape HTML and keep stable zero-based callback indices" do
@@ -23,7 +24,7 @@ class BotPresentersGiftIdeasPresenterTest < ActiveSupport::TestCase
     assert_includes presenter.text, "1. Paint &amp; &lt;paper&gt;"
     assert_includes presenter.text, "2. ✓ Sketchbook"
     buttons = presenter.keyboard.inline_keyboard.flatten
-    assert_equal [ "add_idea:17:0", "open_item:45", "open_list:#{@wishlist.id}" ], buttons.map(&:callback_data)
+    assert_equal [ "add_idea:17:0", "open_item:#{@item.id}", "open_list:#{@wishlist.id}" ], buttons.map(&:callback_data)
     assert buttons.map(&:callback_data).all? { |data| data.bytesize <= 64 }
     assert_nil buttons.first.url
   end
@@ -52,7 +53,7 @@ class BotPresentersGiftIdeasPresenterTest < ActiveSupport::TestCase
       @suggestion.status = status
       presenter = Bot::Presenters::GiftIdeasPresenter.new(@suggestion)
 
-      key = status == "failed" ? "failed" : "waiting"
+      key = status == "failed" ? "failed.technical" : "waiting"
       assert_includes presenter.text, I18n.t("bot.gift_ideas.#{key}")
       assert_equal [ "open_list:#{@wishlist.id}" ], presenter.keyboard.inline_keyboard.flatten.map(&:callback_data)
     end
@@ -61,7 +62,48 @@ class BotPresentersGiftIdeasPresenterTest < ActiveSupport::TestCase
   test "empty output is a failure rather than a successful empty list" do
     @suggestion.ideas = []
 
-    assert_includes Bot::Presenters::GiftIdeasPresenter.new(@suggestion).text, I18n.t("bot.gift_ideas.failed")
+    assert_includes Bot::Presenters::GiftIdeasPresenter.new(@suggestion).text, I18n.t("bot.gift_ideas.failed.technical")
+  end
+
+  test "deleted gifts lose the checkmark and open link without becoming addable again" do
+    @item.destroy!
+    %i[ru en].each do |locale|
+      I18n.with_locale(locale) do
+        presenter = Bot::Presenters::GiftIdeasPresenter.new(@suggestion)
+        assert_includes presenter.text, I18n.t("bot.gift_ideas.deleted_title", title: "Sketchbook")
+        refute_includes presenter.text, "✓"
+        button = presenter.keyboard.inline_keyboard[1].sole
+        assert_equal I18n.t("bot.gift_ideas.deleted_button", number: 2, title: "Sketchbook"), button.text
+        assert_equal "show_gift_ideas:17", button.callback_data
+      end
+    end
+  end
+
+  test "a linked item from another list is not offered as an existing gift" do
+    other = @wishlist.user.wishlists.create!(title: "Other").items.create!(title: "Private gift")
+    @suggestion.ideas[1]["item_id"] = other.id
+    presenter = Bot::Presenters::GiftIdeasPresenter.new(@suggestion)
+
+    refute_includes presenter.text, "✓"
+    refute_includes presenter.text, "Private gift"
+    assert_equal "show_gift_ideas:17", presenter.keyboard.inline_keyboard[1].sole.callback_data
+  end
+
+  test "failure feedback distinguishes no ideas disabled and technical failures in both locales" do
+    @suggestion.status = "failed"
+    %i[ru en].each do |locale|
+      I18n.with_locale(locale) do
+        { "no_ideas" => "no_ideas", "disabled" => "disabled", "timeout" => "technical", nil => "technical" }.each do |code, key|
+          @suggestion.error_code = code
+          presenter = Bot::Presenters::GiftIdeasPresenter.new(@suggestion)
+          assert_includes presenter.text, I18n.t("bot.gift_ideas.failed.#{key}")
+          unless code == "disabled"
+            assert_includes presenter.text, locale == :ru ? "попытка не засчитана" : "attempt wasn't counted"
+          end
+          assert_equal [ "open_list:#{@wishlist.id}" ], presenter.keyboard.inline_keyboard.flatten.map(&:callback_data)
+        end
+      end
+    end
   end
 
   test "the job can use either locale and search URLs escape the title" do
