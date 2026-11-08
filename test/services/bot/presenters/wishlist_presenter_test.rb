@@ -52,9 +52,9 @@ class BotPresentersWishlistPresenterTest < ActiveSupport::TestCase
     share = buttons.find(&:copy_text)
     assert_equal "https://t.me/TestBot?start=l_#{@wishlist.share_token}", share.copy_text.text
     assert buttons.any? { |b| b.callback_data == "list_settings:#{@wishlist.id}" }
-    assert_equal "Taken · 1 900 ₽ · занято", buttons.first.text
-    assert_equal "danger", buttons.first.style
-    assert_match "2 подарка · забронировано 1", presenter.text
+    assert_equal "✓ Taken · 1 900 ₽", buttons.first.text
+    assert_nil buttons.first.style
+    assert_match "●○  1 из 2 забронировано", presenter.text
     refute_match "%", presenter.text
   end
 
@@ -66,12 +66,13 @@ class BotPresentersWishlistPresenterTest < ActiveSupport::TestCase
     presenter = presenter_for(@guest)
     buttons = rows(presenter).flatten
 
-    assert_equal [ "★ Mine · твоя бронь", "Theirs · занято", "Free" ], buttons.first(3).map(&:text)
-    assert_equal [ "success", "danger", nil ], buttons.first(3).map(&:style)
-    assert_match "3 подарка · забронировано 2", presenter.text
+    assert_equal [ "★ Mine", "✓ Theirs", "Free" ], buttons.first(3).map(&:text)
+    assert_equal [ "primary", nil, nil ], buttons.first(3).map(&:style)
+    assert_match "●●○  2 из 3 забронировано", presenter.text
+    assert_match I18n.t("bot.screens.list.legend"), presenter.text
     assert_match "tg://user?id=3001", presenter.text
     assert buttons.none?(&:copy_text)
-    assert_equal "show_shared_lists:0", buttons.last.callback_data
+    assert buttons.any? { |button| button.callback_data == "show_shared_lists:0" }
   end
 
   test "empty list invites the owner to add a gift" do

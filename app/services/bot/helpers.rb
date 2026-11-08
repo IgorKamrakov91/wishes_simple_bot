@@ -62,9 +62,16 @@ module Bot
       Telegram::Bot::Types::LinkPreviewOptions.new(is_disabled: true)
     end
 
-    def progress_bar_string(percentage, length = 10)
-      filled_blocks = (percentage.to_f.clamp(0, 100) / 100 * length).round
-      "▰" * filled_blocks + "▱" * (length - filled_blocks)
+    # One dot per gift, "●●○○" for 2 of 4. Longer lists are scaled to
+    # `limit` dots, keeping "none" and "all" exact.
+    def progress_dots(reserved, total, limit = 10)
+      return "" unless total.positive?
+
+      reserved = reserved.clamp(0, total)
+      length = [ total, limit ].min
+      filled = (reserved.to_f / total * length).round
+      filled = filled.clamp(1, length - 1) if reserved.positive? && reserved < total
+      "●" * filled + "○" * (length - filled)
     end
 
     def format_price(price)

@@ -35,8 +35,8 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     text = presenter_for(@viewer).text
 
     assert_match "<b>Apple 🍎</b>", text
-    assert_match "<i>A red apple</i>", text
-    assert_match "<b>6 000 ₽</b>", text
+    assert_match "<blockquote>A red apple</blockquote>", text
+    assert_match "<b>6 000 ₽</b> · <a", text
     assert_match "<a href=\"https://www.apple.com/iphone\">apple.com</a>", text
     assert_match "Owner List · 1 из 1", text
   end
@@ -61,14 +61,14 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     assert_includes callbacks(presenter), "confirm_delete_item:#{@item.id}"
     delete_button = button_rows(presenter).flatten.find { |b| b.callback_data == "confirm_delete_item:#{@item.id}" }
     assert_equal "danger", delete_button.style
-    assert_match "пока никто не забронировал", presenter.text
+    assert_match I18n.t("bot.screens.item.owner_free"), presenter.text
   end
 
   test "owner does not see who reserved the item" do
     @item.update!(reserved_by: @reserver.telegram_id)
     text = presenter_for(@owner).text
 
-    assert_match "кем — секрет", text
+    assert_match I18n.t("bot.screens.item.owner_reserved"), text
     refute_match "reserver_user", text
   end
 
@@ -91,8 +91,9 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     @item.reserve_for!(@viewer)
     presenter = presenter_for(@viewer)
 
-    assert_match "Это твоя бронь", presenter.text
-    assert_equal [ I18n.t("bot.buttons.purchased"), I18n.t("bot.buttons.unreserve") ], button_rows(presenter).first(2).map { |row| row.first.text }
+    assert_match I18n.t("bot.screens.item.guest_mine"), presenter.text
+    assert_match "<blockquote expandable>#{I18n.t('bot.screens.item.guest_mine_privacy')}</blockquote>", presenter.text
+    assert_equal [ I18n.t("bot.buttons.purchased"), I18n.t("bot.buttons.unreserve") ], button_rows(presenter).first.map(&:text)
     assert_includes callbacks(presenter), "mark_purchased:#{@item.id}:1:1"
     assert_includes callbacks(presenter), "unreserve_item:#{@item.id}:1"
     assert_includes callbacks(presenter), "show_reservations:0"
@@ -115,6 +116,7 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
 
     assert_equal "https://www.apple.com/iphone", options.url
     assert options.prefer_large_media
+    assert options.show_above_text, "the shop photo tops the card"
   end
 
   test "non-web links are shown as text without a URL button" do
@@ -156,21 +158,20 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     second = Item.create!(wishlist: @wishlist, title: "Pear")
     third = Item.create!(wishlist: @wishlist, title: "Plum")
 
-    *, neighbours, back = button_rows(presenter_for(@viewer, second))
+    navigation = button_rows(presenter_for(@viewer, second)).last
 
-    assert_equal [ "open_item:#{@item.id}", "open_item:#{third.id}" ], neighbours.map(&:callback_data)
-    assert_equal [ I18n.t("bot.buttons.prev_item"), I18n.t("bot.buttons.next_item") ], neighbours.map(&:text)
-    assert_equal [ "list_page:#{@wishlist.id}:0" ], back.map(&:callback_data)
+    assert_equal [ "open_item:#{@item.id}", "list_page:#{@wishlist.id}:0", "open_item:#{third.id}" ], navigation.map(&:callback_data)
+    assert_equal [ I18n.t("bot.buttons.prev_item"), I18n.t("bot.buttons.back_to_list"), I18n.t("bot.buttons.next_item") ], navigation.map(&:text)
   end
 
   test "the first and last gifts have no placeholder buttons" do
     second = Item.create!(wishlist: @wishlist, title: "Pear")
 
-    *, neighbours, _back = button_rows(presenter_for(@viewer, @item))
-    assert_equal [ "open_item:#{second.id}" ], neighbours.map(&:callback_data)
+    navigation = button_rows(presenter_for(@viewer, @item)).last
+    assert_equal [ "list_page:#{@wishlist.id}:0", "open_item:#{second.id}" ], navigation.map(&:callback_data)
 
-    *, neighbours, _back = button_rows(presenter_for(@viewer, second))
-    assert_equal [ "open_item:#{@item.id}" ], neighbours.map(&:callback_data)
+    navigation = button_rows(presenter_for(@viewer, second)).last
+    assert_equal [ "open_item:#{@item.id}", "list_page:#{@wishlist.id}:0" ], navigation.map(&:callback_data)
     assert button_rows(presenter_for(@viewer, second)).flatten.none? { |b| b.callback_data == "noop" }
   end
 end

@@ -30,7 +30,7 @@ module Bot
           t("bot.screens.#{screen}.empty")
         else
           [ t("bot.screens.collections.choose"),
-            t("bot.screens.collections.page", page: page + 1, total: total_pages) ].join("\n")
+            (t("bot.screens.collections.page", page: page + 1, total: total_pages) if total_pages > 1) ].compact.join("\n")
         end
         lines.join("\n\n")
       end
