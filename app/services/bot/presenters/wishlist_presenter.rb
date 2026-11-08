@@ -32,6 +32,11 @@ module Bot
 
         if owner?
           rows << [ context.inline_btn(t("bot.buttons.add_item"), "add_item:#{wishlist.id}", style: "primary") ]
+          if defined?(GiftSuggestion) && GiftSuggestion.enabled?
+            rows << [ context.inline_btn(t("bot.gift_ideas.button"), "gift_ideas:#{wishlist.id}") ]
+            recent = GiftSuggestion.where(user_id: user.id, wishlist_id: wishlist.id, created_at: 2.days.ago..).order(id: :desc).first
+            rows << [ context.inline_btn(t("bot.gift_ideas.recent"), "show_gift_ideas:#{recent.id}") ] if recent
+          end
           rows << [
             send_to_friend_button,
             context.inline_btn(t("bot.buttons.share"), nil, copy_text: { text: share_link(wishlist) })
