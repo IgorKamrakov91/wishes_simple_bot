@@ -54,7 +54,9 @@ module Bot
 
       # The owner never learns who reserved the gift
       def owner_status
-        item.reserved? ? t("bot.screens.item.owner_reserved") : t("bot.screens.item.owner_free")
+        return t("bot.screens.item.owner_free") unless item.reserved?
+
+        [ t("bot.screens.item.owner_reserved"), (t("bot.screens.item.owner_thanked") if item.thanked?) ].compact.join("\n")
       end
 
       # Who sees what stays one tap away in a collapsed quote
@@ -106,6 +108,10 @@ module Bot
         end
 
         buttons << [ context.inline_btn(t("bot.buttons.open_in_store"), url: web_url.to_s) ] if web_url
+
+        if owner? && item.reserved? && !item.thanked?
+          buttons << [ context.inline_btn(t("bot.buttons.thank_reserver"), "thank_reserver:#{item.id}:#{item.reservation_version}") ]
+        end
 
         if owner?
           buttons << [

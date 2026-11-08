@@ -310,6 +310,47 @@ class BotUpdateDeliveryTest < ActiveJob::TestCase
     end
   end
 
+  test "a repeated thanks after a crash or timeout restores the owner's card and sends one thanks" do
+    item = @wishlist.items.create!(title: "Private puzzle")
+    item.reserve_for!(@guest)
+    update = callback_update("thank_reserver:#{item.id}:1", user: @owner)
+    @api.failure = ProcessCrash.new
+
+    assert_raises(ProcessCrash) { dispatch(update) }
+
+    assert item.reload.thanked?
+    jobs = notification_count
+    assert_equal 1, jobs
+
+    @api.failure = Faraday::TimeoutError.new("PRIVATE_TIMEOUT_TEXT")
+    dispatch(update)
+    assert_includes last_text, I18n.t("bot.messages.update_results.thanked")
+    assert_nil BotUpdateReceipt.find(update.update_id).delivered_at
+
+    dispatch(update)
+
+    assert_equal jobs, notification_count
+    assert_includes last_text, I18n.t("bot.messages.update_results.thanked")
+    assert_includes last_text, I18n.t("bot.screens.item.owner_thanked")
+    refute_includes last_text, @guest.first_name
+    assert BotUpdateReceipt.find(update.update_id).delivered_at
+  end
+
+  test "a recovered thanks for a deleted gift gives recovery navigation" do
+    item = @wishlist.items.create!(title: "Private puzzle")
+    item.reserve_for!(@guest)
+    update = callback_update("thank_reserver:#{item.id}:1", user: @owner)
+    @api.failure = ProcessCrash.new
+    assert_raises(ProcessCrash) { dispatch(update) }
+    item.destroy!
+
+    dispatch(update)
+
+    assert_includes last_text, I18n.t("bot.messages.result_unavailable")
+    refute_includes last_text, "Private puzzle"
+    assert_equal 1, notification_count
+  end
+
   test "a receipt cannot be used by a different actor" do
     update = gift_update
     dispatch(update)
