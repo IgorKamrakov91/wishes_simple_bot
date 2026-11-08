@@ -88,7 +88,7 @@ class BotThankReserverTest < ActiveJob::TestCase
 
     NotificationJob.perform_now(@guest.telegram_id, "thanks", details, "ru")
 
-    assert_equal "💌 Owner говорит спасибо за бронь подарка «Puzzle» из списка «Birthday».", sent[:text]
+    assert_equal "💌 Owner говорит спасибо за подарок «Puzzle» из списка «Birthday».", sent[:text]
     assert_equal [ "open_item:#{@item.id}" ], sent[:reply_markup].inline_keyboard.flatten.map(&:callback_data)
   end
 
