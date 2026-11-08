@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_08_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_08_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -36,6 +36,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_08_190000) do
     t.datetime "delivered_at"
     t.datetime "created_at", null: false
     t.index ["created_at"], name: "index_bot_update_receipts_on_created_at"
+  end
+
+  create_table "gift_suggestions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "wishlist_id", null: false
+    t.string "status", default: "pending", null: false
+    t.jsonb "ideas", default: [], null: false
+    t.string "error_code"
+    t.string "locale", default: "ru", null: false
+    t.datetime "started_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_gift_suggestions_on_created_at"
+    t.index ["user_id", "created_at"], name: "index_gift_suggestions_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_gift_suggestions_on_user_id"
+    t.index ["wishlist_id"], name: "index_gift_suggestions_on_wishlist_id"
   end
 
   create_table "items", force: :cascade do |t|
@@ -103,6 +119,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_08_190000) do
 
   add_foreign_key "birthday_reminder_deliveries", "users", column: "owner_id", on_delete: :cascade
   add_foreign_key "birthday_reminder_deliveries", "users", column: "recipient_id", on_delete: :cascade
+  add_foreign_key "gift_suggestions", "users", on_delete: :cascade
+  add_foreign_key "gift_suggestions", "wishlists", on_delete: :cascade
   add_foreign_key "items", "wishlists"
   add_foreign_key "list_viewers", "users"
   add_foreign_key "list_viewers", "wishlists"

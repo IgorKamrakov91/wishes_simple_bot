@@ -26,6 +26,8 @@ env:
     - DATABASE_URL
     - TELEGRAM_BOT_TOKEN
     - BOT_USERNAME
+    - YANDEX_AI_API_KEY
+    - YANDEX_AI_FOLDER_ID
   clear:
     # Used by `bin/rails telegram:set_webhook` after each deploy.
     TELEGRAM_WEBHOOK_URL: https://72-56-20-126.sslip.io/telegram/webhook

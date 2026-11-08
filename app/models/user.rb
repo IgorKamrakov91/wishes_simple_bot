@@ -4,6 +4,7 @@ class User < ApplicationRecord
   has_many :wishlists, dependent: :destroy
   has_many :items, through: :wishlists
   has_many :list_viewers, dependent: :destroy
+  has_many :gift_suggestions, dependent: :delete_all
   has_many :viewed_wishlists, through: :list_viewers, source: :wishlist
 
   validates :telegram_id, presence: true, uniqueness: true
