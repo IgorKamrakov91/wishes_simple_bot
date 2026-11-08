@@ -140,7 +140,7 @@ en:
         price: "Price"
         store: "Store"
         status: "Status"
-        owner_reserved: "🔒 Reserved — we don't say by whom"
+        owner_reserved: "🔒 Reserved — we won't say by whom"
         owner_thanked: "💌 Thanks sent"
         owner_free: "🟢 Still available"
         guest_free: "🟢 <b>Available</b>"
