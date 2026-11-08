@@ -5,8 +5,10 @@ require "telegram/bot"
 class GiftIdeasJob < ApplicationJob
   queue_as :default
   self.log_arguments = false
-  # A slow model must not take every worker thread
-  limits_concurrency to: 1, key: "gift_ideas", duration: 2.minutes
+  # Requests from different people run in parallel, but at most two at a
+  # time: the three shared worker threads always keep one for notifications
+  # and reminders. The rest wait in the queue for a few seconds.
+  limits_concurrency to: 2, key: "gift_ideas", duration: 2.minutes
 
   def perform(suggestion_id)
     suggestion = GiftSuggestion.find_by(id: suggestion_id)
