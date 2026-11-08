@@ -77,6 +77,13 @@ module Bot
         "<blockquote expandable>#{text}</blockquote>"
       end
 
+      # A gift marked as bought asks first: releasing it also clears the mark
+      # and opens it to other guests
+      def release_data
+        prefix = item.purchased? ? "confirm_release" : (@reservations_page ? "release_book" : "unreserve_item")
+        [ prefix, item.id, item.reservation_version, @reservations_page ].compact.join(":")
+      end
+
       def purchased_button
         value = item.purchased? ? 0 : 1
         data = [ "mark_purchased", item.id, item.reservation_version, value, @reservations_page ].compact.join(":")
@@ -98,12 +105,7 @@ module Bot
           if !item.reserved?
             buttons << [ context.inline_btn(t("bot.buttons.reserve"), "reserve_item:#{item.id}:#{item.reservation_version}", style: "success") ]
           elsif reserved_by_me?
-            release = if @reservations_page
-              "release_book:#{item.id}:#{item.reservation_version}:#{@reservations_page}"
-            else
-              "unreserve_item:#{item.id}:#{item.reservation_version}"
-            end
-            buttons << [ purchased_button, context.inline_btn(t("bot.buttons.unreserve"), release) ]
+            buttons << [ purchased_button, context.inline_btn(t("bot.buttons.unreserve"), release_data) ]
           end
         end
 

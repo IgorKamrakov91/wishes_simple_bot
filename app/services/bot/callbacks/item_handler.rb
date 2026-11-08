@@ -113,6 +113,30 @@ module Bot
         end
       end
 
+      # Asks before releasing a gift the guest has marked as bought. Nothing
+      # changes here; "Yes" is the usual release button with the same version.
+      def confirm_release(item_id, reservation_version, reservations_page = nil)
+        scope = reservations_page.nil? ? Item.accessible_to(user) : Presenters::ReservationsPresenter.scope_for(user)
+        item = scope.find(item_id)
+        unless item.reserved_by?(user) && item.reservation_version == reservation_version
+          context.notice = I18n.t("bot.messages.reservation_changed")
+          return show_item(item.id, reservations_page: reservations_page)
+        end
+
+        release, back = if reservations_page
+          [ "release_book:#{item.id}:#{reservation_version}:#{reservations_page}", "open_booked_item:#{item.id}:#{reservations_page}" ]
+        else
+          [ "unreserve_item:#{item.id}:#{reservation_version}", "open_item:#{item.id}" ]
+        end
+        keyboard = context.build_keyboard([
+          [
+            context.inline_btn(I18n.t("bot.buttons.confirm_release"), release, style: "danger"),
+            context.inline_btn(I18n.t("bot.buttons.cancel"), back)
+          ]
+        ])
+        context.render(I18n.t("bot.messages.confirm_release_purchased", title: escape_html(item.title)), keyboard)
+      end
+
       # Old toggle buttons do not encode whether the user intended to reserve
       # or release. Refresh them into explicit actions without changing data.
       # "Already bought" on the guest's own reservation: reminders leave the
