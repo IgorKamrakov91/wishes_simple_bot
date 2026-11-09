@@ -83,6 +83,16 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
     assert_equal "https://ozon.ru/t/abc", @item.reload.url
   end
 
+  test "bare links with a query or fragment get https while editing" do
+    [ "example.com?gift=123&color=blue", "example.com#gift" ].each do |url|
+      edit("url")
+      say(url)
+
+      assert_equal "https://#{url}", @item.reload.url
+      assert_nil @user.reload.bot_state
+    end
+  end
+
   test "text that is not a link is refused" do
     edit("url")
     say("в магазине у дома")
