@@ -7,7 +7,7 @@ module Bot
 
     # "ozon.ru/t/abc" without a scheme is still clearly a link
     BARE_LINK = %r{\A[\w-]+(\.[\w-]+)+(/\S*)?\z}
-    CURRENCY_SUFFIX = /(₽|руб\.?|р\.?)\z/i
+    CURRENCY_SUFFIX = /(?<=\d)(₽|руб\.?|р\.?|рубль|рубля|рублей|RUB)\z/i
 
     attr_reader :context
     delegate :bot, :user, :chat_id, :text, to: :context
