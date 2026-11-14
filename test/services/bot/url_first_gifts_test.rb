@@ -66,6 +66,29 @@ class BotUrlFirstGiftsTest < ActiveSupport::TestCase
     assert_equal "https://ozon.ru/product/%D0%BA%D0%BD%D0%B8%D0%B3%D0%B0-123", item.web_uri.to_s
   end
 
+  test "bare query and fragment links can start a gift without becoming its title" do
+    [ "example.com?gift=123&color=blue", "example.com#gift" ].each do |url|
+      @user.start_adding_item!(wishlist_id: @wishlist.id)
+
+      assert_no_difference("Item.count") { say(url) }
+      assert_equal "adding_item_title", @user.reload.bot_state
+      assert_equal "https://#{url}", @user.bot_payload["url"]
+
+      assert_difference("Item.count", 1) { say("Книга") }
+      assert_equal "https://#{url}", @wishlist.items.last.url
+      assert_nil @user.reload.bot_state
+    end
+  end
+
+  test "bare query links are also accepted after entering a gift name" do
+    say("Книга")
+    assert_difference("Item.count", 1) { say("example.com?gift=123") }
+
+    assert_equal "Книга", @wishlist.items.last.title
+    assert_equal "https://example.com?gift=123", @wishlist.items.last.url
+    assert_nil @user.reload.bot_state
+  end
+
   test "dotted names at the first step remain names instead of becoming URLs" do
     [ "Lego.Technic", "Nike.Air" ].each do |title|
       @user.start_adding_item!(wishlist_id: @wishlist.id)

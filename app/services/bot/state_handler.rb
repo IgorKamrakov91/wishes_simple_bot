@@ -6,7 +6,7 @@ module Bot
     include ActiveSupport::Delegation
 
     # "ozon.ru/t/abc" without a scheme is still clearly a link
-    BARE_LINK = %r{\A[\w-]+(\.[\w-]+)+(/\S*)?\z}
+    BARE_LINK = %r{\A[\w-]+(\.[\w-]+)+([/?#]\S*)?\z}
     CURRENCY_SUFFIX = /(₽|руб\.?|р\.?)\z/i
 
     attr_reader :context
@@ -163,8 +163,8 @@ module Bot
 
       # Inspect the original input before URL-field normalization turns a
       # dotted name such as Lego.Technic into an https URL. Bare links need
-      # a path, and are accepted only before we explicitly ask for a name.
-      value.match?(%r{\A[a-z][a-z0-9+.-]*://}i) || (BARE_LINK.match?(value) && value.include?("/"))
+      # a path, query or fragment, and are accepted only before we ask for a name.
+      value.match?(%r{\A[a-z][a-z0-9+.-]*://}i) || (BARE_LINK.match?(value) && value.match?(/[\/?#]/))
     end
 
     def show_saved_item(item)
