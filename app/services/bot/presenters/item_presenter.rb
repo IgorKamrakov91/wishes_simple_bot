@@ -32,9 +32,11 @@ module Bot
 
       def heading
         lines = []
-        lines << "<i>🎁 #{escape_html(wishlist.title)} · #{t('bot.screens.item.position', index: position + 1, total: item_ids.size)}</i>"
-        lines << "<b>#{escape_html(item.title)}</b>"
-        lines << "<blockquote>#{escape_html(item.description)}</blockquote>" if item.description.present?
+        # Old records can exceed today's validation limits. Bound the display
+        # before escaping HTML, leaving stored values available for editing.
+        lines << "<i>🎁 #{escape_html(wishlist.title.to_s.truncate(Wishlist::TITLE_LIMIT))} · #{t('bot.screens.item.position', index: position + 1, total: item_ids.size)}</i>"
+        lines << "<b>#{escape_html(item.title.to_s.truncate(Item::TITLE_LIMIT))}</b>"
+        lines << "<blockquote>#{escape_html(item.description.to_s.truncate(Item::DESCRIPTION_LIMIT))}</blockquote>" if item.description.present?
         lines.join("\n")
       end
 
@@ -47,9 +49,9 @@ module Bot
       end
 
       def store_link
-        return escape_html(item.url) unless web_url
+        return escape_html(item.url.to_s.truncate(100)) unless web_url
 
-        "<a href=\"#{escape_html(web_url.to_s)}\">#{escape_html(web_url.host.delete_prefix('www.'))}</a>"
+        "<a href=\"#{escape_html(web_url.to_s)}\">#{escape_html(web_url.host.delete_prefix('www.').truncate(100))}</a>"
       end
 
       # The owner never learns who reserved the gift
@@ -62,14 +64,14 @@ module Bot
       # Who sees what stays one tap away in a collapsed quote
       def guest_status
         if !item.reserved?
-          owner = escape_html(wishlist.owner.first_name.presence || wishlist.owner.full_name)
+          owner = escape_html((wishlist.owner.first_name.presence || wishlist.owner.full_name).to_s.truncate(60))
           [ t("bot.screens.item.guest_free"), collapsed(t("bot.screens.item.guest_free_privacy", owner: owner)) ].join("\n")
         elsif reserved_by_me?
           [ t("bot.screens.item.guest_mine"),
             (t("bot.screens.item.guest_purchased") if item.purchased?),
             collapsed(t("bot.screens.item.guest_mine_privacy")) ].compact.join("\n")
         else
-          t("bot.screens.item.guest_taken", user: "<tg-spoiler>#{escape_html(reserver_label)}</tg-spoiler>")
+          t("bot.screens.item.guest_taken", user: "<tg-spoiler>#{escape_html(reserver_label.to_s.truncate(60))}</tg-spoiler>")
         end
       end
 

@@ -29,16 +29,23 @@ module Bot
           I18n.t("bot.gift_ideas.expired")
         elsif suggestion.status == "ready" && suggestion.ideas.present?
           ideas = suggestion.ideas.each_with_index.map do |idea, index|
-            mark = idea["item_id"].present? ? "✓ " : ""
-            "#{index + 1}. #{mark}#{escape_html(idea.fetch('title'))}"
+            title = escape_html(idea.fetch("title"))
+            title = if linked_item?(idea)
+              "✓ #{title}"
+            elsif idea["item_id"].present?
+              I18n.t("bot.gift_ideas.deleted_title", title: title)
+            else
+              title
+            end
+            "#{index + 1}. #{title}"
           end
           [ *ideas, "", I18n.t("bot.gift_ideas.ready_hint") ].join("\n")
         elsif suggestion.failed?
-          I18n.t("bot.gift_ideas.failed")
+          failure_text
         elsif %w[pending processing].include?(suggestion.status)
           I18n.t("bot.gift_ideas.waiting")
         else
-          I18n.t("bot.gift_ideas.failed")
+          failure_text
         end
         "#{heading}\n\n#{body}"
       end
@@ -48,8 +55,10 @@ module Bot
         if !expired? && suggestion.status == "ready"
           suggestion.ideas.each_with_index do |idea, index|
             label = idea.fetch("title").truncate(32)
-            button = if idea["item_id"].present?
+            button = if linked_item?(idea)
               inline_btn("✓ #{index + 1}. #{label}", "open_item:#{idea['item_id']}")
+            elsif idea["item_id"].present?
+              inline_btn(I18n.t("bot.gift_ideas.deleted_button", number: index + 1, title: label), "show_gift_ideas:#{suggestion.id}")
             else
               inline_btn("+ #{index + 1}. #{label}", "add_idea:#{suggestion.id}:#{index}")
             end
@@ -62,8 +71,25 @@ module Bot
 
       private
 
+      def linked_item?(idea)
+        linked_item_ids.include?(idea["item_id"])
+      end
+
+      def linked_item_ids
+        @linked_item_ids ||= suggestion.wishlist.items.where(id: suggestion.ideas.filter_map { |idea| idea["item_id"] }).pluck(:id).to_set
+      end
+
+      def failure_text
+        kind = case suggestion.error_code
+        when "no_ideas" then "no_ideas"
+        when "disabled" then "disabled"
+        else "technical"
+        end
+        I18n.t("bot.gift_ideas.failed.#{kind}")
+      end
+
       def expired?
-        suggestion.created_at < 2.days.ago
+        suggestion.created_at < GiftSuggestion::OPEN_FOR.ago
       end
     end
   end

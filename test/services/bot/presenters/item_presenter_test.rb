@@ -154,6 +154,36 @@ class BotPresentersItemPresenterTest < ActiveSupport::TestCase
     refute_match "<script>", text
   end
 
+  test "legacy oversized fields fit a Telegram card without changing stored values" do
+    @wishlist.update_column(:title, "🎁" * 6000)
+    @item.update_columns(title: "🔥" * 6000, description: "💝" * 6000, url: "old shop " * 1000)
+    @owner.update_column(:first_name, "🎉" * 6000)
+
+    [ @owner, @viewer ].each do |user|
+      presenter = presenter_for(user)
+      assert_operator presenter.text.encode("UTF-16LE").bytesize / 2, :<=, Bot::Context::MESSAGE_LIMIT
+      assert_includes presenter.text, "..."
+      assert button_rows(presenter).flatten.none?(&:url)
+      assert presenter.link_preview_options.is_disabled
+    end
+    assert_includes callbacks(presenter_for(@owner)), "edit_item:#{@item.id}"
+    assert_equal "🔥" * 6000, @item.reload.title
+    assert_equal "💝" * 6000, @item.description
+    assert_equal "🎁" * 6000, @wishlist.reload.title
+  end
+
+  test "legacy oversized reserver names fit the card and stay HTML escaped" do
+    @item.update!(reserved_by: @reserver.telegram_id)
+    @reserver.update!(username: nil, first_name: "<Santa>" * 1000)
+
+    text = presenter_for(@viewer).text
+
+    assert_operator text.encode("UTF-16LE").bytesize / 2, :<=, Bot::Context::MESSAGE_LIMIT
+    assert_includes text, "&lt;Santa&gt;"
+    refute_includes text, "<Santa>"
+    assert_match %r{<tg-spoiler>.*\.\.\.</tg-spoiler>}, text
+  end
+
   test "navigates between neighbouring items" do
     second = Item.create!(wishlist: @wishlist, title: "Pear")
     third = Item.create!(wishlist: @wishlist, title: "Plum")

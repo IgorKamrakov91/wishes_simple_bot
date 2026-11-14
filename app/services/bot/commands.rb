@@ -14,6 +14,7 @@ module Bot
       def handle(bot, message)
         user = User.find_or_create_from_telegram(message.from.to_h.symbolize_keys)
         context = Context.new(bot: bot, user: user, source: message)
+        text = command_text(context.text)
 
         had_input = user.bot_state.present?
         if had_input
@@ -22,14 +23,13 @@ module Bot
             return
           end
 
-          if EXIT_INPUT_COMMANDS.include?(context.text) ||
-              START_SHARED_LIST_PATTERN.match?(context.text) || START_LEGACY_LIST_PATTERN.match?(context.text)
+          if EXIT_INPUT_COMMANDS.include?(text) ||
+              START_SHARED_LIST_PATTERN.match?(text) || START_LEGACY_LIST_PATTERN.match?(text)
             user.clear_state!
           end
         end
 
         # Otherwise, handle as a command
-        text = context.text
 
         if (match = START_SHARED_LIST_PATTERN.match(text))
           handle_shared_list(context, match[1])
@@ -69,6 +69,15 @@ module Bot
       end
 
       private
+
+      # Telegram also sends commands as /help@BotName. Normalize only our
+      # username, leaving arguments and ordinary gift text untouched.
+      def command_text(text)
+        text.sub(%r{\A(/[a-z0-9_]+)@([a-z0-9_]+)(?=\s|\z)}i) do |addressed|
+          command, username = Regexp.last_match.captures
+          username.casecmp?(bot_username) ? command : addressed
+        end
+      end
 
       # Never stay silent in a private chat; in groups only commands get answers
       def handle_unrecognized(context)
