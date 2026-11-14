@@ -23,15 +23,29 @@ class User < ApplicationRecord
   end
 
   def self.find_or_create_from_telegram(data)
-    find_or_initialize_by(telegram_id: data[:id]).tap do |user|
-      user.assign_attributes(
-        username: data[:username],
-        first_name: data[:first_name],
-        last_name: data[:last_name],
-        last_seen_at: Time.current
-      )
-      user.save!
+    profile = {
+      username: data[:username],
+      first_name: data[:first_name],
+      last_name: data[:last_name],
+      last_seen_at: Time.current
+    }
+    user = find_or_initialize_by(telegram_id: data[:id])
+    begin
+      # Webhook delivery can already be inside a transaction. A savepoint
+      # keeps a competing first insert from aborting that outer transaction.
+      transaction(requires_new: true) { user.update!(profile) }
+    rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => error
+      duplicate = error.is_a?(ActiveRecord::RecordNotUnique) || user.errors.of_kind?(:telegram_id, :taken)
+      raise unless user.new_record? && duplicate
+
+      # Another update created this Telegram user first. Refresh only profile
+      # fields, never the winner's draft, notification choices or bot state.
+      user = find_by(telegram_id: data[:id])
+      raise error unless user
+
+      user.update!(profile)
     end
+    user
   end
 
   def start_creating_list!
