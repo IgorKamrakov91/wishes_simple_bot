@@ -76,6 +76,26 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
     assert_nil @user.reload.bot_state
   end
 
+  test "pasted prices accept ruble currency names and nonbreaking spaces" do
+    [ "2\u202F500,50 рублей", "2\u00A0500,50 рубля", "2500,50 рубль", "2500,50 РУБ.", "2500,50 р.", "2500.50 RUB", "2500,50 rub" ].each do |value|
+      edit("price")
+      say(value)
+
+      assert_equal BigDecimal("2500.50"), @item.reload.price, value
+      assert_nil @user.reload.bot_state, value
+    end
+  end
+
+  test "currency names do not turn invalid prices into valid amounts" do
+    [ "₽", "руб.", "р.", "RUB", "рублей", "2500 рублей extra", "2500 USD", "-2500 RUB", "0 рублей" ].each do |value|
+      edit("price")
+      say(value)
+
+      assert_equal 10, @item.reload.price, value
+      assert_equal "editing_item", @user.reload.bot_state, value
+    end
+  end
+
   test "a link without a scheme gets https" do
     edit("url")
     say("ozon.ru/t/abc")
