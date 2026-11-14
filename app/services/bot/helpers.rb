@@ -89,9 +89,11 @@ module Bot
       CGI.escapeHTML(text.to_s)
     end
 
-    def bot_link
-      bot_username = (ENV["BOT_USERNAME"].presence || "PodarkiNeOtdarkiBot").delete_prefix("@")
+    def bot_username
+      (ENV["BOT_USERNAME"].presence || "PodarkiNeOtdarkiBot").delete_prefix("@")
+    end
 
+    def bot_link
       "https://t.me/#{bot_username}"
     end
 

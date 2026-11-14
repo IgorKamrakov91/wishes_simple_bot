@@ -145,6 +145,43 @@ class BotHelpAndSettingsKeepInputTest < ActiveSupport::TestCase
     assert_equal [ "Birthday" ], @user.wishlists.pluck(:title)
   end
 
+  test "addressed help keeps a draft and addressed cancel ends it" do
+    press("add_item:#{@wishlist.id}")
+    say("Puzzle")
+    draft = @user.reload.bot_payload
+    username = (ENV["BOT_USERNAME"].presence || "PodarkiNeOtdarkiBot").delete_prefix("@")
+
+    say("/help@#{username.upcase}")
+    assert_equal %w[resume_input cancel_input main_menu settings], last_buttons.map(&:callback_data)
+    assert_equal draft, @user.reload.bot_payload
+
+    say("/cancel@#{username}")
+    assert_nil @user.reload.bot_state
+    assert_equal I18n.t("bot.commands.cancelled"), screen_text(last_text)
+    assert_empty @wishlist.items
+  end
+
+  test "addressed start accepts a shared list invitation and ends pending input" do
+    owner = User.create!(telegram_id: 71003, first_name: "Friend")
+    list = owner.wishlists.create!(title: "Party")
+    press("new_list")
+    username = (ENV["BOT_USERNAME"].presence || "PodarkiNeOtdarkiBot").delete_prefix("@")
+
+    say("/start@#{username} l_#{list.share_token}")
+
+    assert_nil @user.reload.bot_state
+    assert Wishlist.accessible_to(@user).exists?(list.id)
+    assert_includes last_text, "Party"
+  end
+
+  test "commands addressed to another bot do not cancel pending input" do
+    press("new_list")
+    say("/cancel@unrelated_other_bot")
+
+    assert_equal "creating_list", @user.reload.bot_state
+    assert_includes last_text, I18n.t("bot.commands.unknown_command")
+  end
+
   test "other commands still abandon the input" do
     press("new_list")
     say("/reservations")
