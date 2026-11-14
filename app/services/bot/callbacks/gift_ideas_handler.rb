@@ -11,7 +11,7 @@ module Bot
         if %i[created active].include?(result.status)
           UpdateDelivery.record_result("gift_ideas", result.suggestion.id)
         end
-        context.notice = I18n.t("bot.gift_ideas.requests.#{result.status}")
+        context.notice = request_notice(result.status, wishlist)
       end
 
       def show_ideas(suggestion_id)
@@ -33,7 +33,7 @@ module Bot
             context.notice = I18n.t("bot.gift_ideas.finish_input")
             return InputPrompt.new(context).render
           end
-          return show_ideas(suggestion.id) if suggestion.created_at < 2.days.ago
+          return show_ideas(suggestion.id) if suggestion.created_at < GiftSuggestion::OPEN_FOR.ago
 
           status, item = suggestion.add_idea!(user, index)
           if %i[added already].include?(status)
@@ -67,6 +67,15 @@ module Bot
       end
 
       private
+
+      def request_notice(status, wishlist)
+        text = I18n.t("bot.gift_ideas.requests.#{status}",
+                      date: Time.current.in_time_zone(GiftSuggestion::TIME_ZONE).tomorrow.strftime("%d.%m"))
+        if %i[user_limit global_limit].include?(status) && GiftSuggestion.latest_ready_for(user, wishlist)
+          text += " #{I18n.t('bot.gift_ideas.saved_hint', button: I18n.t('bot.gift_ideas.recent'))}"
+        end
+        text
+      end
 
       def owned_suggestion(suggestion_id)
         suggestion = GiftSuggestion.where(user_id: user.id).find(suggestion_id)
