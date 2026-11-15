@@ -116,6 +116,33 @@ class BotOnboardingAndSharingTest < ActiveSupport::TestCase
     assert results[:is_personal]
   end
 
+  test "legacy long titles stay shareable without changing the stored list" do
+    title = "🎁" * 5000
+    @friends_list.update_column(:title, title)
+
+    [ :ru, :en ].each do |locale|
+      I18n.with_locale(locale) do
+        card = inline_query("share_#{@friends_list.id}")[:results].sole
+
+        assert_equal title.truncate(Wishlist::TITLE_LIMIT), card.title
+        assert_includes card.input_message_content.message_text, card.title
+        assert_operator card.input_message_content.message_text.encode("UTF-16LE").bytesize / 2, :<=, 4096
+        assert_equal Bot::Inline.share_link(@friends_list), card.reply_markup.inline_keyboard.flatten.sole.url
+      end
+    end
+
+    assert_equal title, @friends_list.reload.title
+  end
+
+  test "inline cards bound unusually long owner names and keep the full name fallback" do
+    @owner.update!(first_name: "", last_name: "Я" * 5000)
+    card = Bot::Inline.inline_result_for_list(@friends_list)
+
+    assert_includes card.input_message_content.message_text, @owner.full_name.truncate(100)
+    assert_operator card.input_message_content.message_text.length, :<=, 4096
+    assert_equal "Я" * 5000, @owner.reload.last_name
+  end
+
   test "nobody can share someone else's list by its id" do
     results = inline_query("share_#{@friends_list.id}", user: @user)
 
