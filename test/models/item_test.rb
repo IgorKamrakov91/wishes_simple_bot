@@ -113,11 +113,18 @@ class ItemTest < ActiveSupport::TestCase
     {
       "https://ozon.ru/t/abc" => "https://ozon.ru/t/abc",
       "https://ozon.ru/product/кроссовки-123" => "https://ozon.ru/product/%D0%BA%D1%80%D0%BE%D1%81%D1%81%D0%BE%D0%B2%D0%BA%D0%B8-123",
-      "http://shop.example.com:8080/x?a=1" => "http://shop.example.com:8080/x?a=1"
+      "http://shop.example.com:8080/x?a=1" => "http://shop.example.com:8080/x?a=1",
+      "https://shop.example.com:65535/gift" => "https://shop.example.com:65535/gift"
     }.each do |url, opened|
       item.url = url
       assert item.valid?, url
       assert_equal opened, item.web_uri.to_s
+    end
+
+    [ "http://shop.example.com:0/gift", "https://shop.example.com:65536/gift", "https://shop.example.com:999999999/gift" ].each do |url|
+      item.url = url
+      refute item.valid?, url
+      assert_nil item.web_uri, url
     end
 
     [ "https://shop.example:bad/product", "https://localhost/x", "ftp://example.com/x", "https://магазин.рф/x", "в магазине" ].each do |url|
