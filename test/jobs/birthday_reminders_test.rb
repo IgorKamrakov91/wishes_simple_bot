@@ -138,6 +138,26 @@ class BirthdayRemindersTest < ActiveJob::TestCase
     assert_equal 1, @messages.size
   end
 
+  test "a late duplicate refresh cannot restore a birthday hidden by the winning response" do
+    # Both jobs passed the retry guard before either HTTP request finished.
+    checked_at = Time.current
+    @owner.update!(birthdate_checked_at: checked_at, birthdate_synced_at: nil)
+    stale_chat = stub(type: "private", birthdate: stub(day: 6, month: 12))
+    @api.expects(:get_chat).once.with do |params|
+      assert_equal @owner.telegram_id, params[:chat_id]
+      # The other request completed first and found the birthday hidden.
+      @owner.update!(birthdate_day: nil, birthdate_month: nil, birthdate_synced_at: Time.current)
+      true
+    end.returns(stale_chat)
+
+    SyncTelegramBirthdayJob.perform_now(@owner.id, checked_at.iso8601(6), 1)
+
+    assert_nil @owner.reload.birthdate_day
+    assert_nil @owner.birthdate_month
+    assert_empty BirthdayReminderDelivery.all
+    assert_no_enqueued_jobs only: BirthdayReminderJob
+  end
+
   test "birthday opt-out and revoked list access are rechecked after enqueue" do
     sync
     @guest.update!(notify_birthdays: false)
