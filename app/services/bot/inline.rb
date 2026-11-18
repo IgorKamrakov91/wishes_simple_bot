@@ -45,15 +45,18 @@ module Bot
       end
 
       def inline_result_for_list(list)
+        # Legacy lists predate title validation. Bound display values only so
+        # one long name cannot prevent Telegram from returning any results.
+        title = list.title.to_s.truncate(Wishlist::TITLE_LIMIT)
+        owner = (list.owner.first_name.presence || list.owner.full_name).to_s.truncate(100)
         gifts = I18n.t("bot.inline.gifts", count: list.items.size)
 
         Telegram::Bot::Types::InlineQueryResultArticle.new(
           id: list.id.to_s,
-          title: list.title,
+          title: title,
           description: gifts,
           input_message_content: Telegram::Bot::Types::InputTextMessageContent.new(
-            message_text: I18n.t("bot.inline.card", owner: list.owner.first_name.presence || list.owner.full_name,
-                                                    title: list.title, gifts: gifts)
+            message_text: I18n.t("bot.inline.card", owner: owner, title: title, gifts: gifts)
           ),
           reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
             inline_keyboard: [ [ Telegram::Bot::Types::InlineKeyboardButton.new(
