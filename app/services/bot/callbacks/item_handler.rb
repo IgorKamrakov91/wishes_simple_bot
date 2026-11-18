@@ -162,8 +162,21 @@ module Bot
         end
       end
 
-      # The owner's "Say thanks": the bot passes it on, so the owner still
-      # doesn't learn who reserved the gift
+      # The owner's "Gift received" on a reserved gift: thank the giver, put
+      # the gift back in the list or delete it. Nothing changes until one of
+      # them is pressed.
+      def gift_received(item_id, reservation_version)
+        item = user.items.find(item_id)
+        unless item.reserved? && item.reservation_version == reservation_version
+          context.notice = I18n.t("bot.messages.reservation_changed")
+          return show_item(item.id)
+        end
+
+        render_received_menu(item)
+      end
+
+      # The bot passes the thanks on, so the owner still doesn't learn who
+      # reserved the gift. Buttons on older cards land here too.
       def thank_reserver(item_id, reservation_version)
         item = user.items.find(item_id)
         context.notice = if item.thank_reserver!(expected_version: reservation_version)
@@ -173,6 +186,27 @@ module Bot
         elsif item.thanked? && item.reservation_version == reservation_version
           UpdateDelivery.record_result("thanked", item.id)
           I18n.t("bot.messages.thanked_notice")
+        else
+          I18n.t("bot.messages.reservation_changed")
+        end
+
+        if item.reserved? && item.reservation_version == reservation_version
+          render_received_menu(item)
+        else
+          show_item(item.id)
+        end
+      end
+
+      # The gift becomes free again. The giver is not told: the gift has
+      # already been given, and the thanks are the message meant for them.
+      def return_item(item_id, reservation_version)
+        item = user.items.find(item_id)
+        context.notice = if item.return_to_list!(expected_version: reservation_version)
+          UpdateDelivery.record_result("returned", item.id)
+          I18n.t("bot.messages.returned_notice")
+        elsif !item.reserved? && item.reservation_version == reservation_version + 1
+          UpdateDelivery.record_result("returned", item.id)
+          I18n.t("bot.messages.returned_notice")
         else
           I18n.t("bot.messages.reservation_changed")
         end
@@ -212,6 +246,19 @@ module Bot
       end
 
       private
+
+      def render_received_menu(item)
+        version = item.reservation_version
+        rows = []
+        rows << [ context.inline_btn(I18n.t("bot.buttons.thank_giver"), "thank_reserver:#{item.id}:#{version}", style: "primary") ] unless item.thanked?
+        rows << [ context.inline_btn(I18n.t("bot.buttons.return_to_list"), "return_item:#{item.id}:#{version}") ]
+        rows << [ context.inline_btn(I18n.t("bot.buttons.delete_received"), "confirm_delete_item:#{item.id}", style: "danger") ]
+        rows << [ context.inline_btn(I18n.t("bot.buttons.back"), "open_item:#{item.id}") ]
+
+        text = [ I18n.t("bot.messages.gift_received", title: escape_html(item.title.to_s.truncate(Item::TITLE_LIMIT))),
+                 (I18n.t("bot.screens.item.owner_thanked") if item.thanked?) ].compact.join("\n\n")
+        context.render(text, context.build_keyboard(rows))
+      end
 
       # Read under the lock taken in skip_item_url
       def current_draft?(draft_id)
