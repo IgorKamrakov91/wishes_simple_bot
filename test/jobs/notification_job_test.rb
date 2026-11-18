@@ -31,6 +31,17 @@ class NotificationJobTest < ActiveJob::TestCase
     I18n.with_locale(:en) { NotificationJob.perform_now(*arguments) }
   end
 
+  test "links in gift names do not generate notification previews" do
+    @details["title"] = "https://shop.example.com/private-gift"
+    sent = nil
+    @api.expects(:send_message).once.with { |params| sent = params; true }
+
+    NotificationJob.perform_now(*arguments)
+
+    assert_includes sent[:text], @details["title"]
+    assert sent[:link_preview_options]&.is_disabled
+  end
+
   def sent_buttons
     buttons = nil
     @api.expects(:send_message).once.with { |params| buttons = params[:reply_markup].inline_keyboard.flatten; true }

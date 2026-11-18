@@ -15,7 +15,7 @@ class NotificationJob < ApplicationJob
     text = I18n.with_locale(locale) { I18n.t("bot.notifications.#{kind}", **details.symbolize_keys) }
     bot = Telegram::Bot::Client.new(ENV.fetch("TELEGRAM_BOT_TOKEN"))
     keyboard = I18n.with_locale(locale) { actions(kind, details) }
-    bot.api.send_message(chat_id: telegram_id, text: text, reply_markup: keyboard)
+    bot.api.send_message(chat_id: telegram_id, text: text, reply_markup: keyboard, link_preview_options: no_link_preview)
   rescue Telegram::Bot::Exceptions::ResponseError, Faraday::Error => e
     code = e.error_code.to_i if e.is_a?(Telegram::Bot::Exceptions::ResponseError)
     if [ 400, 403, 404 ].include?(code)
