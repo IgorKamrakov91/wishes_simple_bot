@@ -26,7 +26,8 @@ class Item < ApplicationRecord
     return if text.empty?
 
     uri = URI.parse(text.gsub(/[^\x00-\x7F]+/) { |part| ERB::Util.url_encode(part) })
-    uri if uri.is_a?(URI::HTTP) && uri.host.to_s.match?(/\A[a-z0-9-]+(\.[a-z0-9-]+)+\z/i)
+    uri if uri.is_a?(URI::HTTP) && (1..65535).cover?(uri.port) &&
+      uri.host.to_s.match?(/\A[a-z0-9-]+(\.[a-z0-9-]+)+\z/i)
   rescue URI::Error
     nil
   end

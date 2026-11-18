@@ -113,6 +113,22 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
     end
   end
 
+  test "invalid store ports keep URL editing open and preserve the previous link" do
+    @item.update!(url: "https://example.com/gift")
+    [ "example.com:65536/gift", "http://example.com:0/gift", "https://example.com:999999999/gift" ].each do |url|
+      edit("url")
+      say(url)
+
+      assert_equal I18n.t("bot.input_errors.url.invalid"), last_text, url
+      assert_equal "https://example.com/gift", @item.reload.url, url
+      assert_equal "editing_item", @user.reload.bot_state, url
+    end
+
+    say("https://example.com:8443/gift")
+    assert_equal "https://example.com:8443/gift", @item.reload.url
+    assert_nil @user.reload.bot_state
+  end
+
   test "text that is not a link is refused" do
     edit("url")
     say("в магазине у дома")
