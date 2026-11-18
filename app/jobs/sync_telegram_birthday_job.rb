@@ -42,6 +42,9 @@ class SyncTelegramBirthdayJob < ApplicationJob
   private
 
   def current_sync
-    User.where(id: @owner.id, birthdate_checked_at: @checked_at)
+    # Duplicate retries can both reach Telegram before either one completes.
+    # Only the first response may finish this refresh; a late response must
+    # not restore a birthday that the winning request found hidden.
+    User.where(id: @owner.id, birthdate_checked_at: @checked_at, birthdate_synced_at: nil)
   end
 end
