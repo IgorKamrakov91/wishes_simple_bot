@@ -94,6 +94,17 @@ class Item < ApplicationRecord
     changed
   end
 
+  # The owner got the gift and wants it in the list again: the reservation
+  # goes, whoever holds it. Nobody is told; the version from the button keeps
+  # a late press from dropping a newer booking.
+  def return_to_list!(expected_version: reservation_version)
+    changed = self.class.where(id: id, reservation_version: expected_version).where.not(reserved_by: nil)
+      .update_all(reserved_by: nil, reservation_version: expected_version + 1,
+                  purchased_at: nil, thanked_at: nil, updated_at: Time.current) == 1
+    reload
+    changed
+  end
+
   private
 
   def change_reservation(previous_reserver, next_reserver, expected_version)
