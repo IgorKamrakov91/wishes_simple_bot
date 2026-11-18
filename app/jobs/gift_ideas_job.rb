@@ -3,6 +3,8 @@ require "telegram/bot"
 # Gets ideas for one request and sends them as a separate message. The result
 # is saved before delivery, so a failed delivery never asks the model again.
 class GiftIdeasJob < ApplicationJob
+  include Bot::Helpers
+
   queue_as :default
   self.log_arguments = false
   # Requests from different people run in parallel, but at most two at a
@@ -46,7 +48,7 @@ class GiftIdeasJob < ApplicationJob
       presenter = Bot::Presenters::GiftIdeasPresenter.new(suggestion)
       bot = Telegram::Bot::Client.new(ENV.fetch("TELEGRAM_BOT_TOKEN"))
       bot.api.send_message(chat_id: suggestion.user.telegram_id, text: presenter.text,
-                           reply_markup: presenter.keyboard, parse_mode: "HTML")
+                           reply_markup: presenter.keyboard, parse_mode: "HTML", link_preview_options: no_link_preview)
     end
   rescue Telegram::Bot::Exceptions::ResponseError, Faraday::Error => e
     # The ideas stay saved; the owner can open them again from the list

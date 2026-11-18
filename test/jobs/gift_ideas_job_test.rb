@@ -48,6 +48,18 @@ class GiftIdeasJobTest < ActiveJob::TestCase
     assert_equal [ "Лампа", "Кружка" ], @suggestion.reload.titles
   end
 
+  test "links in generated ideas do not generate message previews" do
+    @ideas.expects(:call).returns([ "https://shop.example.com/gift" ])
+    sent = nil
+    @api.expects(:send_message).once.with { |params| sent = params; true }
+
+    GiftIdeasJob.perform_now(@suggestion.id)
+
+    assert_includes sent[:text], "https://shop.example.com/gift"
+    assert_equal "HTML", sent[:parse_mode]
+    assert sent[:link_preview_options]&.is_disabled
+  end
+
   test "a model error is saved as a code and the owner is told" do
     @ideas.expects(:call).raises(YandexAi::Client::Error.new("timeout"))
     @api.expects(:send_message)
