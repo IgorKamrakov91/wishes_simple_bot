@@ -41,7 +41,7 @@ module Bot
         Wishlist.accessible_to(@user).find(@receipt.result_id)
       when "list_created", "list_renamed", "gift_deleted"
         @user.wishlists.find(@receipt.result_id)
-      when "gift_added", "gift_updated", "thanked", "gift_idea_added"
+      when "gift_added", "gift_updated", "thanked", "returned", "gift_idea_added"
         @user.items.find(@receipt.result_id)
       when "gift_ideas"
         suggestion = GiftSuggestion.where(user_id: @user.id).find(@receipt.result_id)
@@ -55,7 +55,8 @@ module Bot
       case @receipt.result_kind
       when "list_view", "list_created", "list_renamed", "gift_deleted"
         Callbacks::WishlistHandler.new(@context).open_list(@receipt.result_id)
-      when "item_view", "gift_added", "gift_updated", "reserved", "released", "purchased", "unpurchased", "thanked"
+      when "item_view", "gift_added", "gift_updated", "reserved", "released", "purchased", "unpurchased", "thanked",
+           "returned"
         Callbacks::ItemHandler.new(@context).show_item(@receipt.result_id)
       when "list_deleted"
         Callbacks::WishlistHandler.new(@context).show_lists

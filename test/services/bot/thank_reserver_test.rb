@@ -5,8 +5,9 @@ require "telegram/bot"
 # Load the gem's types the way real updates do
 Telegram::Bot::Types::Update
 
-# The owner thanks whoever reserved a gift without learning who it is:
-# the bot passes the thanks on, once per reservation
+# "Gift received" on a reserved gift opens thanks, returning the gift to the
+# list and deleting it. The owner thanks whoever reserved the gift without
+# learning who it is: the bot passes the thanks on, once per reservation.
 class BotThankReserverTest < ActiveJob::TestCase
   setup do
     @owner = User.create!(telegram_id: 96001, first_name: "Owner", notify_own_reservations: false)
@@ -26,15 +27,43 @@ class BotThankReserverTest < ActiveJob::TestCase
     @bot = stub(api: @api)
   end
 
-  test "a free gift has no thanks button" do
+  test "a free gift has no received button" do
     press("open_item:#{@item.id}", as: @owner)
 
+    refute callbacks.any? { |data| data.to_s.start_with?("gift_received", "thank_reserver") }
+  end
+
+  test "a reserved gift shows the received button to the owner only" do
+    @item.reserve_for!(@guest)
+    press("open_item:#{@item.id}", as: @owner)
+    assert_includes callbacks, "gift_received:#{@item.id}:1"
     refute callbacks.any? { |data| data.to_s.start_with?("thank_reserver") }
+
+    press("open_item:#{@item.id}", as: @guest)
+    refute callbacks.any? { |data| data.to_s.start_with?("gift_received") }
+  end
+
+  test "the received menu offers thanks, return and delete" do
+    @item.reserve_for!(@guest)
+    press("gift_received:#{@item.id}:1", as: @owner)
+
+    assert_includes text, "Puzzle"
+    assert_equal [ "thank_reserver:#{@item.id}:1", "return_item:#{@item.id}:1",
+                   "confirm_delete_item:#{@item.id}", "open_item:#{@item.id}" ], callbacks
+  end
+
+  test "a received button from an older reservation shows the current card" do
+    @item.reserve_for!(@guest)
+    @item.release_for!(@guest, expected_version: 1)
+    press("gift_received:#{@item.id}:1", as: @owner)
+
+    assert_equal I18n.t("bot.messages.reservation_changed"), @answer[:text]
+    assert_includes text, I18n.t("bot.screens.item.owner_free")
   end
 
   test "the owner thanks the reserver once, without learning who it is" do
     @item.reserve_for!(@guest)
-    press("open_item:#{@item.id}", as: @owner)
+    press("gift_received:#{@item.id}:1", as: @owner)
     thank = "thank_reserver:#{@item.id}:1"
     assert_includes callbacks, thank
 
@@ -47,8 +76,46 @@ class BotThankReserverTest < ActiveJob::TestCase
     assert_equal I18n.t("bot.messages.thanked_notice"), @answer[:text]
     assert_includes text, I18n.t("bot.screens.item.owner_thanked")
     refute_includes callbacks, thank
+    assert_includes callbacks, "return_item:#{@item.id}:1"
     refute_includes text, "secret_guest"
     refute_includes text, "Guest"
+  end
+
+  test "returning the gift frees it without telling anyone" do
+    @guest.update!(notify_friend_reservations: true)
+    @owner.update!(notify_own_reservations: true)
+    @item.reserve_for!(@guest)
+    @item.mark_purchased_by!(@guest, true, expected_version: 1)
+    @item.thank_reserver!(expected_version: 2)
+
+    assert_no_enqueued_jobs only: NotificationJob do
+      2.times { press("return_item:#{@item.id}:2", as: @owner) }
+    end
+
+    @item.reload
+    refute @item.reserved?
+    refute @item.purchased?
+    refute @item.thanked?
+    assert_equal I18n.t("bot.messages.returned_notice"), @answer[:text]
+    assert_includes text, I18n.t("bot.screens.item.owner_free")
+  end
+
+  test "an old return button can't drop a newer reservation" do
+    @item.reserve_for!(@guest)
+    @item.release_for!(@guest, expected_version: 1)
+    @item.reserve_for!(@other, expected_version: 2)
+
+    press("return_item:#{@item.id}:1", as: @owner)
+
+    assert @item.reload.reserved_by?(@other)
+    assert_equal I18n.t("bot.messages.reservation_changed"), @answer[:text]
+  end
+
+  test "guests can't return a gift to the list" do
+    @item.reserve_for!(@guest)
+    press("return_item:#{@item.id}:1", as: @guest)
+
+    assert @item.reload.reserved_by?(@guest)
   end
 
   test "thanks are not for guests or for gifts in someone else's list" do
@@ -71,7 +138,7 @@ class BotThankReserverTest < ActiveJob::TestCase
       press("thank_reserver:#{@item.id}:1", as: @owner)
     end
     assert_equal I18n.t("bot.messages.reservation_changed"), @answer[:text]
-    assert_includes callbacks, "thank_reserver:#{@item.id}:3"
+    assert_includes callbacks, "gift_received:#{@item.id}:3"
 
     assert_enqueued_with(job: NotificationJob, args: ->(args) { args.first(2) == [ @other.telegram_id, "thanks" ] }) do
       press("thank_reserver:#{@item.id}:3", as: @owner)

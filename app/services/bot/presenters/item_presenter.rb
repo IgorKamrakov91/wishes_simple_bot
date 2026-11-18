@@ -113,8 +113,10 @@ module Bot
 
         buttons << [ context.inline_btn(t("bot.buttons.open_in_store"), url: web_url.to_s) ] if web_url
 
-        if owner? && item.reserved? && !item.thanked?
-          buttons << [ context.inline_btn(t("bot.buttons.thank_reserver"), "thank_reserver:#{item.id}:#{item.reservation_version}") ]
+        # Thanks, returning and deleting wait behind "Gift received", so the
+        # thanks read as being for the gift, not for the reservation
+        if owner? && item.reserved?
+          buttons << [ context.inline_btn(t("bot.buttons.gift_received"), "gift_received:#{item.id}:#{item.reservation_version}", style: "primary") ]
         end
 
         if owner?
