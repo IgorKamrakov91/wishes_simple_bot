@@ -6,7 +6,7 @@ module Bot
     include ActiveSupport::Delegation
 
     # "ozon.ru/t/abc" without a scheme is still clearly a link
-    BARE_LINK = %r{\A[\w-]+(\.[\w-]+)+([/?#]\S*)?\z}
+    BARE_LINK = %r{\A[\w-]+(\.[\w-]+)+(?::\d+)?([/?#]\S*)?\z}
     CURRENCY_SUFFIX = /(?<=\d)(₽|руб\.?|р\.?|рубль|рубля|рублей|RUB)\z/i
 
     attr_reader :context
