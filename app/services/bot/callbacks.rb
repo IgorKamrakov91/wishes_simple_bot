@@ -20,6 +20,9 @@ module Bot
       /^show_shared_lists$/ => "Callbacks::WishlistHandler#show_shared_lists",
       /^show_shared_lists:(\d+)$/ => "Callbacks::WishlistHandler#show_shared_lists",
       /^new_list$/ => "Callbacks::WishlistHandler#create_list_prompt",
+      /^demo$/ => "Callbacks::DemoHandler#show",
+      /^demo:(\d)$/ => "Callbacks::DemoHandler#show",
+      /^demo_taken$/ => "Callbacks::DemoHandler#taken",
       /^quick_list:(new_year|birthday|wishes)$/ => "Callbacks::WishlistHandler#create_quick_list",
       /^list_settings:(\d+)$/ => "Callbacks::WishlistHandler#list_settings",
       /^rename_list:(\d+)$/ => "Callbacks::WishlistHandler#rename_list_prompt",
@@ -55,7 +58,7 @@ module Bot
 
     # Buttons that finish the pending input, do nothing, or only look
     # something up (help, settings), so they keep it
-    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|quick_list:\w+|noop|help|settings|set_setting:\w+:[01]|reservation_reminders|set_reminder_days:(0|7|14|30)|resume_input|cancel_input|gift_ideas:\d+|show_gift_ideas:\d+|add_idea:\d+:\d+)\z/
+    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|quick_list:\w+|demo(:\d)?|demo_taken|noop|help|settings|set_setting:\w+:[01]|reservation_reminders|set_reminder_days:(0|7|14|30)|resume_input|cancel_input|gift_ideas:\d+|show_gift_ideas:\d+|add_idea:\d+:\d+)\z/
 
     class << self
       def handle(bot, callback)
