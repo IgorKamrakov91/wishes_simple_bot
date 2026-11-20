@@ -1,4 +1,13 @@
 class OnboardingNudge < ApplicationRecord
+  # In the evening, when people are free to think about their list; other
+  # reminders keep the daytime window
+  OPEN_HOUR = 18
+  CLOSE_HOUR = 20
+
+  def self.next_send_at(time)
+    ReminderSchedule.next_send_at(time, open: OPEN_HOUR, close: CLOSE_HOUR)
+  end
+
   belongs_to :user
   belongs_to :wishlist, optional: true
   belongs_to :gift_suggestion, optional: true

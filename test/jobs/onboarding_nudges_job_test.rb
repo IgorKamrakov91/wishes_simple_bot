@@ -2,7 +2,7 @@ require "test_helper"
 
 class OnboardingNudgesJobTest < ActiveJob::TestCase
   setup do
-    travel_to Time.utc(2026, 11, 21, 9)
+    travel_to Time.utc(2026, 11, 21, 15)
     @user = User.create!(telegram_id: 97721, first_private_start_at: 25.hours.ago, last_seen_at: 25.hours.ago)
   end
 

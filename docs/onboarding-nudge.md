@@ -3,7 +3,7 @@
 `OnboardingNudgesJob` runs every 15 minutes. Only eligible users who started a
 private chat, have not saved their first gift, and have reminders enabled qualify.
 Delivery is at least 24 hours after both the private start and the latest activity,
-in the next 12:00–18:00 Moscow window. Activity while queued or generating ideas
+in the next 18:00–20:00 Moscow window (other reminders keep 12:00–18:00). Activity while queued or generating ideas
 postpones the reminder; saving a gift or opting out cancels it.
 
 An empty owned list gets up to three Yandex AI ideas using the empty-list prompt
@@ -21,7 +21,7 @@ minutes recovers the saved answer or fixed examples, never another model call.
 Deleted or changed target lists use fixed examples without another request.
 
 Delivery claims are atomic and stay claimed after uncertain HTTP failures, so a
-timeout cannot send a duplicate. Known rejected requests can retry in the daytime
+timeout cannot send a duplicate. Known rejected requests can retry in the evening
 window (at most three attempts); 400, 403 and 404 are terminal. The scheduler
 revisits due retries. The send conditions are checked again immediately before
 HTTP; no database locks are held during either external request.

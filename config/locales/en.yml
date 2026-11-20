@@ -129,7 +129,7 @@ en:
           You do not receive notifications about your own actions. Reservation notifications do not name the person who changed the reservation.
 
           Friends' birthdays — a reminder about 30 days ahead, if Telegram provides the profile's birthdate. Dates are checked daily.
-          We remind you about the first gift only once, if you have not added it and have been away for 24 hours. Sent from noon to 6 pm Moscow time.
+          We remind you about the first gift only once, if you have not added it and have been away for 24 hours. Sent in the evening, 6 pm to 8 pm Moscow time.
           Tap a button to change its setting.
         notify_own_reservations: "My lists: %{state}"
         notify_friend_reservations: "Friends' lists: %{state}"

@@ -6,7 +6,7 @@ class OnboardingNudgeConcurrencyTest < ActiveJob::TestCase
   self.use_transactional_tests = false
 
   setup do
-    travel_to Time.utc(2026, 11, 21, 9)
+    travel_to Time.utc(2026, 11, 21, 15)
     @user = User.create!(telegram_id: 97731, first_private_start_at: 25.hours.ago, last_seen_at: 25.hours.ago)
     @list = @user.wishlists.create!(title: "Birthday")
     @nudge = OnboardingNudge.create!(user: @user, locale: "ru")

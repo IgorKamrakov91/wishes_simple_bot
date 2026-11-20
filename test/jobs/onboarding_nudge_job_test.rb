@@ -6,7 +6,7 @@ Telegram::Bot::Types::Update
 
 class OnboardingNudgeJobTest < ActiveJob::TestCase
   setup do
-    travel_to Time.utc(2026, 11, 21, 9) # noon in Moscow
+    travel_to Time.utc(2026, 11, 21, 15) # 18:00 in Moscow
     @previous_token = ENV["TELEGRAM_BOT_TOKEN"]
     ENV["TELEGRAM_BOT_TOKEN"] = "local-onboarding-test"
     @user = User.create!(telegram_id: 97711, first_name: "Private Name", first_private_start_at: 25.hours.ago,
@@ -95,13 +95,21 @@ class OnboardingNudgeJobTest < ActiveJob::TestCase
     assert_nil @nudge.preparing_at
   end
 
-  test "night delivery moves to noon without spending an AI request" do
+  test "night delivery moves to the next evening without spending an AI request" do
     travel_to Time.utc(2026, 11, 21, 17) # 20:00 Moscow
     @generator.expects(:call).never
     deliver
-    assert_equal Time.utc(2026, 11, 22, 9), @nudge.reload.retry_at
+    assert_equal Time.utc(2026, 11, 22, 15), @nudge.reload.retry_at
     assert_empty @messages
     assert_empty GiftSuggestion.all
+  end
+
+  test "daytime delivery waits for the evening window" do
+    travel_to Time.utc(2026, 11, 22, 9) # 12:00 Moscow, other reminders are open
+    @generator.expects(:call).never
+    deliver
+    assert_equal Time.utc(2026, 11, 22, 15), @nudge.reload.retry_at
+    assert_empty @messages
   end
 
   test "new gifts opt-out legacy users and inline-only contacts suppress queued nudges" do
