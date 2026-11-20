@@ -2,6 +2,7 @@ require "cgi"
 
 class Wishlist < ApplicationRecord
   belongs_to :user
+  after_create :record_first_list
   has_many :items, -> { order(:id) }, dependent: :destroy
   has_many :list_viewers, dependent: :destroy
   has_many :gift_suggestions, dependent: :delete_all
@@ -51,5 +52,11 @@ class Wishlist < ApplicationRecord
   def percentage_fulfilled
     return 0 if items.empty?
     (reserved_items_count.to_f / items.size * 100).round
+  end
+
+  private
+
+  def record_first_list
+    user.record_first_funnel_event!(:first_list_at, at: created_at)
   end
 end

@@ -15,7 +15,11 @@ module Bot
 
       def handle_query(bot, inline_query)
         user = User.find_or_create_from_telegram(inline_query.from.to_h.symbolize_keys)
+        user.record_contact!(kind: "inline_query")
         query = inline_query.query.to_s.strip
+        if (share = SHARE_QUERY.match(query)) && user.wishlists.exists?(id: share[1])
+          user.record_first_funnel_event!(:first_share_query_at)
+        end
 
         lists =
           if (match = SHARE_QUERY.match(query))

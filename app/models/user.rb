@@ -1,4 +1,6 @@
 class User < ApplicationRecord
+  include OnboardingFunnel
+
   RESERVATION_REMINDER_DAYS = [ 0, 7, 14, 30 ].freeze
 
   has_many :wishlists, dependent: :destroy
