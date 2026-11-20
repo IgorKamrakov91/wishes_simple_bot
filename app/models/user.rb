@@ -50,6 +50,11 @@ class User < ApplicationRecord
     user
   end
 
+  # TEMP until PR A lands: a newcomer is someone without a saved gift yet
+  def onboarding?
+    !items.exists?
+  end
+
   def start_creating_list!
     update!(bot_state: "creating_list", bot_payload: {})
   end

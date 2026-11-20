@@ -40,7 +40,9 @@ module Bot
     def prompt
       case user.bot_state
       when "creating_list"
-        [ I18n.t("bot.messages.enter_list_name"), cancel_keyboard("show_lists") ]
+        rows = ListPresets.ordered.map { |key| [ context.inline_btn(ListPresets.label(key), "quick_list:#{key}") ] }
+        rows << [ context.inline_btn(I18n.t("bot.buttons.cancel"), "show_lists") ]
+        [ I18n.t("bot.messages.enter_list_name"), context.build_keyboard(rows) ]
       when "renaming_list"
         text = [ I18n.t("bot.messages.enter_new_list_name"), list_context ].join("\n")
         [ text, cancel_keyboard("list_settings:#{payload[:wishlist_id]}") ]

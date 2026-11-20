@@ -8,6 +8,7 @@ Telegram::Bot::Types::Update
 # The bot explains what went wrong and never stays silent in a private chat
 class BotInputFeedbackTest < ActiveSupport::TestCase
   setup do
+    skip_onboarding!
     @api = mock("TelegramApi")
     @api.stubs(:answer_callback_query)
     @bot = mock("TelegramBot")
@@ -151,7 +152,7 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
     say("a" * (Wishlist::TITLE_LIMIT + 1))
 
     assert_equal I18n.t("bot.input_errors.title.too_long", count: Wishlist::TITLE_LIMIT), last_text
-    assert_equal [ "show_lists" ], last_buttons.map(&:callback_data)
+    assert_equal Bot::ListPresets.ordered.map { |key| "quick_list:#{key}" } + [ "show_lists" ], last_buttons.map(&:callback_data)
   end
 
   test "a photo during input asks for text" do

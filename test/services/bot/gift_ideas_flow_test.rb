@@ -85,7 +85,20 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     assert_equal I18n.t("bot.gift_ideas.requests.global_limit", date: date), @answers.last[:text]
   end
 
+  test "a newcomer's first idea leads to sending the list" do
+    suggestion = ready_suggestion
+
+    press("add_idea:#{suggestion.id}:0")
+
+    item = @wishlist.items.sole
+    assert_includes last_text, I18n.t("bot.messages.first_gift_saved", title: "Paint &amp; paper", list: "Books &amp; art")
+    assert_equal Bot::Inline.share_query(@wishlist),
+                 @edits.last[:reply_markup].inline_keyboard.first.first.switch_inline_query_chosen_chat.query
+    assert_includes callbacks, "edit_item_field:url:#{item.id}"
+  end
+
   test "adding an idea once shows marketplace search and keeps the other ideas reachable" do
+    skip_onboarding!
     suggestion = ready_suggestion
 
     assert_difference("Item.count", 1) { press("add_idea:#{suggestion.id}:0") }

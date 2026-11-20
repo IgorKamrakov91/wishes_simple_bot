@@ -8,6 +8,7 @@ Telegram::Bot::Types::Update
 
 class BotPendingInputTest < ActiveSupport::TestCase
   setup do
+    skip_onboarding!
     @api = mock("TelegramApi")
     @api.stubs(:answer_callback_query)
     @bot = mock("TelegramBot")
