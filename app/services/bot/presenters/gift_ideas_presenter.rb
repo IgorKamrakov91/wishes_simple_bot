@@ -65,6 +65,13 @@ module Bot
             rows << [ button ]
           end
         end
+        if suggestion.user.onboarding?
+          active_input = suggestion.user.bot_state.present?
+          manual = active_input ? "resume_input" : "first_gift:#{suggestion.wishlist_id}"
+          row = [ inline_btn(I18n.t("bot.gift_ideas.manual"), manual) ]
+          row << inline_btn(I18n.t("bot.buttons.cancel_input"), "cancel_input") if active_input
+          rows << row
+        end
         rows << [ inline_btn(I18n.t("bot.buttons.back_to_list"), "open_list:#{suggestion.wishlist_id}") ]
         build_keyboard(rows)
       end

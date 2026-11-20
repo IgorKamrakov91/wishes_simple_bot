@@ -23,6 +23,13 @@ module Bot
       %w[adding_item_title adding_item_url].include?(user.bot_state) && user.onboarding?
     end
 
+    # Only the list and prompt marker are present before any gift was typed.
+    # Recheck this under the user lock before an AI choice finishes the input.
+    def empty_item_input?(wishlist_id)
+      user.bot_state == "adding_item" && payload[:wishlist_id] == wishlist_id &&
+        payload.except(:wishlist_id, :first_item).empty?
+    end
+
     def render
       text, keyboard = prompt
       context.render(text, keyboard)
@@ -55,9 +62,15 @@ module Bot
       when "adding_item"
         if payload[:first_item]
           text = I18n.t("bot.messages.first_item_prompt", list: list_title)
-          keyboard = context.build_keyboard([
-            [ context.inline_btn(I18n.t("bot.messages.add_item_later"), "open_list:#{payload[:wishlist_id]}") ]
-          ])
+          rows = []
+          if user.onboarding? && GiftSuggestion.enabled?
+            text += "\n\n#{I18n.t('bot.gift_ideas.onboarding_quota', remaining: GiftSuggestion.remaining_requests_for(user), limit: GiftSuggestion::DAILY_LIMIT)}"
+            rows << [ context.inline_btn(I18n.t("bot.gift_ideas.onboarding_button"), "gift_ideas:#{payload[:wishlist_id]}") ]
+            recent = GiftSuggestion.latest_ready_for(user, user.wishlists.find(payload[:wishlist_id]))
+            rows << [ context.inline_btn(I18n.t("bot.gift_ideas.recent"), "show_gift_ideas:#{recent.id}") ] if recent
+          end
+          rows << [ context.inline_btn(I18n.t("bot.messages.add_item_later"), "open_list:#{payload[:wishlist_id]}") ]
+          keyboard = context.build_keyboard(rows)
           [ text, keyboard ]
         else
           [ [ list_context, I18n.t("bot.messages.enter_item_name") ].join("\n"), cancel_keyboard("open_list:#{payload[:wishlist_id]}") ]

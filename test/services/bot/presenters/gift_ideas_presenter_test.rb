@@ -3,6 +3,10 @@ require "telegram/bot"
 
 class BotPresentersGiftIdeasPresenterTest < ActiveSupport::TestCase
   Suggestion = Struct.new(:id, :wishlist, :wishlist_id, :status, :ideas, :created_at, :error_code, keyword_init: true) do
+    def user
+      wishlist.user
+    end
+
     def failed?
       status == "failed"
     end
