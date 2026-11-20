@@ -24,17 +24,27 @@ class GiftSuggestionConcurrencyTest < ActiveJob::TestCase
   end
 
   test "two people at once can't both pass a cap of one" do
+    assert_shared_cap([ :request_for!, :request_for! ])
+  end
+
+  test "automatic and personal requests share the same global cap across people" do
+    assert_shared_cap([ :request_system_for!, :request_for! ])
+  end
+
+  private
+
+  def assert_shared_cap(methods)
     GiftSuggestion.where(created_at: Time.current.beginning_of_day - 1.day..).delete_all
     start = Concurrent::CyclicBarrier.new(2)
     # Both requests pause after counting; with the lock, the second one can't
     # count until the first has committed, so the pause just times out
     counted = Concurrent::CyclicBarrier.new(2)
     GiftSuggestion.stubs(:global_daily_limit).with { counted.wait(1); true }.returns(1)
-    statuses = @users.zip(@lists).map do |user, list|
+    statuses = @users.zip(@lists, methods).map do |user, list, method|
       Thread.new do
         ActiveRecord::Base.connection_pool.with_connection do
           start.wait
-          GiftSuggestion.request_for!(User.find(user.id), list).status
+          GiftSuggestion.public_send(method, User.find(user.id), list).status
         end
       end
     end.map(&:value)
