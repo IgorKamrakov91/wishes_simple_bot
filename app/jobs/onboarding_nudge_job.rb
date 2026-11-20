@@ -33,7 +33,7 @@ class OnboardingNudgeJob < ApplicationJob
     return if code.nil? || [ 400, 403, 404 ].include?(code) || @nudge.reload.attempts >= 3
 
     wait = code == 429 ? e.data.dig("parameters", "retry_after").to_i : 30
-    @nudge.update!(claimed_at: nil, retry_at: ReminderSchedule.next_send_at(Time.current + [ wait, 1 ].max.seconds))
+    @nudge.update!(claimed_at: nil, retry_at: OnboardingNudge.next_send_at(Time.current + [ wait, 1 ].max.seconds))
   rescue ActiveRecord::RecordNotFound
     nil
   end
@@ -44,7 +44,7 @@ class OnboardingNudgeJob < ApplicationJob
     @nudge.user.reload
     return false unless @nudge.eligible?
 
-    at = ReminderSchedule.next_send_at([ Time.current, @nudge.due_at ].max)
+    at = OnboardingNudge.next_send_at([ Time.current, @nudge.due_at ].max)
     if at > Time.current
       @nudge.update!(retry_at: at)
       return false
