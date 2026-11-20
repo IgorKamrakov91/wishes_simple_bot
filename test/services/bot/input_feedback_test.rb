@@ -113,6 +113,16 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
     end
   end
 
+  test "bare store links with valid ports get https while editing" do
+    [ "example.com:8443/gift", "example.com:443?gift=123", "example.com:65535#gift", "example.com:8443" ].each do |url|
+      edit("url")
+      say(url)
+
+      assert_equal "https://#{url}", @item.reload.url, url
+      assert_nil @user.reload.bot_state, url
+    end
+  end
+
   test "invalid store ports keep URL editing open and preserve the previous link" do
     @item.update!(url: "https://example.com/gift")
     [ "example.com:65536/gift", "http://example.com:0/gift", "https://example.com:999999999/gift" ].each do |url|

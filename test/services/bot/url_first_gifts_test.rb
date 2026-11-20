@@ -80,6 +80,37 @@ class BotUrlFirstGiftsTest < ActiveSupport::TestCase
     end
   end
 
+  test "bare store links with ports can start a gift" do
+    [ "example.com:8443/gift", "example.com:443?gift=123", "example.com:65535#gift" ].each do |url|
+      @user.start_adding_item!(wishlist_id: @wishlist.id)
+      assert_no_difference("Item.count") { say(url) }
+      assert_equal "adding_item_title", @user.reload.bot_state, url
+      assert_equal "https://#{url}", @user.bot_payload["url"]
+
+      assert_difference("Item.count", 1) { say("Книга") }
+      assert_equal "https://#{url}", @wishlist.items.last.url
+      assert_nil @user.reload.bot_state
+    end
+  end
+
+  test "bare store links with ports are accepted after entering a gift name" do
+    say("Книга")
+    assert_difference("Item.count", 1) { say("example.com:8443/gift") }
+
+    assert_equal "Книга", @wishlist.items.last.title
+    assert_equal "https://example.com:8443/gift", @wishlist.items.last.url
+    assert_nil @user.reload.bot_state
+  end
+
+  test "bare links with out of range ports are rejected before staging a gift" do
+    [ "example.com:0/gift", "example.com:65536/gift", "example.com:999999999/gift" ].each do |url|
+      assert_no_difference("Item.count") { say(url) }
+      assert_equal I18n.t("bot.input_errors.url.invalid"), screen_text(@sent.last[:text]), url
+      assert_equal "adding_item", @user.reload.bot_state
+      assert_equal({ "wishlist_id" => @wishlist.id }, @user.bot_payload)
+    end
+  end
+
   test "bare query links are also accepted after entering a gift name" do
     say("Книга")
     assert_difference("Item.count", 1) { say("example.com?gift=123") }
