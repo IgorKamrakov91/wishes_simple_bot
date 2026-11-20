@@ -1,4 +1,5 @@
 require "test_helper"
+require "mocha/minitest"
 
 class OnboardingFunnelTest < ActiveSupport::TestCase
   setup do
@@ -93,5 +94,39 @@ class OnboardingFunnelTest < ActiveSupport::TestCase
     assert_nil @user.first_contact_kind
     assert_nil @user.acquisition_source
     assert_nil @user.first_private_start_at
+  end
+
+  test "ordinary repeat contacts do not lock while optional milestones are still absent" do
+    @user.record_contact!(kind: "inline_query")
+    before = @user.attributes.slice(*OnboardingFunnel::FIELDS)
+    User.any_instance.expects(:with_lock).never
+
+    @user.record_contact!(kind: "message")
+    @user.record_contact!(kind: "callback", source: "")
+
+    assert_equal before, @user.reload.attributes.slice(*OnboardingFunnel::FIELDS)
+  end
+
+  test "repeat tagged private starts do not lock after all contact fields are saved" do
+    @user.record_contact!(kind: "campaign_start", source: "winter", private_start: true)
+    before = @user.attributes.slice(*OnboardingFunnel::FIELDS)
+    User.any_instance.expects(:with_lock).never
+
+    @user.record_contact!(kind: "campaign_start", source: "another", private_start: true)
+    @user.record_contact!(kind: "start", private_start: true)
+
+    assert_equal before, @user.reload.attributes.slice(*OnboardingFunnel::FIELDS)
+  end
+
+  test "the pending contact is rechecked after locking a stale instance" do
+    winner = User.find(@user.id)
+    winner.record_contact!(kind: "campaign_start", source: "winter", private_start: true)
+    @user.expects(:update_columns).never
+
+    @user.record_contact!(kind: "campaign_start", source: "another", private_start: true)
+
+    assert_equal winner.first_contact_at, @user.first_contact_at
+    assert_equal "winter", @user.acquisition_source
+    assert_equal winner.first_private_start_at, @user.first_private_start_at
   end
 end

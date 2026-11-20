@@ -14,10 +14,10 @@ module OnboardingFunnel
   # inline mode, then start the private chat from a tagged link. Keep the
   # first observed tag without relabelling that original contact.
   def record_contact!(kind:, source: nil, private_start: false)
-    return unless onboarding_eligible?
+    return unless contact_pending?(source, private_start)
 
     with_lock do
-      next unless onboarding_eligible?
+      next unless contact_pending?(source, private_start)
 
       attributes = {}
       if first_contact_at.nil?
@@ -49,5 +49,13 @@ module OnboardingFunnel
       update_columns(FIELDS.index_with { |field| field == "onboarding_eligible" ? true : nil })
       [ before, attributes.slice(*FIELDS) ]
     end
+  end
+
+  private
+
+  def contact_pending?(source, private_start)
+    onboarding_eligible? && (first_contact_at.nil? ||
+      (source.present? && acquisition_source.nil?) ||
+      (private_start && first_private_start_at.nil?))
   end
 end
