@@ -31,4 +31,18 @@ class OnboardingNudgesJobTest < ActiveJob::TestCase
       assert_no_enqueued_jobs { OnboardingNudgesJob.perform_now }
     end
   end
+
+  test "sent and exhausted reminders are excluded while unfinished retries remain candidates" do
+    [ { sent_at: 1.hour.ago }, { attempts: 3 }, { attempts: 4 } ].each_with_index do |attributes, index|
+      user = User.create!(telegram_id: 97728 + index, first_private_start_at: 25.hours.ago, last_seen_at: 25.hours.ago)
+      OnboardingNudge.create!(attributes.merge(user: user, locale: "ru"))
+    end
+    retry_user = User.create!(telegram_id: 97732, first_private_start_at: 25.hours.ago, last_seen_at: 25.hours.ago)
+    OnboardingNudge.create!(user: retry_user, locale: "ru", attempts: 2, retry_at: 1.minute.ago)
+
+    assert_equal [ @user.id, retry_user.id ].sort, OnboardingNudge.candidates.order(:id).pluck(:id)
+    assert_enqueued_jobs 2, only: OnboardingNudgeJob do
+      assert_difference("OnboardingNudge.count", 1) { OnboardingNudgesJob.perform_now }
+    end
+  end
 end

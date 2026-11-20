@@ -9,7 +9,9 @@ class OnboardingNudge < ApplicationRecord
   }
 
   def self.candidates
+    completed = where.not(sent_at: nil).or(where("attempts >= 3")).select(:user_id)
     User.where(onboarding_eligible: true, first_item_at: nil, notify_onboarding: true)
+      .where.not(id: completed)
       .where.not(first_private_start_at: nil).where(first_private_start_at: ..24.hours.ago)
       .where("last_seen_at IS NULL OR last_seen_at <= ?", 24.hours.ago)
   end
