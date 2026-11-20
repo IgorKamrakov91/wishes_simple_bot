@@ -64,7 +64,6 @@ module Bot
           text = I18n.t("bot.messages.first_item_prompt", list: list_title)
           rows = []
           if user.onboarding? && GiftSuggestion.enabled?
-            text += "\n\n#{I18n.t('bot.gift_ideas.onboarding_quota', remaining: GiftSuggestion.remaining_requests_for(user), limit: GiftSuggestion::DAILY_LIMIT)}"
             rows << [ context.inline_btn(I18n.t("bot.gift_ideas.onboarding_button"), "gift_ideas:#{payload[:wishlist_id]}") ]
             recent = GiftSuggestion.latest_ready_for(user, user.wishlists.find(payload[:wishlist_id]))
             rows << [ context.inline_btn(I18n.t("bot.gift_ideas.recent"), "show_gift_ideas:#{recent.id}") ] if recent

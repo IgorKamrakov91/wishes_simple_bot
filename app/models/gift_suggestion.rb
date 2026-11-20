@@ -1,8 +1,7 @@
-# One request for gift ideas for a list: the request, its result, the daily
-# limit and the guard against adding the same idea twice. Only the list title
+# One request for gift ideas for a list: the request, its result, the
+# app-wide daily cap and the guard against adding the same idea twice. Only the list title
 # and gift titles are sent to the model; nothing here is logged.
 class GiftSuggestion < ApplicationRecord
-  DAILY_LIMIT = 2
   GLOBAL_DAILY_LIMIT = 300
   STATUSES = %w[pending processing ready failed].freeze
   # A request stuck this long (lost job, crash during the call) counts as failed
@@ -29,13 +28,6 @@ class GiftSuggestion < ApplicationRecord
   scope :active, -> {
     where(status: %w[pending processing]).where("COALESCE(started_at, created_at) >= ?", STALE_AFTER.ago)
   }
-  # Failures and timed-out jobs free the person's allowance for another try.
-  scope :counted_for_personal_limit, -> { personal.where(status: "ready").or(personal.active) }
-
-  def self.remaining_requests_for(user)
-    (DAILY_LIMIT - where(user_id: user.id).today.counted_for_personal_limit.count).clamp(0, DAILY_LIMIT)
-  end
-
   def self.latest_ready_for(user, wishlist)
     unexpired.where(user_id: user.id, wishlist_id: wishlist.id, status: "ready").order(id: :desc).first
   end
@@ -48,8 +40,8 @@ class GiftSuggestion < ApplicationRecord
     ENV.fetch("YANDEX_AI_DAILY_LIMIT", GLOBAL_DAILY_LIMIT).to_i
   end
 
-  # Starts a request for the owner's list unless one is running or a limit is
-  # reached. Checked and created under a lock on the user, so two quick
+  # Starts a request for the owner's list unless one is running or the app-wide
+  # cap is reached. Checked and created under a lock on the user, so two quick
   # presses can't both pass the limit.
   def self.request_for!(user, wishlist)
     return Request.new(:disabled) unless enabled?
@@ -57,9 +49,8 @@ class GiftSuggestion < ApplicationRecord
 
     user.with_lock do
       active = personal.where(user: user).active.order(:id).last
+      # No personal limit: one request at a time, under the app-wide cap
       next Request.new(:active, active) if active
-
-      next Request.new(:user_limit) if remaining_requests_for(user).zero?
 
       # The cost bound still includes every request, even failed or stale ones.
       connection.execute("SELECT pg_advisory_xact_lock(#{GLOBAL_LOCK_KEY})")
@@ -71,8 +62,8 @@ class GiftSuggestion < ApplicationRecord
     end
   end
 
-  # A single automatic onboarding request: it shares the app-wide cost cap,
-  # but neither spends nor blocks the person's allowance. Its caller persists
+  # A single automatic onboarding request: it shares the app-wide cost cap
+  # and doesn't block the person's own requests. Its caller persists
   # the request ID before calling the model; this never enqueues GiftIdeasJob.
   def self.request_system_for!(user, wishlist)
     return Request.new(:disabled) unless enabled?

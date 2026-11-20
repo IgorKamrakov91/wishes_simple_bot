@@ -26,19 +26,17 @@ class BotOnboardingIdeasTest < ActiveJob::TestCase
     @update_id = 9_760_100
   end
 
-  test "the first gift prompt shows ideas and the usual remaining quota in both locales" do
+  test "the first gift prompt shows ideas without a quota in both locales" do
     %i[ru en].each do |locale|
       I18n.with_locale(locale) do
         assert_no_difference("GiftSuggestion.count") { press("resume_input") }
         assert_includes callbacks, "gift_ideas:#{@list.id}"
         button = buttons.find { |entry| entry.callback_data == "gift_ideas:#{@list.id}" }
         assert_equal I18n.t("bot.gift_ideas.onboarding_button"), button.text
-        assert_includes text, I18n.t("bot.gift_ideas.onboarding_quota", remaining: 2, limit: 2)
       end
     end
     suggestion = ready_suggestion
     press("resume_input")
-    assert_includes text, I18n.t("bot.gift_ideas.onboarding_quota", remaining: 1, limit: 2)
     assert_includes callbacks, "show_gift_ideas:#{suggestion.id}"
   end
 
@@ -53,7 +51,6 @@ class BotOnboardingIdeasTest < ActiveJob::TestCase
     assert_equal "adding_item", @owner.bot_state
     assert_includes text, I18n.t("bot.gift_ideas.requests.active")
     assert_includes text, I18n.t("bot.messages.first_item_prompt", list: @list.title)
-    assert_includes text, I18n.t("bot.gift_ideas.onboarding_quota", remaining: 1, limit: 2)
 
     say("My own idea")
     assert_equal "My own idea", @list.items.sole.title
@@ -138,14 +135,11 @@ class BotOnboardingIdeasTest < ActiveJob::TestCase
     assert_includes callbacks, "resume_input"
   end
 
-  test "personal and global limits leave the manual route usable without jobs" do
+  test "earlier sets don't limit requests, and the global cap leaves the manual route usable" do
     2.times { ready_suggestion }
-    assert_no_enqueued_jobs only: GiftIdeasJob do
-      assert_no_difference("GiftSuggestion.count") { press("gift_ideas:#{@list.id}") }
+    assert_enqueued_jobs 1, only: GiftIdeasJob do
+      assert_difference("GiftSuggestion.count", 1) { press("gift_ideas:#{@list.id}") }
     end
-    assert_includes text, I18n.t("bot.gift_ideas.onboarding_quota", remaining: 0, limit: 2)
-    assert_includes text, @answer[:text]
-    assert callbacks.any? { |data| data&.start_with?("show_gift_ideas:") }
 
     GiftSuggestion.where(user: @owner).delete_all
     GiftSuggestion.stubs(:global_daily_limit).returns(0)
@@ -164,13 +158,12 @@ class BotOnboardingIdeasTest < ActiveJob::TestCase
       assert_no_difference("GiftSuggestion.count") { press("gift_ideas:#{@list.id}") }
     end
     refute_includes callbacks, "gift_ideas:#{@list.id}"
-    refute_includes text, I18n.t("bot.gift_ideas.onboarding_quota", remaining: 2, limit: 2)
     assert_includes text, I18n.t("bot.gift_ideas.requests.disabled")
     say("Manual gift")
     assert_equal "Manual gift", @list.items.sole.title
   end
 
-  test "failed results offer to resume manual input and restore the personal quota" do
+  test "failed results offer to resume manual input" do
     suggestion = ready_suggestion
     suggestion.fail!("no_ideas")
     press("show_gift_ideas:#{suggestion.id}")
@@ -178,7 +171,6 @@ class BotOnboardingIdeasTest < ActiveJob::TestCase
     assert_includes callbacks, "resume_input"
     assert_includes callbacks, "cancel_input"
     press("resume_input")
-    assert_includes text, I18n.t("bot.gift_ideas.onboarding_quota", remaining: 2, limit: 2)
     say("Manual gift")
     assert_equal "Manual gift", @list.items.sole.title
   end
@@ -199,7 +191,6 @@ class BotOnboardingIdeasTest < ActiveJob::TestCase
     assert_equal before, @owner.reload.bot_payload
     assert_includes text, I18n.t("bot.gift_ideas.failed.technical")
     assert_includes callbacks, "resume_input"
-    assert_equal 2, GiftSuggestion.remaining_requests_for(@owner)
   end
 
   private

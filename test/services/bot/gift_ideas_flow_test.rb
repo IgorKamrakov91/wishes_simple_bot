@@ -68,14 +68,12 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     assert_empty @sent
   end
 
-  test "daily and global limits show actionable messages without jobs" do
+  test "earlier sets don't stop a request, and the global limit shows an actionable message" do
     2.times { ready_suggestion }
-    assert_no_enqueued_jobs only: GiftIdeasJob do
+    assert_enqueued_jobs 1, only: GiftIdeasJob do
       press("gift_ideas:#{@wishlist.id}")
     end
     date = Time.current.in_time_zone(GiftSuggestion::TIME_ZONE).tomorrow.strftime("%d.%m")
-    assert_equal [ I18n.t("bot.gift_ideas.requests.user_limit", date: date),
-                   I18n.t("bot.gift_ideas.saved_hint", button: I18n.t("bot.gift_ideas.recent")) ].join(" "), @answers.last[:text]
 
     GiftSuggestion.where(user: @owner).delete_all
     GiftSuggestion.stubs(:global_daily_limit).returns(0)
@@ -225,50 +223,22 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     assert_includes last_text, "Paint &amp; paper"
   end
 
-  test "remaining quota is personal across lists excludes failures and resets at Moscow midnight" do
-    travel_to Time.utc(2026, 11, 9, 20, 59) do
-      other = @owner.wishlists.create!(title: "Other")
-      GiftSuggestion.create!(user: @guest, wishlist: @guest.wishlists.create!(title: "Guest"), status: "ready")
-      press("open_list:#{@wishlist.id}")
-      assert_equal "💡 Идеи подарков (осталось 2)", idea_button.text
-
-      GiftSuggestion.create!(user: @owner, wishlist: other, status: "failed")
-      press("open_list:#{@wishlist.id}")
-      assert_equal "💡 Идеи подарков (осталось 2)", idea_button.text
-      ready_suggestion
-      press("open_list:#{@wishlist.id}")
-      assert_equal "💡 Идеи подарков (осталось 1)", idea_button.text
-      GiftSuggestion.create!(user: @owner, wishlist: other, status: "ready")
-      press("open_list:#{@wishlist.id}")
-      assert_equal "💡 Идеи подарков (осталось 0)", idea_button.text
-      assert_no_enqueued_jobs only: GiftIdeasJob do
-        assert_no_difference("GiftSuggestion.count") { press("gift_ideas:#{@wishlist.id}") }
-      end
-      assert_includes @answers.last[:text], "10.11 в 00:00 МСК"
-      assert_includes @answers.last[:text], I18n.t("bot.gift_ideas.saved_hint", button: I18n.t("bot.gift_ideas.recent"))
-      assert_operator @answers.last[:text].length, :<=, 200
-    end
-    travel_to Time.utc(2026, 11, 9, 21, 0) do
-      press("open_list:#{@wishlist.id}")
-      assert_equal "💡 Идеи подарков (осталось 2)", idea_button.text
-    end
-  end
-
-  test "a failed request restores two remaining and can be retried in both locales" do
+  test "the ideas button has no counter and a failed request can be retried in both locales" do
     %i[ru en].each do |locale|
       I18n.with_locale(locale) do
+        press("open_list:#{@wishlist.id}")
+        assert_equal I18n.t("bot.gift_ideas.button"), idea_button.text
         assert_enqueued_jobs 1, only: GiftIdeasJob do
           press("gift_ideas:#{@wishlist.id}")
         end
         suggestion = GiftSuggestion.order(:id).last
-        press("open_list:#{@wishlist.id}")
-        assert_equal locale == :ru ? "💡 Идеи подарков (осталось 1)" : "💡 Gift ideas (1 left)", idea_button.text
-
         suggestion.fail!("no_ideas")
         press("show_gift_ideas:#{suggestion.id}")
-        assert_includes last_text, locale == :ru ? "попытка не засчитана" : "attempt wasn't counted"
-        press("open_list:#{@wishlist.id}")
-        assert_equal locale == :ru ? "💡 Идеи подарков (осталось 2)" : "💡 Gift ideas (2 left)", idea_button.text
+        assert_includes last_text, I18n.t("bot.gift_ideas.failed.no_ideas")
+        assert_enqueued_jobs 1, only: GiftIdeasJob do
+          press("gift_ideas:#{@wishlist.id}")
+        end
+        GiftSuggestion.order(:id).last.finish!([ "Lamp" ])
       end
     end
   end
@@ -278,7 +248,7 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     GiftSuggestion.stubs(:global_daily_limit).returns(0)
     I18n.with_locale(:en) do
       press("open_list:#{@wishlist.id}")
-      assert_equal "💡 Gift ideas (1 left)", idea_button.text
+      assert_equal "💡 Gift ideas", idea_button.text
       press("gift_ideas:#{@wishlist.id}")
       assert_includes @answers.last[:text], "00:00 Moscow time"
       hint = I18n.t("bot.gift_ideas.saved_hint", button: I18n.t("bot.gift_ideas.recent"))
@@ -291,7 +261,7 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     end
   end
 
-  test "retry after a committed request does not spend quota again" do
+  test "retry after a committed request does not start another request" do
     @answer_error = ProcessCrash.new
     update = callback_update("gift_ideas:#{@wishlist.id}")
     assert_raises(ProcessCrash) { dispatch(update) }
@@ -338,13 +308,12 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
     refute_includes @sent.last[:text], "Paint"
   end
 
-  test "help explains data sharing and the two daily requests in both locales" do
+  test "help explains data sharing and unlimited requests in both locales" do
     %i[ru en].each do |locale|
       I18n.with_locale(locale) do
         press("help")
         assert_includes last_text, "Yandex AI"
-        assert_includes last_text, locale == :ru ? "два подбора в сутки по Москве" : "two sets of ideas per day"
-        assert_includes last_text, locale == :ru ? "Неудачные попытки не расходуют личный лимит" : "Failed attempts don't use your personal limit"
+        assert_includes last_text, locale == :ru ? "сколько угодно, по одному подбору за раз" : "as often as you like, one set at a time"
       end
     end
   end

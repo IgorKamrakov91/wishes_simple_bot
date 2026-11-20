@@ -93,7 +93,7 @@ module Bot
       def request_notice(status, wishlist)
         text = I18n.t("bot.gift_ideas.requests.#{status}",
                       date: Time.current.in_time_zone(GiftSuggestion::TIME_ZONE).tomorrow.strftime("%d.%m"))
-        if %i[user_limit global_limit].include?(status) && GiftSuggestion.latest_ready_for(user, wishlist)
+        if status == :global_limit && GiftSuggestion.latest_ready_for(user, wishlist)
           text += " #{I18n.t('bot.gift_ideas.saved_hint', button: I18n.t('bot.gift_ideas.recent'))}"
         end
         text
