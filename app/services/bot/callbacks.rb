@@ -76,8 +76,11 @@ module Bot
 
         context = Context.new(bot: bot, user: user, source: callback)
 
-        # Pressing a button abandons any pending input, prompts start a new one
-        user.clear_state! if user.bot_state.present? && !KEEP_INPUT_CALLBACKS.match?(callback.data.to_s)
+        # Pressing a button abandons any pending input, prompts start a new one.
+        # The menu keeps a newcomer's unfinished first gift.
+        keep = KEEP_INPUT_CALLBACKS.match?(callback.data.to_s) ||
+          (callback.data == "main_menu" && InputPrompt.new(context).onboarding_draft?)
+        user.clear_state! if user.bot_state.present? && !keep
 
         route_callback(context)
         answer(bot, callback, text: context.notice)

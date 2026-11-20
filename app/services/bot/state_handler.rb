@@ -180,7 +180,7 @@ module Bot
     end
 
     def show_saved_item(item, first: false)
-      UpdateDelivery.record_result("gift_added", item.id)
+      UpdateDelivery.record_result(first ? "first_gift_added" : "gift_added", item.id)
       return context.render(*Presenters::FirstGiftPresenter.new(item, context).screen) if first
 
       details = []

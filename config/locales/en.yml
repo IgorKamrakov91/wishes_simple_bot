@@ -202,6 +202,7 @@ en:
         returned: "The gift is already back in the list."
         gift_ideas: "The idea request was already accepted. Showing its current state."
         gift_idea_added: "The idea was already added to the list."
+        first_gift_added: "The first gift is already saved."
         settings_updated: "Settings were saved."
         reminder_updated: "Reminder frequency was saved."
       field_cleared: "Removed"

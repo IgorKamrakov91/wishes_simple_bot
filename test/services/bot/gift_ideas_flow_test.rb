@@ -308,6 +308,7 @@ class BotGiftIdeasFlowTest < ActiveJob::TestCase
   end
 
   test "a committed add recovers the search buttons after a Telegram timeout" do
+    skip_onboarding!
     suggestion = ready_suggestion
     update = callback_update("add_idea:#{suggestion.id}:0")
     @edit_error = Faraday::TimeoutError.new

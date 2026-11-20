@@ -119,6 +119,34 @@ class BotOnboardingFirstGiftTest < ActiveSupport::TestCase
     refute_includes callbacks, "first_gift:#{list.id}"
   end
 
+  test "a link waiting for its name survives /start and the menu button" do
+    list = @user.wishlists.create!(title: "Хотелки")
+    press("first_gift:#{list.id}")
+    say("https://ozon.ru/t/abc")
+
+    say("/start")
+    assert_equal "adding_item_title", @user.reload.bot_state
+    assert_includes screen[:text], I18n.t("bot.commands.input_active")
+    assert_equal %w[resume_input cancel_input], callbacks.first(2)
+    refute_includes callbacks, "first_gift:#{list.id}"
+
+    press("main_menu")
+    assert_equal "adding_item_title", @user.reload.bot_state
+
+    press("resume_input")
+    say("Плед")
+    assert_equal "https://ozon.ru/t/abc", list.items.sole.url
+  end
+
+  test "other commands still end the newcomer's draft" do
+    list = @user.wishlists.create!(title: "Хотелки")
+    press("first_gift:#{list.id}")
+    say("https://ozon.ru/t/abc")
+
+    say("/my")
+    assert_nil @user.reload.bot_state
+  end
+
   test "someone else's list can't be continued" do
     other = User.create!(telegram_id: 99502, first_name: "Other").wishlists.create!(title: "Чужой")
 

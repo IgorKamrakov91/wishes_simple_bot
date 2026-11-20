@@ -29,12 +29,18 @@ module Bot
         lines = [ lines.first, lines.drop(1).join("\n") ].reject(&:blank?)
         lines << I18n.t("bot.screens.main.own_hint") if lists.zero?
 
-        # A newcomer who left before the first gift picks up where they stopped
-        empty_list = user.wishlists.where.missing(:items).order(id: :desc).first if lists.positive? && user.onboarding?
+        # A newcomer who left before the first gift picks up where they stopped:
+        # the gift being typed, or else the empty list
+        prompt = InputPrompt.new(context)
+        draft = prompt.onboarding_draft?
+        empty_list = user.wishlists.where.missing(:items).order(id: :desc).first if !draft && lists.positive? && user.onboarding?
         lines << I18n.t("bot.screens.main.first_gift_hint", list: escape_html(empty_list.title.to_s.truncate(Wishlist::TITLE_LIMIT))) if empty_list
         first_gift_row = [ context.inline_btn(I18n.t("bot.buttons.add_first_gift"), "first_gift:#{empty_list.id}", style: "primary") ] if empty_list
 
+        lines = [ prompt.with_input_note(lines.first), *lines.drop(1) ] if draft
+
         keyboard = context.build_keyboard([
+          *(draft ? prompt.resume_rows : []),
           *([ first_gift_row ] if first_gift_row),
           [
             context.inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists"),
@@ -46,7 +52,7 @@ module Bot
             context.inline_btn(I18n.t("bot.buttons.help"), "help")
           ],
           # One highlighted next step: the first gift while it is missing
-          [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", **(first_gift_row ? {} : { style: "primary" })) ]
+          [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", **(first_gift_row || draft ? {} : { style: "primary" })) ]
         ])
 
         context.render(lines.join("\n\n"), keyboard)

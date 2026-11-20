@@ -34,8 +34,9 @@ module Bot
             return
           end
 
-          if EXIT_INPUT_COMMANDS.include?(text) ||
-              START_SHARED_LIST_PATTERN.match?(text) || START_LEGACY_LIST_PATTERN.match?(text)
+          keep_draft = text == "/start" && InputPrompt.new(context).onboarding_draft?
+          if !keep_draft && (EXIT_INPUT_COMMANDS.include?(text) ||
+              START_SHARED_LIST_PATTERN.match?(text) || START_LEGACY_LIST_PATTERN.match?(text))
             user.clear_state!
           end
         end

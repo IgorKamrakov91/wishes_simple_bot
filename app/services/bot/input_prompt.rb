@@ -17,6 +17,12 @@ module Bot
       user.bot_state.present?
     end
 
+    # A newcomer's first gift already has a link or a name typed. Going back
+    # to the menu keeps it, so the first result isn't lost on the way.
+    def onboarding_draft?
+      %w[adding_item_title adding_item_url].include?(user.bot_state) && user.onboarding?
+    end
+
     def render
       text, keyboard = prompt
       context.render(text, keyboard)

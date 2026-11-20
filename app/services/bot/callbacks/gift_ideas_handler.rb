@@ -39,7 +39,7 @@ module Bot
           status, item = suggestion.add_idea!(user, index)
           if status == :added && first
             # A newcomer's first gift leads to sending the list, as when typed
-            UpdateDelivery.record_result("gift_idea_added", item.id)
+            UpdateDelivery.record_result("first_gift_added", item.id)
             context.render(*Presenters::FirstGiftPresenter.new(item, context).screen)
           elsif %i[added already].include?(status)
             UpdateDelivery.record_result("gift_idea_added", item.id)
