@@ -41,7 +41,6 @@ class OnboardingNudgeJobTest < ActiveJob::TestCase
 
     assert @nudge.reload.sent_at
     assert_equal 1, @nudge.attempts
-    assert_equal 2, GiftSuggestion.remaining_requests_for(@user)
     assert @nudge.gift_suggestion.system_generated?
     assert_includes @messages.sole[:text], "Новый год &lt;&amp;&gt;"
     assert_includes @messages.sole[:text], "Идея &lt;&amp;&gt;"
@@ -82,7 +81,6 @@ class OnboardingNudgeJobTest < ActiveJob::TestCase
     2.times { deliver }
     assert_equal @nudge.fallback, @nudge.reload.ideas
     assert_equal "failed", @nudge.gift_suggestion.status
-    assert_equal 2, GiftSuggestion.remaining_requests_for(@user)
     assert_equal 1, GiftSuggestion.today.count
   end
 

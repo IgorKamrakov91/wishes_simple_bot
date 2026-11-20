@@ -40,44 +40,24 @@ class GiftSuggestionTest < ActiveJob::TestCase
     assert_raises(ActiveRecord::RecordNotFound) { GiftSuggestion.request_for!(@guest, @wishlist) }
   end
 
-  test "two ready sets a day per person, counted in Moscow time" do
-    2.times do |index|
+  test "there is no personal limit: ready and failed sets don't stop the next request" do
+    5.times do |index|
       request = GiftSuggestion.request_for!(@owner, @wishlist)
       assert_equal :created, request.status
-      request.suggestion.finish!([ "Lamp" ])
-      assert_equal 1 - index, GiftSuggestion.remaining_requests_for(@owner)
-    end
-
-    assert_equal :user_limit, GiftSuggestion.request_for!(@owner, @wishlist).status
-
-    travel_to Time.current.in_time_zone("Europe/Moscow").tomorrow.beginning_of_day + 1.minute do
-      assert_equal 2, GiftSuggestion.remaining_requests_for(@owner)
-      assert_equal :created, GiftSuggestion.request_for!(@owner, @wishlist).status
-    end
-  end
-
-  test "failed requests restore the personal quota and permit more than two attempts" do
-    %w[timeout no_ideas disabled].each do |code|
-      request = GiftSuggestion.request_for!(@owner, @wishlist)
-      assert_equal :created, request.status
-      assert_equal 1, GiftSuggestion.remaining_requests_for(@owner)
       assert_equal :active, GiftSuggestion.request_for!(@owner, @wishlist).status
-      request.suggestion.fail!(code)
-      assert_equal 2, GiftSuggestion.remaining_requests_for(@owner)
+      index.even? ? request.suggestion.finish!([ "Lamp" ]) : request.suggestion.fail!("timeout")
     end
     assert_equal :created, GiftSuggestion.request_for!(@owner, @wishlist).status
   end
 
-  test "stale pending and processing requests do not consume the personal quota" do
+  test "stale pending and processing requests don't block a new one" do
     travel_to Time.utc(2026, 11, 9, 12) do
       ready_suggestion([ "Lamp" ]).update!(created_at: 10.minutes.ago)
       GiftSuggestion.create!(user: @owner, wishlist: @wishlist, created_at: 3.minutes.ago)
       GiftSuggestion.create!(user: @owner, wishlist: @wishlist, status: "processing",
                              created_at: 10.minutes.ago, started_at: 3.minutes.ago)
 
-      assert_equal 1, GiftSuggestion.remaining_requests_for(@owner)
       assert_equal :created, GiftSuggestion.request_for!(@owner, @wishlist).status
-      assert_equal 0, GiftSuggestion.remaining_requests_for(@owner)
       assert_equal :active, GiftSuggestion.request_for!(@owner, @wishlist).status
     end
   end
@@ -87,17 +67,14 @@ class GiftSuggestionTest < ActiveJob::TestCase
       request = GiftSuggestion.create!(user: @owner, wishlist: @wishlist, status: "processing",
                                        created_at: 10.minutes.ago, started_at: 1.minute.ago)
       GiftSuggestion.create!(user: @owner, wishlist: @wishlist, created_at: 3.minutes.ago)
-      assert_equal 1, GiftSuggestion.remaining_requests_for(@owner)
       assert_equal :active, GiftSuggestion.request_for!(@owner, @wishlist).status
 
       travel 1.minute
       refute request.stale?
-      assert_equal 1, GiftSuggestion.remaining_requests_for(@owner)
       assert_equal :active, GiftSuggestion.request_for!(@owner, @wishlist).status
 
       travel 1.second
       assert request.stale?
-      assert_equal 2, GiftSuggestion.remaining_requests_for(@owner)
       assert_equal :created, GiftSuggestion.request_for!(@owner, @wishlist).status
     end
   end
@@ -107,7 +84,6 @@ class GiftSuggestionTest < ActiveJob::TestCase
     GiftSuggestion.request_for!(@owner, @wishlist).suggestion.fail!("x")
     other = User.create!(telegram_id: 97003, first_name: "Other")
 
-    assert_equal 2, GiftSuggestion.remaining_requests_for(@owner)
     assert_equal :global_limit, GiftSuggestion.request_for!(@owner, @wishlist).status
     assert_equal :global_limit, GiftSuggestion.request_for!(other, other.wishlists.create!(title: "List")).status
   end
@@ -116,7 +92,6 @@ class GiftSuggestionTest < ActiveJob::TestCase
     set_env("YANDEX_AI_DAILY_LIMIT" => "1")
     GiftSuggestion.request_for!(@owner, @wishlist)
     travel 3.minutes do
-      assert_equal 2, GiftSuggestion.remaining_requests_for(@owner)
       assert_equal :global_limit, GiftSuggestion.request_for!(@owner, @wishlist).status
     end
   end

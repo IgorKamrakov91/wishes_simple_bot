@@ -9,8 +9,8 @@ postpones the reminder; saving a gift or opting out cancels it.
 An empty owned list gets up to three Yandex AI ideas using the empty-list prompt
 (occasion from the list title, varied categories and price levels). The request
 contains only the list title and empty gift context. Automatic requests count
-toward the shared daily application cap, but do not spend or block the user's
-personal allowance. Both generation jobs share the two-worker concurrency limit.
+toward the shared daily application cap and don't block the user's own
+requests (there is no personal limit). Both generation jobs share the two-worker concurrency limit.
 Without a list, with AI disabled, at the global cap, or after an AI failure, the
 reminder uses three fixed examples. Existing input is resumed without changes.
 
