@@ -123,9 +123,8 @@ class BotOnboardingFunnelTest < ActiveSupport::TestCase
     user = User.find_by!(telegram_id: @telegram_id)
     list = user.wishlists.create!(title: "Birthday")
     user.start_adding_item!(wishlist_id: list.id)
-    Bot::Dispatcher.dispatch(@bot, message_update("Book"))
-    draft_id = user.reload.bot_payload.fetch("draft_id")
-    update = callback_update("skip_item_url:#{draft_id}")
+    # A newcomer's first gift is saved right after its name
+    update = message_update("Book")
     assert_difference("Item.count", 1) do
       2.times { Bot::Dispatcher.dispatch(@bot, update) }
     end
