@@ -244,6 +244,9 @@ en:
       private_chat_only: "Manage lists and reserve gifts in a private chat with the bot."
       name_linked_item: "What is the gift called? Once you send a name, I'll add it with this link to “%{list}”."
     gift_ideas:
+      onboarding_button: "💡 Suggest ideas"
+      onboarding_quota: "Today's requests: %{remaining} of %{limit} left. Failed attempts don't use your personal limit."
+      manual: "✍️ Add manually"
       button: "💡 Gift ideas (%{remaining} left)"
       recent: "Open ideas"
       heading: "<b>💡 Ideas for “%{list}”</b>"

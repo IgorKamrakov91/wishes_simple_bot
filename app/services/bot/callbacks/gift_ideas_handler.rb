@@ -5,13 +5,17 @@ module Bot
     class GiftIdeasHandler < BaseHandler
       def request_ideas(wishlist_id)
         wishlist = user.wishlists.find(wishlist_id)
-        return disabled unless GiftSuggestion.enabled?
+        unless GiftSuggestion.enabled?
+          disabled
+          return render_first_input(wishlist)
+        end
 
         result = GiftSuggestion.request_for!(user, wishlist)
         if %i[created active].include?(result.status)
           UpdateDelivery.record_result("gift_ideas", result.suggestion.id)
         end
         context.notice = request_notice(result.status, wishlist)
+        render_first_input(wishlist)
       end
 
       def show_ideas(suggestion_id)
@@ -19,7 +23,8 @@ module Bot
         UpdateDelivery.record_result("gift_ideas", suggestion.id)
         presenter = Presenters::GiftIdeasPresenter.new(suggestion)
         prompt = InputPrompt.new(context)
-        rows = presenter.keyboard.inline_keyboard + prompt.resume_rows
+        rows = presenter.keyboard.inline_keyboard
+        rows += prompt.resume_rows unless user.onboarding?
         context.render(prompt.with_input_note(presenter.text), build_keyboard(rows))
       end
 
@@ -28,15 +33,19 @@ module Bot
         return disabled unless GiftSuggestion.enabled?
 
         user.with_lock do
-          # The callback keeps the draft; don't publish another gift alongside it.
-          if user.bot_state.present?
+          prompt = InputPrompt.new(context)
+          finish_input = prompt.empty_item_input?(suggestion.wishlist_id)
+          # A choice may finish only untouched input for its own list. Typed
+          # titles, URLs, edits and input for other lists must all survive.
+          if user.bot_state.present? && !finish_input
             context.notice = I18n.t("bot.gift_ideas.finish_input")
-            return InputPrompt.new(context).render
+            return prompt.render
           end
           return show_ideas(suggestion.id) if suggestion.created_at < GiftSuggestion::OPEN_FOR.ago
 
           first = user.onboarding?
           status, item = suggestion.add_idea!(user, index)
+          user.clear_state! if finish_input && %i[added already].include?(status)
           if status == :added && first
             # A newcomer's first gift leads to sending the list, as when typed
             UpdateDelivery.record_result("first_gift_added", item.id)
@@ -72,6 +81,14 @@ module Bot
       end
 
       private
+
+      def render_first_input(wishlist)
+        prompt = InputPrompt.new(context)
+        return unless user.onboarding? && prompt.empty_item_input?(wishlist.id)
+
+        text, keyboard = prompt.prompt
+        context.render([ context.notice, text ].compact.join("\n\n"), keyboard)
+      end
 
       def request_notice(status, wishlist)
         text = I18n.t("bot.gift_ideas.requests.#{status}",
