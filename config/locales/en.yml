@@ -82,6 +82,20 @@ en:
       add_price: "Add price"
       add_description: "Add description"
       open_item: "Open gift"
+    demo:
+      button: "👀 How it looks"
+      intro: "👀 Example: this is how friends see your list. Nothing is saved."
+      owner: "Anna"
+      title: "Birthday"
+      gifts:
+        - "Board game · 2 500 ₽"
+        - "Warm blanket"
+        - "Book “The Little Prince”"
+        - "Mug with a cat"
+      try: "Tap a free gift to reserve it."
+      reserved: "⭐ You reserved “%{title}”. Other guests see that it is taken, and %{owner} only sees “🔒 Reserved — we won't say by whom”. So nobody gives the same thing twice, and the surprise stays."
+      taken_notice: "Another guest has already reserved this gift"
+      create_own: "🎁 Create my list"
     list_presets:
       new_year:
         button: "🎄 New Year"

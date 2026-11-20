@@ -50,11 +50,13 @@ class BotOnboardingAndSharingTest < ActiveSupport::TestCase
     results
   end
 
-  test "a newcomer sees how it works and one button to start" do
+  test "a newcomer sees how it works, one button to start and the demo" do
     start
 
     assert_equal I18n.t("bot.screens.main.welcome", name: "Анна"), screen_text(@sent.last[:text])
-    assert_equal [ [ I18n.t("bot.buttons.create_first_list"), "new_list" ] ], buttons.map { |b| [ b.text, b.callback_data ] }
+    assert_equal [ [ I18n.t("bot.buttons.create_first_list"), "new_list" ], [ I18n.t("bot.demo.button"), "demo" ] ],
+                 buttons.map { |b| [ b.text, b.callback_data ] }
+    assert_equal [ "primary", nil ], buttons.map(&:style)
   end
 
   test "a guest without lists sees friends' lists and a hint, no zero counters" do

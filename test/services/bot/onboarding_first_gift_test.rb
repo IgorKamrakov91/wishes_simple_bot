@@ -21,7 +21,7 @@ class BotOnboardingFirstGiftTest < ActiveSupport::TestCase
   test "the welcome is short and leads to list name buttons" do
     say("/start")
     assert_includes screen[:text], "Собери список желаний"
-    assert_equal [ "new_list" ], callbacks
+    assert_equal %w[new_list demo], callbacks
 
     press("new_list")
     assert_equal "creating_list", @user.reload.bot_state
