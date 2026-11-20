@@ -27,6 +27,14 @@ module YandexAi
       Ответь только JSON: {"ideas": ["...", "..."]}
     PROMPT
 
+    EMPTY_LIST_PROMPT = (SYSTEM_PROMPT + <<~PROMPT).freeze
+
+      Этот список пока пуст: дополнять существующие подарки нечем.
+      Определи повод по названию списка (например, Новый год, день рождения или просто хотелки).
+      Предложи разнообразные, широко подходящие идеи из разных категорий и ценовых уровней под этот повод.
+      Не указывай сами цены и не предполагай личные интересы, возраст или пол владельца.
+    PROMPT
+
     RESPONSE_FORMAT = {
       type: "json_schema",
       json_schema: {
@@ -48,7 +56,7 @@ module YandexAi
       context = { list: list_title.to_s, gifts: gift_titles.last(MAX_CONTEXT_ITEMS).map(&:to_s) }
       context[:suggested] = suggested.map(&:to_s) if suggested.any?
       content = @client.chat(
-        [ { role: "system", content: SYSTEM_PROMPT }, { role: "user", content: context.to_json } ],
+        [ { role: "system", content: gift_titles.empty? ? EMPTY_LIST_PROMPT : SYSTEM_PROMPT }, { role: "user", content: context.to_json } ],
         temperature: TEMPERATURE, max_tokens: MAX_TOKENS, response_format: RESPONSE_FORMAT
       )
       ideas = clean(parse(content), gift_titles + suggested)

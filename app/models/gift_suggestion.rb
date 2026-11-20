@@ -24,12 +24,13 @@ class GiftSuggestion < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
 
   scope :today, -> { where(created_at: Time.current.in_time_zone(TIME_ZONE).beginning_of_day..) }
+  scope :personal, -> { where(system_generated: false) }
   scope :unexpired, -> { where(created_at: OPEN_FOR.ago..) }
   scope :active, -> {
     where(status: %w[pending processing]).where("COALESCE(started_at, created_at) >= ?", STALE_AFTER.ago)
   }
   # Failures and timed-out jobs free the person's allowance for another try.
-  scope :counted_for_personal_limit, -> { where(status: "ready").or(active) }
+  scope :counted_for_personal_limit, -> { personal.where(status: "ready").or(personal.active) }
 
   def self.remaining_requests_for(user)
     (DAILY_LIMIT - where(user_id: user.id).today.counted_for_personal_limit.count).clamp(0, DAILY_LIMIT)
@@ -55,7 +56,7 @@ class GiftSuggestion < ApplicationRecord
     raise ActiveRecord::RecordNotFound unless wishlist.user_id == user.id
 
     user.with_lock do
-      active = where(user: user).active.order(:id).last
+      active = personal.where(user: user).active.order(:id).last
       next Request.new(:active, active) if active
 
       next Request.new(:user_limit) if remaining_requests_for(user).zero?
@@ -67,6 +68,21 @@ class GiftSuggestion < ApplicationRecord
       suggestion = create!(user: user, wishlist: wishlist, locale: I18n.locale.to_s)
       ActiveRecord.after_all_transactions_commit { GiftIdeasJob.perform_later(suggestion.id) }
       Request.new(:created, suggestion)
+    end
+  end
+
+  # A single automatic onboarding request: it shares the app-wide cost cap,
+  # but neither spends nor blocks the person's allowance. Its caller persists
+  # the request ID before calling the model; this never enqueues GiftIdeasJob.
+  def self.request_system_for!(user, wishlist)
+    return Request.new(:disabled) unless enabled?
+    raise ActiveRecord::RecordNotFound unless wishlist.user_id == user.id
+
+    user.with_lock do
+      connection.execute("SELECT pg_advisory_xact_lock(#{GLOBAL_LOCK_KEY})")
+      next Request.new(:global_limit) if today.count >= global_daily_limit
+
+      Request.new(:created, create!(user: user, wishlist: wishlist, locale: I18n.locale.to_s, system_generated: true))
     end
   end
 

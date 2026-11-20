@@ -129,10 +129,12 @@ en:
           You do not receive notifications about your own actions. Reservation notifications do not name the person who changed the reservation.
 
           Friends' birthdays — a reminder about 30 days ahead, if Telegram provides the profile's birthdate. Dates are checked daily.
+          We remind you about the first gift only once, if you have not added it and have been away for 24 hours. Sent from noon to 6 pm Moscow time.
           Tap a button to change its setting.
         notify_own_reservations: "My lists: %{state}"
         notify_friend_reservations: "Friends' lists: %{state}"
         notify_birthdays: "Friends' birthdays: %{state}"
+        notify_onboarding: "One reminder about the first gift: %{state}"
         "on": "enabled"
         "off": "disabled"
         turned_on: "Notifications %{list_scope} enabled"
@@ -141,6 +143,7 @@ en:
           notify_own_reservations: "for my lists"
           notify_friend_reservations: "for friends' lists"
           notify_birthdays: "for friends' birthdays"
+          notify_onboarding: "about the first gift"
       main:
         welcome: "<b>Hi, %{name}!</b>\nMake a wish list and send it to friends — they pick gifts and nobody gives the same thing twice. It takes a minute."
         greeting: "<b>Hi, %{name}!</b> 👋\nYour gift lists and your friends' lists are here."
@@ -291,6 +294,15 @@ en:
       add_results:
         gone: "The gift from this idea was deleted. You can add it again manually."
         unavailable: "This idea is no longer available."
+    onboarding_nudge:
+      empty_list: "Your list “%{list}” is still empty. Add the first gift? Here are a few ideas:"
+      no_list: "Shall we make your wish list? Start with one gift, for example:"
+      continue: "🎁 Continue"
+      dismiss: "Don't remind me"
+      examples:
+        - "Board game"
+        - "Reading lamp"
+        - "Insulated mug"
     reminders:
       birthdays:
         text: "Birthday coming up: %{name} — %{date}.\nChoose a gift from the lists you have access to.\n\nYou can turn birthday reminders off in settings."
