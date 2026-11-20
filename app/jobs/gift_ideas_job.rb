@@ -10,7 +10,7 @@ class GiftIdeasJob < ApplicationJob
   # Requests from different people run in parallel, but at most two at a
   # time: the three shared worker threads always keep one for notifications
   # and reminders. The rest wait in the queue for a few seconds.
-  limits_concurrency to: 2, key: "gift_ideas", duration: 2.minutes
+  limits_concurrency to: 2, key: "gift_ideas", group: "gift_ideas", duration: 2.minutes
 
   def perform(suggestion_id)
     suggestion = GiftSuggestion.find_by(id: suggestion_id)

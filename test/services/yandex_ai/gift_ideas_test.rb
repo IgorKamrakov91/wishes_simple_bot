@@ -40,6 +40,16 @@ class YandexAiGiftIdeasTest < ActiveSupport::TestCase
     YandexAi::GiftIdeas.new(client: @client).call("List", titles)
   end
 
+  test "an empty list uses the occasion prompt without sending profile data" do
+    @client.expects(:chat).with do |messages, **|
+      messages.first[:content] == YandexAi::GiftIdeas::EMPTY_LIST_PROMPT &&
+        JSON.parse(messages.last[:content]) == { "list" => "Новый год", "gifts" => [] }
+    end.returns('{"ideas":["Настольная игра"]}')
+
+    assert_equal [ "Настольная игра" ], YandexAi::GiftIdeas.new(client: @client).call("Новый год", [])
+    assert_includes YandexAi::GiftIdeas::EMPTY_LIST_PROMPT, "разных категорий и ценовых уровней"
+  end
+
   test "accepts JSON inside a code fence" do
     @client.stubs(:chat).returns("```json\n{\"ideas\": [\"Лампа\"]}\n```")
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_20_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_20_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -48,6 +48,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_120000) do
     t.datetime "started_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "system_generated", default: false, null: false
     t.index ["created_at"], name: "index_gift_suggestions_on_created_at"
     t.index ["user_id", "created_at"], name: "index_gift_suggestions_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_gift_suggestions_on_user_id"
@@ -78,6 +79,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_120000) do
     t.index ["user_id"], name: "index_list_viewers_on_user_id"
     t.index ["wishlist_id", "user_id"], name: "index_list_viewers_on_wishlist_id_and_user_id", unique: true
     t.index ["wishlist_id"], name: "index_list_viewers_on_wishlist_id"
+  end
+
+  create_table "onboarding_nudges", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "wishlist_id"
+    t.bigint "gift_suggestion_id"
+    t.string "locale", null: false
+    t.json "ideas", default: [], null: false
+    t.datetime "preparing_at"
+    t.datetime "prepared_at"
+    t.datetime "claimed_at"
+    t.datetime "retry_at"
+    t.datetime "sent_at"
+    t.integer "attempts", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["gift_suggestion_id"], name: "index_onboarding_nudges_on_gift_suggestion_id"
+    t.index ["user_id"], name: "index_onboarding_nudges_on_user_id", unique: true
+    t.index ["wishlist_id"], name: "index_onboarding_nudges_on_wishlist_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -111,6 +131,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_120000) do
     t.datetime "first_item_at"
     t.datetime "first_share_query_at"
     t.datetime "first_shared_list_open_at"
+    t.boolean "notify_onboarding", default: true, null: false
     t.index ["reservation_reminder_next_at"], name: "index_users_on_reservation_reminder_next_at"
     t.index ["telegram_id"], name: "index_users_on_telegram_id", unique: true
     t.check_constraint "reservation_reminder_days = ANY (ARRAY[0, 7, 14, 30])", name: "users_reservation_reminder_days"
@@ -133,5 +154,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_120000) do
   add_foreign_key "items", "wishlists"
   add_foreign_key "list_viewers", "users"
   add_foreign_key "list_viewers", "wishlists"
+  add_foreign_key "onboarding_nudges", "gift_suggestions", on_delete: :nullify
+  add_foreign_key "onboarding_nudges", "users", on_delete: :cascade
+  add_foreign_key "onboarding_nudges", "wishlists", on_delete: :nullify
   add_foreign_key "wishlists", "users"
 end
