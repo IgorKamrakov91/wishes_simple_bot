@@ -17,6 +17,16 @@ module Bot
         index / PER_PAGE
       end
 
+      # Opens the chat picker; the chosen chat gets the list card from Inline
+      def self.send_to_friend_button(context, wishlist)
+        context.inline_btn(I18n.t("bot.buttons.send_to_friend"), nil,
+                           switch_inline_query_chosen_chat: {
+                             query: Inline.share_query(wishlist),
+                             allow_user_chats: true,
+                             allow_group_chats: true
+                           })
+      end
+
       def initialize(wishlist, user, context, page: 0)
         super(wishlist, user, context)
         @page = page.clamp(0, total_pages - 1)
@@ -58,14 +68,8 @@ module Bot
 
       private
 
-      # Opens the chat picker; the chosen chat gets the list card from Inline
       def send_to_friend_button
-        context.inline_btn(t("bot.buttons.send_to_friend"), nil,
-                           switch_inline_query_chosen_chat: {
-                             query: Inline.share_query(wishlist),
-                             allow_user_chats: true,
-                             allow_group_chats: true
-                           })
+        self.class.send_to_friend_button(context, wishlist)
       end
 
       def header

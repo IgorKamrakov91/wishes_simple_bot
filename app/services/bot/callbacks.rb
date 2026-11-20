@@ -20,6 +20,7 @@ module Bot
       /^show_shared_lists$/ => "Callbacks::WishlistHandler#show_shared_lists",
       /^show_shared_lists:(\d+)$/ => "Callbacks::WishlistHandler#show_shared_lists",
       /^new_list$/ => "Callbacks::WishlistHandler#create_list_prompt",
+      /^quick_list:(new_year|birthday|wishes)$/ => "Callbacks::WishlistHandler#create_quick_list",
       /^list_settings:(\d+)$/ => "Callbacks::WishlistHandler#list_settings",
       /^rename_list:(\d+)$/ => "Callbacks::WishlistHandler#rename_list_prompt",
       /^confirm_delete_list:(\d+)$/ => "Callbacks::WishlistHandler#confirm_delete_list",
@@ -33,6 +34,7 @@ module Bot
 
       /^open_item:(\d+)$/ => "Callbacks::ItemHandler#show_item",
       /^add_item:(\d+)$/ => "Callbacks::ItemHandler#add_item_prompt",
+      /^first_gift:(\d+)$/ => "Callbacks::ItemHandler#first_gift_prompt",
       /^edit_item:(\d+)$/ => "Callbacks::ItemHandler#edit_item_menu",
       /^edit_item_field:(.+):(\d+)$/ => "Callbacks::ItemHandler#edit_item_field_prompt",
       /^reserve_item:(\d+):(\d+)$/ => "Callbacks::ItemHandler#reserve_item",
@@ -53,7 +55,7 @@ module Bot
 
     # Buttons that finish the pending input, do nothing, or only look
     # something up (help, settings), so they keep it
-    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|noop|help|settings|set_setting:\w+:[01]|reservation_reminders|set_reminder_days:(0|7|14|30)|resume_input|cancel_input|gift_ideas:\d+|show_gift_ideas:\d+|add_idea:\d+:\d+)\z/
+    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|quick_list:\w+|noop|help|settings|set_setting:\w+:[01]|reservation_reminders|set_reminder_days:(0|7|14|30)|resume_input|cancel_input|gift_ideas:\d+|show_gift_ideas:\d+|add_idea:\d+:\d+)\z/
 
     class << self
       def handle(bot, callback)
@@ -74,8 +76,11 @@ module Bot
 
         context = Context.new(bot: bot, user: user, source: callback)
 
-        # Pressing a button abandons any pending input, prompts start a new one
-        user.clear_state! if user.bot_state.present? && !KEEP_INPUT_CALLBACKS.match?(callback.data.to_s)
+        # Pressing a button abandons any pending input, prompts start a new one.
+        # The menu keeps a newcomer's unfinished first gift.
+        keep = KEEP_INPUT_CALLBACKS.match?(callback.data.to_s) ||
+          (callback.data == "main_menu" && InputPrompt.new(context).onboarding_draft?)
+        user.clear_state! if user.bot_state.present? && !keep
 
         route_callback(context)
         answer(bot, callback, text: context.notice)

@@ -6,6 +6,7 @@ Telegram::Bot::Types::Update
 
 class BotInputFlowContextTest < ActiveSupport::TestCase
   setup do
+    skip_onboarding!
     @user = User.create!(telegram_id: 99401, first_name: "Input")
     @wishlist = @user.wishlists.create!(title: "Birthday <&>")
     @api = mock("TelegramApi")
@@ -77,7 +78,7 @@ class BotInputFlowContextTest < ActiveSupport::TestCase
 
     assert_equal "adding_item", @user.reload.bot_state
     assert_includes screen[:text], "Travel &lt;&amp;&gt;"
-    assert_includes screen[:text], "первого подарка"
+    assert_includes screen[:text], "Напиши, что хочешь получить"
     assert_equal [ "open_list:#{list.id}" ], callbacks
     assert_equal "Позже", buttons.first.text
     assert_empty list.items

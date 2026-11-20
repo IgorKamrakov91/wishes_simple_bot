@@ -51,6 +51,8 @@ en:
       share: "🔗 Link"
       add_item: "+ Add Gift"
       add_more: "Add Another"
+      add_link: "🔗 Add a link"
+      add_first_gift: "🎁 Add the first gift"
       list_settings: "⚙️ List settings"
       rename_list: "Rename"
       delete_list: "Delete List"
@@ -80,6 +82,16 @@ en:
       add_price: "Add price"
       add_description: "Add description"
       open_item: "Open gift"
+    list_presets:
+      new_year:
+        button: "🎄 New Year"
+        title: "New Year"
+      birthday:
+        button: "🎂 Birthday"
+        title: "Birthday"
+      wishes:
+        button: "✨ Just wishes"
+        title: "Wishes"
     fields:
       title: "Title"
       description: "Description"
@@ -116,13 +128,14 @@ en:
           notify_friend_reservations: "for friends' lists"
           notify_birthdays: "for friends' birthdays"
       main:
-        welcome: "<b>Hi, %{name}!</b>\nI help you make a gift list and share it with friends.\n\n1. Create a list and add gifts to it.\n2. Send the list to your friends.\n3. Friends reserve gifts so nobody gives the same thing twice."
+        welcome: "<b>Hi, %{name}!</b>\nMake a wish list and send it to friends — they pick gifts and nobody gives the same thing twice. It takes a minute."
         greeting: "<b>Hi, %{name}!</b> 👋\nYour gift lists and your friends' lists are here."
         own: "🎁 My lists: <b>%{lists}</b> · gifts: <b>%{items}</b>"
         shared: "👥 Friends' lists: <b>%{shared}</b>"
         reservations: "📌 My reservations: <b>%{number}</b>"
         reservations_unbought: "📌 My reservations: <b>%{number}</b> · not bought: <b>%{unbought}</b>"
         own_hint: "Create your own list so friends know what to give you."
+        first_gift_hint: "Your list “%{list}” is still empty. Add the first gift and the list is ready to send to friends."
       my_lists:
         empty: "No lists yet. Create your first one!"
         no_items: "No gifts yet"
@@ -189,17 +202,19 @@ en:
         returned: "The gift is already back in the list."
         gift_ideas: "The idea request was already accepted. Showing its current state."
         gift_idea_added: "The idea was already added to the list."
+        first_gift_added: "The first gift is already saved."
         settings_updated: "Settings were saved."
         reminder_updated: "Reminder frequency was saved."
       field_cleared: "Removed"
       current_value: "Now"
-      enter_list_name: "Enter list name:"
+      enter_list_name: "What is the list for? Pick an occasion or type your own name:"
       enter_new_list_name: "Enter new list name:"
       list_deleted: "List deleted"
       enter_item_name: "Send the gift name or a link to it:"
       list_context: "List “%{list}”."
       item_context: "Gift “%{title}” in “%{list}”."
-      first_item_prompt: "List “%{list}” created.\nSend the first gift name or a link to it. You can add it later."
+      first_item_prompt: "List “%{list}” is ready!\nWrite what you would like to get, for example “Board game” or “Warm blanket”. You can also send a link to the product."
+      first_gift_saved: "🎉 “%{title}” is the first gift in “%{list}”!\n\nSend the list to a friend: they can reserve a gift, and you only see that it is taken, not by whom. Add 2–3 more gifts so friends have a choice."
       add_item_later: "Later"
       clear_fields:
         price: "price"

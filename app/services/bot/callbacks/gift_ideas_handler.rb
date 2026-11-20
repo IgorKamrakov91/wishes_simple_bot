@@ -35,8 +35,13 @@ module Bot
           end
           return show_ideas(suggestion.id) if suggestion.created_at < GiftSuggestion::OPEN_FOR.ago
 
+          first = user.onboarding?
           status, item = suggestion.add_idea!(user, index)
-          if %i[added already].include?(status)
+          if status == :added && first
+            # A newcomer's first gift leads to sending the list, as when typed
+            UpdateDelivery.record_result("first_gift_added", item.id)
+            context.render(*Presenters::FirstGiftPresenter.new(item, context).screen)
+          elsif %i[added already].include?(status)
             UpdateDelivery.record_result("gift_idea_added", item.id)
             show_added_item(item.id, already: status == :already, suggestion_id: suggestion.id)
           else

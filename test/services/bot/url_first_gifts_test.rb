@@ -6,6 +6,7 @@ Telegram::Bot::Types::Update
 
 class BotUrlFirstGiftsTest < ActiveSupport::TestCase
   setup do
+    skip_onboarding!
     @user = User.create!(telegram_id: 96001, first_name: "Owner")
     @wishlist = @user.wishlists.create!(title: "Birthday <&>")
     @api = mock("TelegramApi")

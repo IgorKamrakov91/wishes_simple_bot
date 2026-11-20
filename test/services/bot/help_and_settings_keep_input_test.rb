@@ -9,6 +9,7 @@ Telegram::Bot::Types::Update
 # user can carry on or cancel from there
 class BotHelpAndSettingsKeepInputTest < ActiveSupport::TestCase
   setup do
+    skip_onboarding!
     @api = mock("TelegramApi")
     @answers = []
     @api.stubs(:answer_callback_query).with { |params| @answers << params; true }
