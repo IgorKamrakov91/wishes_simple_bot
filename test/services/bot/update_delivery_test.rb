@@ -37,7 +37,8 @@ class BotUpdateDeliveryTest < ActiveJob::TestCase
   end
 
   setup do
-    @owner = User.create!(telegram_id: 99501, first_name: "Owner")
+    # Regular saves here; a newcomer's first gift has its own test below
+    @owner = User.create!(telegram_id: 99501, first_name: "Owner", onboarding_eligible: false)
     @guest = User.create!(telegram_id: 99502, first_name: "Guest")
     @wishlist = @owner.wishlists.create!(title: "Private birthday")
     @wishlist.admit!(@guest)
@@ -308,6 +309,25 @@ class BotUpdateDeliveryTest < ActiveJob::TestCase
       assert_equal version, item.reload.reservation_version
       assert_equal jobs, notification_count
     end
+  end
+
+  test "a newcomer's first gift recovers the send-to-friend screen after a timeout" do
+    @owner.update_columns(onboarding_eligible: true, first_item_at: nil)
+    @owner.update!(bot_state: "adding_item", bot_payload: { "wishlist_id" => @wishlist.id, "first_item" => true })
+    update = message_update("First puzzle")
+    @api.failure = Faraday::TimeoutError.new("PRIVATE_TIMEOUT_TEXT")
+
+    dispatch(update)
+    assert_equal 1, @wishlist.items.count
+    assert_equal "first_gift_added", BotUpdateReceipt.find(update.update_id).result_kind
+
+    dispatch(update)
+
+    assert_equal 1, @wishlist.items.count
+    assert_includes last_text, I18n.t("bot.messages.update_results.first_gift_added")
+    assert_includes last_text, "First puzzle"
+    share = last_params[:reply_markup].inline_keyboard.first.first
+    assert_equal Bot::Inline.share_query(@wishlist), share.switch_inline_query_chosen_chat.query
   end
 
   test "a repeated thanks after a crash or timeout restores the owner's card and sends one thanks" do

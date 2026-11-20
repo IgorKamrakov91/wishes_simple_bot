@@ -13,6 +13,13 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
+    # For tests of the regular gift flow (name, then the optional link step):
+    # their users count as past onboarding, which saves the first gift
+    # right after its name.
+    def skip_onboarding!
+      User.any_instance.stubs(:onboarding?).returns(false)
+    end
+
     # Screen text as written, without the blank line that widens screens
     def screen_text(text)
       text.to_s.delete_suffix("\n#{Bot::Context::SCREEN_WIDTH_LINE}")

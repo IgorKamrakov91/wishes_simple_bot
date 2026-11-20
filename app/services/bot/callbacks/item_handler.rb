@@ -11,6 +11,13 @@ module Bot
         context.render(presenter.text, presenter.keyboard, link_preview_options: presenter.link_preview_options)
       end
 
+      # "Add the first gift" from the menu for a newcomer's empty list
+      def first_gift_prompt(wishlist_id)
+        wishlist = user.wishlists.find(wishlist_id)
+        user.update!(bot_state: "adding_item", bot_payload: { "wishlist_id" => wishlist.id, "first_item" => true })
+        InputPrompt.new(context).render
+      end
+
       def add_item_prompt(wishlist_id)
         user.wishlists.find(wishlist_id)
         user.start_adding_item!(wishlist_id: wishlist_id)

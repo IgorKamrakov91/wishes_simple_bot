@@ -13,7 +13,8 @@ module Bot
         # A newcomer gets how it works and one next step instead of zero counters
         if lists.zero? && shared.zero?
           keyboard = context.build_keyboard([
-            [ context.inline_btn(I18n.t("bot.buttons.create_first_list"), "new_list", style: "primary") ]
+            [ context.inline_btn(I18n.t("bot.buttons.create_first_list"), "new_list", style: "primary") ],
+            [ context.inline_btn(I18n.t("bot.demo.button"), "demo") ]
           ])
           return context.render(I18n.t("bot.screens.main.welcome", name: name), keyboard)
         end
@@ -29,7 +30,19 @@ module Bot
         lines = [ lines.first, lines.drop(1).join("\n") ].reject(&:blank?)
         lines << I18n.t("bot.screens.main.own_hint") if lists.zero?
 
+        # A newcomer who left before the first gift picks up where they stopped:
+        # the gift being typed, or else the empty list
+        prompt = InputPrompt.new(context)
+        draft = prompt.onboarding_draft?
+        empty_list = user.wishlists.where.missing(:items).order(id: :desc).first if !draft && lists.positive? && user.onboarding?
+        lines << I18n.t("bot.screens.main.first_gift_hint", list: escape_html(empty_list.title.to_s.truncate(Wishlist::TITLE_LIMIT))) if empty_list
+        first_gift_row = [ context.inline_btn(I18n.t("bot.buttons.add_first_gift"), "first_gift:#{empty_list.id}", style: "primary") ] if empty_list
+
+        lines = [ prompt.with_input_note(lines.first), *lines.drop(1) ] if draft
+
         keyboard = context.build_keyboard([
+          *(draft ? prompt.resume_rows : []),
+          *([ first_gift_row ] if first_gift_row),
           [
             context.inline_btn(I18n.t("bot.buttons.my_lists"), "show_lists"),
             context.inline_btn(I18n.t("bot.buttons.shared_lists"), "show_shared_lists")
@@ -39,7 +52,8 @@ module Bot
             context.inline_btn(I18n.t("bot.buttons.settings"), "settings"),
             context.inline_btn(I18n.t("bot.buttons.help"), "help")
           ],
-          [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", style: "primary") ]
+          # One highlighted next step: the first gift while it is missing
+          [ context.inline_btn(I18n.t("bot.buttons.create_list"), "new_list", **(first_gift_row || draft ? {} : { style: "primary" })) ]
         ])
 
         context.render(lines.join("\n\n"), keyboard)
@@ -53,6 +67,18 @@ module Bot
       def show_shared_lists(page = 0)
         presenter = Presenters::ListCollectionPresenter.new(user, context, shared: true, page: page)
         context.render(presenter.text, presenter.keyboard)
+      end
+
+      # A ready name from the buttons. Only while the list name is awaited, so
+      # a repeated or late press can't make a second list.
+      def create_quick_list(key)
+        return unless ListPresets::KEYS.include?(key)
+
+        created = StateHandler.new(context).create_list_named(ListPresets.title(key))
+        return if created
+
+        context.notice = I18n.t("bot.messages.button_outdated")
+        InputPrompt.new(context).active? ? InputPrompt.new(context).render : main_menu
       end
 
       def create_list_prompt

@@ -44,6 +44,11 @@ module Bot
       handling_input_errors { save_item(nil) }
     end
 
+    # A list name picked from the buttons instead of typed
+    def create_list_named(title)
+      handling_input_errors { create_list(title) }
+    end
+
     private
 
     def handling_input_errors
@@ -57,12 +62,12 @@ module Bot
 
     # Like gifts: the state is rechecked under a lock on the user, so two
     # deliveries of the same answer can't create two lists
-    def create_list
+    def create_list(title = text)
       wishlist = nil
       user.with_lock do
         next unless user.bot_state == "creating_list" && !replayed_list_name?
 
-        wishlist = user.wishlists.create!(title: text)
+        wishlist = user.wishlists.create!(title: title)
         attributes = { bot_state: "adding_item", bot_payload: { "wishlist_id" => wishlist.id, "first_item" => true } }
         attributes[:last_list_creation_message_id] = source_message_id if source_message_id
         user.update!(attributes)
@@ -71,6 +76,7 @@ module Bot
         UpdateDelivery.record_result("list_created", wishlist.id)
         InputPrompt.new(context).render
       end
+      wishlist
     end
 
     def rename_list
@@ -89,17 +95,21 @@ module Bot
     end
 
     # The gift stays a draft until its name and optional link are settled.
-    # Cancelling on the way publishes nothing.
+    # Cancelling on the way publishes nothing. A newcomer's first gift is
+    # saved right after its name: the link is offered afterwards, so the
+    # first result comes without one more question.
     def create_item
       prompt = nil
       item = nil
+      first = false
       user.with_lock do
         next unless %w[adding_item adding_item_title].include?(user.bot_state) && !replayed_list_name?
 
         wishlist = user.wishlists.find(user.bot_payload["wishlist_id"])
+        first = user.onboarding?
         if link_input?(text)
           prompt = draft_with_url(wishlist, item_field_value("url", text))
-        elsif user.bot_state == "adding_item_title"
+        elsif user.bot_state == "adding_item_title" || first
           item = wishlist.items.create!(title: text, url: user.bot_payload["url"])
           user.clear_state!
         else
@@ -108,7 +118,7 @@ module Bot
       end
 
       context.render(*prompt) if prompt
-      show_saved_item(item) if item
+      show_saved_item(item, first: first) if item
     end
 
     def draft_with_url(wishlist, url)
@@ -135,11 +145,13 @@ module Bot
     # the user, so two quick answers can't save the draft twice
     def save_item(url)
       item = nil
+      first = false
 
       user.with_lock do
         payload = user.bot_payload
         next unless user.bot_state == "adding_item_url" && payload && !replayed_list_name?
 
+        first = user.onboarding?
         item =
           if payload.key?("item_id")
             # Started before drafts: the gift is already saved
@@ -153,7 +165,7 @@ module Bot
 
         user.clear_state!
       end
-      show_saved_item(item) if item
+      show_saved_item(item, first: first) if item
     end
 
     def link_input?(value)
@@ -167,8 +179,10 @@ module Bot
       value.match?(%r{\A[a-z][a-z0-9+.-]*://}i) || (BARE_LINK.match?(value) && value.match?(/[\/?#]/))
     end
 
-    def show_saved_item(item)
-      UpdateDelivery.record_result("gift_added", item.id)
+    def show_saved_item(item, first: false)
+      UpdateDelivery.record_result(first ? "first_gift_added" : "gift_added", item.id)
+      return context.render(*Presenters::FirstGiftPresenter.new(item, context).screen) if first
+
       details = []
       details << inline_btn(I18n.t("bot.buttons.add_price"), "edit_item_field:price:#{item.id}") unless item.price
       details << inline_btn(I18n.t("bot.buttons.add_description"), "edit_item_field:description:#{item.id}") if item.description.blank?

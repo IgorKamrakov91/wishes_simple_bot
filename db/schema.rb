@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_08_210000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_20_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -102,6 +102,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_08_210000) do
     t.datetime "birthdate_checked_at"
     t.datetime "birthdate_synced_at"
     t.bigint "last_list_creation_message_id"
+    t.boolean "onboarding_eligible", default: true, null: false
+    t.datetime "first_contact_at"
+    t.string "first_contact_kind"
+    t.string "acquisition_source"
+    t.datetime "first_private_start_at"
+    t.datetime "first_list_at"
+    t.datetime "first_item_at"
+    t.datetime "first_share_query_at"
+    t.datetime "first_shared_list_open_at"
     t.index ["reservation_reminder_next_at"], name: "index_users_on_reservation_reminder_next_at"
     t.index ["telegram_id"], name: "index_users_on_telegram_id", unique: true
     t.check_constraint "reservation_reminder_days = ANY (ARRAY[0, 7, 14, 30])", name: "users_reservation_reminder_days"
