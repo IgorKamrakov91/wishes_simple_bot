@@ -54,7 +54,8 @@ module Bot
         return bot_link if payload.length > 64
 
         start = "/start #{payload}"
-        return bot_link unless Commands::START_SHARED_LIST_PATTERN.match?(start) || Commands::START_LEGACY_LIST_PATTERN.match?(start)
+        return bot_link unless Commands::START_SHARED_LIST_PATTERN.match?(start) ||
+          Commands::START_LEGACY_LIST_PATTERN.match?(start) || Commands::START_SOURCE_PATTERN.match?(start)
 
         "#{bot_link}?start=#{payload}"
       end

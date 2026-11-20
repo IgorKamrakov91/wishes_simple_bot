@@ -3,6 +3,7 @@ module Bot
     START_SHARED_LIST_PATTERN = %r{\A/start l_([A-Za-z0-9]+)\z}
     # Links from before share tokens: they no longer let anyone in
     START_LEGACY_LIST_PATTERN = %r{\A/start list_(\d+)\z}
+    START_SOURCE_PATTERN = %r{\A/start src_([A-Za-z0-9_-]{1,60})\z}
 
     # Only intentional navigation abandons input. Help, settings and command
     # typos keep the draft so the next answer can still finish it.
@@ -15,6 +16,16 @@ module Bot
         user = User.find_or_create_from_telegram(message.from.to_h.symbolize_keys)
         context = Context.new(bot: bot, user: user, source: message)
         text = command_text(context.text)
+        source = START_SOURCE_PATTERN.match(text)&.captures&.first
+        kind = if source then "campaign_start"
+        elsif START_SHARED_LIST_PATTERN.match?(text) || START_LEGACY_LIST_PATTERN.match?(text) then "share_link"
+        elsif text == "/start" then "start"
+        else "message"
+        end
+        user.record_contact!(kind: kind, source: source, private_start: kind != "message")
+        # A tagged start uses exactly the same navigation/input policy as a
+        # plain start; its argument must never become a list or gift title.
+        text = "/start" if source
 
         had_input = user.bot_state.present?
         if had_input
@@ -138,12 +149,18 @@ module Bot
         end
 
         wishlist.admit!(context.user)
+        if wishlist.user_id != context.user.id
+          context.user.record_first_funnel_event!(:first_shared_list_open_at)
+        end
         Callbacks::WishlistHandler.new(context).open_list(wishlist.id)
       end
 
       # Old id links still work for people who already have access
       def handle_legacy_link(context, wishlist_id)
         if Wishlist.accessible_to(context.user).exists?(wishlist_id)
+          if context.user.wishlists.where(id: wishlist_id).none?
+            context.user.record_first_funnel_event!(:first_shared_list_open_at)
+          end
           Callbacks::WishlistHandler.new(context).open_list(wishlist_id)
         else
           reply_with_unavailable_invitation(context)

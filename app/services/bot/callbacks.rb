@@ -58,6 +58,7 @@ module Bot
     class << self
       def handle(bot, callback)
         user = User.find_or_create_from_telegram(callback.from.to_h.symbolize_keys)
+        user.record_contact!(kind: "callback")
 
         # Buttons in inline messages sent before share tokens carry a list id.
         # Callback data comes from the client and proves nothing, so the id

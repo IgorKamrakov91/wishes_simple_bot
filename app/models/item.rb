@@ -7,6 +7,7 @@ class Item < ApplicationRecord
   PRICE_LIMIT = 100_000_000
 
   belongs_to :wishlist
+  after_create :record_first_item
 
   scope :accessible_to, ->(user) { where(wishlist_id: Wishlist.accessible_to(user).select(:id)) }
 
@@ -106,6 +107,10 @@ class Item < ApplicationRecord
   end
 
   private
+
+  def record_first_item
+    wishlist.user.record_first_funnel_event!(:first_item_at, at: created_at)
+  end
 
   def change_reservation(previous_reserver, next_reserver, expected_version)
     changed = self.class.where(id: id, reserved_by: previous_reserver, reservation_version: expected_version)
