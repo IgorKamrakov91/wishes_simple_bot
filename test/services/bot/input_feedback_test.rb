@@ -173,6 +173,59 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
     assert_equal "creating_list", @user.reload.bot_state
   end
 
+  test "a photo caption can name a gift and finish the usual link step" do
+    @user.start_adding_item!(wishlist_id: @wishlist.id)
+
+    assert_no_difference "Item.count" do
+      say(caption: "  New puzzle  ", photo: [ { file_id: "f", file_unique_id: "u", width: 1, height: 1 } ])
+    end
+    assert_equal "adding_item_url", @user.reload.bot_state
+    assert_equal "New puzzle", @user.bot_payload["title"]
+
+    assert_difference "Item.count", 1 do
+      say("https://example.com/puzzle")
+    end
+    gift = @wishlist.items.order(:id).last
+    assert_equal "New puzzle", gift.title
+    assert_equal "https://example.com/puzzle", gift.url
+    assert_nil @user.reload.bot_state
+  end
+
+  test "a document caption can update a gift link" do
+    edit("url")
+    say(caption: "  example.com/gift  ", document: { file_id: "f", file_unique_id: "u" })
+
+    assert_equal "https://example.com/gift", @item.reload.url
+    assert_nil @user.reload.bot_state
+  end
+
+  test "an invalid photo caption keeps the input open without changing the gift" do
+    edit("price")
+    say(caption: "not a price", photo: [ { file_id: "f", file_unique_id: "u", width: 1, height: 1 } ])
+
+    assert_equal I18n.t("bot.input_errors.price.not_a_number"), last_text
+    assert_equal 10, @item.reload.price
+    assert_equal "editing_item", @user.reload.bot_state
+  end
+
+  test "a blank media caption still asks for text" do
+    @user.start_creating_list!
+    say(caption: "  ", photo: [ { file_id: "f", file_unique_id: "u", width: 1, height: 1 } ])
+
+    assert_equal I18n.t("bot.input_errors.text_only"), last_text
+    assert_equal "creating_list", @user.reload.bot_state
+  end
+
+  test "a cancel command in a media caption cancels rather than becoming a gift" do
+    @user.start_adding_item!(wishlist_id: @wishlist.id)
+
+    assert_no_difference "Item.count" do
+      say(caption: "/cancel", photo: [ { file_id: "f", file_unique_id: "u", width: 1, height: 1 } ])
+    end
+    assert_nil @user.reload.bot_state
+    assert_equal I18n.t("bot.commands.cancelled"), last_text
+  end
+
   test "the edit prompt shows the current value and offers to remove it" do
     press("edit_item_field:price:#{@item.id}")
 
