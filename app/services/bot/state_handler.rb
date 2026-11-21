@@ -20,7 +20,7 @@ module Bot
     def handle
       return if replayed_list_name?
 
-      # A photo or sticker has no text to use as the value
+      # Media without a caption has no text to use as the value
       return reply_with_problem(I18n.t("bot.input_errors.text_only")) if context.try(:non_text_message?)
 
       handling_input_errors do
