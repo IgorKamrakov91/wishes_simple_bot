@@ -15,8 +15,6 @@ module YandexAi
     MAX_SIDE = 2048
     # 48 MP phone photos sent as files must fit; JPEG shrinks while decoding
     MAX_PIXELS = 100_000_000
-    # Sent as is when it can't be shrunk (no libvips)
-    MAX_UNSHRUNK_BYTES = 4.megabytes
     CAPTION_LIMIT = 300
 
     PROMPT = <<~PROMPT.freeze
@@ -69,13 +67,9 @@ module YandexAi
     def prepare(image)
       raise Client::Error, "not_an_image" unless jpeg?(image) || png?(image)
 
-      shrunk = ImageShrinker.call(image, max_side: MAX_SIDE, max_pixels: MAX_PIXELS)
-      return shrunk if shrunk
-      raise Client::Error, "too_large" if image.bytesize > MAX_UNSHRUNK_BYTES
-      # Without libvips the image goes as is; Telegram photos are always JPEG
-      raise Client::Error, "not_an_image" unless jpeg?(image)
-
-      image
+      # Never send the original: it can carry location and camera metadata
+      ImageShrinker.call(image, max_side: MAX_SIDE, max_pixels: MAX_PIXELS) ||
+        raise(Client::Error, "no_image_support")
     end
 
     def jpeg?(bytes)
@@ -112,8 +106,9 @@ module YandexAi
       when Numeric then value
       when String then value.gsub(/[[:space:]₽]|руб\.?/i, "").tr(",", ".")[/\A\d+(\.\d{1,2})?\z/]
       end
-      amount = BigDecimal(number.to_s) if number
-      amount.round(2) if amount&.positive? && amount < Item::PRICE_LIMIT
+      # Checked after rounding: 0.001 becomes 0 and 99999999.999 the limit
+      amount = BigDecimal(number.to_s).round(2) if number
+      amount if amount&.positive? && amount < Item::PRICE_LIMIT
     rescue ArgumentError
       nil
     end

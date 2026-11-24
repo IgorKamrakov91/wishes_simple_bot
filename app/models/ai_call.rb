@@ -23,14 +23,15 @@ class AiCall < ApplicationRecord
   end
 
   # Records a call of `kind` for the user if every cap allows it. Returns
-  # :created, :disabled, :global_limit, :kind_limit or :user_limit. Callers
-  # hold no other locks: the advisory lock serializes the app-wide count.
+  # :created, :disabled, :global_limit, :kind_limit or :user_limit. Locks
+  # the user first and the app-wide count second, in the same order as gift
+  # idea requests, so the two never deadlock.
   def self.reserve!(user, kind)
     kind = kind.to_s
     caps = KINDS.fetch(kind)
     return :disabled unless GiftSuggestion.enabled?
 
-    transaction do
+    user.with_lock do
       connection.execute("SELECT pg_advisory_xact_lock(#{GiftSuggestion::GLOBAL_LOCK_KEY})")
       today_kind = today.where(kind: kind)
       next :user_limit if today_kind.where(user: user).count >= caps[:per_user]

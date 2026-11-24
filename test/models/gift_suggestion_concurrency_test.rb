@@ -31,6 +31,30 @@ class GiftSuggestionConcurrencyTest < ActiveJob::TestCase
     assert_shared_cap([ :request_system_for!, :request_for! ])
   end
 
+  test "one person's idea request and photo call share the cap without deadlocking" do
+    GiftSuggestion.where(created_at: Time.current.beginning_of_day - 1.day..).delete_all
+    start = Concurrent::CyclicBarrier.new(2)
+    counted = Concurrent::CyclicBarrier.new(2)
+    GiftSuggestion.stubs(:global_daily_limit).with { counted.wait(1); true }.returns(1)
+    user, list = @users.first, @lists.first
+    calls = [
+      -> { GiftSuggestion.request_for!(User.find(user.id), list).status },
+      -> { AiCall.reserve!(User.find(user.id), :photo) }
+    ]
+    statuses = calls.map do |call|
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          start.wait
+          call.call
+        end
+      end
+    end.map(&:value)
+
+    assert_equal %i[created global_limit], statuses.sort
+  ensure
+    AiCall.where(user_id: @users.map(&:id)).delete_all
+  end
+
   private
 
   def assert_shared_cap(methods)
