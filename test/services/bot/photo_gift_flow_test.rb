@@ -36,6 +36,16 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     assert_includes text, I18n.t("bot.commands.text_only")
   end
 
+  test "turning the flag off abandons photo input and restores normal message handling" do
+    photo
+    draft = latest
+    ENV.delete("PHOTO_GIFTS_ENABLED")
+    photo
+    assert_nil @owner.reload.bot_state
+    assert_equal "cancelled", draft.reload.status
+    assert_includes text, I18n.t("bot.commands.text_only")
+  end
+
   test "first photo asks consent and manual review saves a first gift only once" do
     assert_no_difference("Item.count") { photo }
     draft = latest

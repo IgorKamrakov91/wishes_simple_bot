@@ -25,7 +25,8 @@ module Bot
         when "x" then draft.remove_photo!(expected_version: version)
         when "l" then return lists(id, version)
         when "c"
-          draft.cancel!(expected_version: version)
+          return outdated(draft) unless draft.cancel!(expected_version: version)
+
           clear_input_for(draft)
           return context.render(I18n.t("bot.commands.cancelled"))
         when "s" then return save(draft)

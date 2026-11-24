@@ -23,6 +23,9 @@ module Bot
         else "message"
         end
         user.record_contact!(kind: kind, source: source, private_start: kind != "message")
+        if !PhotoGiftDraft.enabled? && %w[photo_gift editing_photo_gift].include?(user.bot_state)
+          user.clear_state!
+        end
         return if PhotoGiftIntake.new(context).handle
         # A tagged start uses exactly the same navigation/input policy as a
         # plain start; its argument must never become a list or gift title.
