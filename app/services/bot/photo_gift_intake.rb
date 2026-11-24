@@ -1,7 +1,7 @@
 module Bot
   class PhotoGiftIntake
     MAX_BYTES = 10.megabytes
-    MAX_PIXELS = 40_000_000
+    MAX_PIXELS = 100_000_000
 
     def initialize(context)
       @context = context
