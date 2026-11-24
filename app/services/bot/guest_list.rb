@@ -4,6 +4,7 @@ module Bot
   class GuestList
     BUDGETS = %w[a s m l h n].freeze
     CALLBACK_PATTERN = /\Ag[lfirupc]:\d+(?::\d+)*:([asmlhn])\z/
+    NAVIGATION_CALLBACK_PATTERN = /\A(?:g[lf]:\d+:\d+|gi:\d+):[asmlhn]\z/
 
     attr_reader :budget
 

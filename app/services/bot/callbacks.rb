@@ -88,7 +88,7 @@ module Bot
 
         # Pressing a button abandons any pending input, prompts start a new one.
         # The menu keeps a newcomer's unfinished first gift.
-        keep = KEEP_INPUT_CALLBACKS.match?(callback.data.to_s) || GuestList::CALLBACK_PATTERN.match?(callback.data.to_s) ||
+        keep = KEEP_INPUT_CALLBACKS.match?(callback.data.to_s) || GuestList::NAVIGATION_CALLBACK_PATTERN.match?(callback.data.to_s) ||
           (callback.data == "main_menu" && InputPrompt.new(context).onboarding_draft?)
         user.clear_state! if user.bot_state.present? && !keep
 

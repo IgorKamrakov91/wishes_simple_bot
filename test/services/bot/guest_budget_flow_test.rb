@@ -173,17 +173,33 @@ class BotGuestBudgetFlowTest < ActiveJob::TestCase
     item = gift("Gift", price: 500)
     @guest.update!(bot_state: "adding_item_title", bot_payload: { "wishlist_id" => own.id, "url" => "https://example.com/gift" })
     payload = @guest.bot_payload
-    [ "gf:#{@list.id}:0:a", "gl:#{@list.id}:0:s", "gi:#{item.id}:s", "gr:#{item.id}:0:s" ].each do |data|
+    [ "gf:#{@list.id}:0:a", "gl:#{@list.id}:0:s", "gi:#{item.id}:s" ].each do |data|
       press(data)
       assert_equal "adding_item_title", @guest.reload.bot_state
       assert_equal payload, @guest.bot_payload
     end
   end
 
+  test "reservation actions abandon pending input like unfiltered actions" do
+    own = @guest.wishlists.create!(title: "My list")
+    item = gift("Gift", price: 500)
+    [ "gr:#{item.id}:0:s", "gc:#{item.id}:1:s", "gp:#{item.id}:1:1:s", "gu:#{item.id}:2:s" ].each do |data|
+      @guest.update!(bot_state: "adding_item_title", bot_payload: { "wishlist_id" => own.id, "url" => "https://example.com/gift" })
+      press(data)
+      assert_nil @guest.reload.bot_state, data
+      assert_nil @guest.bot_payload, data
+    end
+    assert_equal 3, item.reload.reservation_version
+    assert_nil item.reserved_by
+  end
+
   test "both locales explain the filter without hiding the unpriced option" do
     gift("Gift", price: 500)
     %i[ru en].each do |locale|
       I18n.with_locale(locale) do
+        press("gl:#{@list.id}:0:a")
+        refute_includes text, I18n.t("bot.guest_budget.hint", budget: I18n.t("bot.guest_budget.options.a"), count: 1)
+        assert_includes buttons.map(&:text), I18n.t("bot.guest_budget.button", budget: I18n.t("bot.guest_budget.options.a"))
         press("gf:#{@list.id}:0:m")
         assert_includes text, I18n.t("bot.guest_budget.menu")
         assert_includes buttons.map(&:text), I18n.t("bot.guest_budget.options.n")

@@ -152,7 +152,7 @@ module Bot
       end
 
       def budget_hint
-        return if owner? || items.empty?
+        return if owner? || items.empty? || @guest_selection.budget == "a"
 
         t("bot.guest_budget.hint", budget: @guest_selection.label, count: visible_items.size)
       end
