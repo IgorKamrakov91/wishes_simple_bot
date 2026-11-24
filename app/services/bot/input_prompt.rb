@@ -20,7 +20,7 @@ module Bot
     # A newcomer's first gift already has a link or a name typed. Going back
     # to the menu keeps it, so the first result isn't lost on the way.
     def onboarding_draft?
-      %w[adding_item_title adding_item_url].include?(user.bot_state) && user.onboarding?
+      %w[adding_item_title adding_item_url photo_gift editing_photo_gift].include?(user.bot_state) && user.onboarding?
     end
 
     # Only the list and prompt marker are present before any gift was typed.
@@ -52,6 +52,12 @@ module Bot
     # [text, keyboard] for the current state, nil when there is no input
     def prompt
       case user.bot_state
+      when "photo_gift"
+        draft = user.photo_gift_drafts.find(payload[:photo_gift_draft_id])
+        presenter = Presenters::PhotoGiftPresenter.new(draft, user, context)
+        [ presenter.text, presenter.keyboard ]
+      when "editing_photo_gift"
+        Callbacks::PhotoGiftHandler.new(context).input_prompt
       when "creating_list"
         rows = ListPresets.ordered.map { |key| [ context.inline_btn(ListPresets.label(key), "quick_list:#{key}") ] }
         rows << [ context.inline_btn(I18n.t("bot.buttons.cancel"), "show_lists") ]

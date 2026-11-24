@@ -1,0 +1,33 @@
+en:
+  bot:
+    photo_gift:
+      consent: "To fill in this gift, the bot will send the image and caption to Yandex AI. Crop out personal information first. After you agree, future photos will also be recognized automatically.\n\nYou can fill in the card yourself without sending the image to AI."
+      recognize: "🔍 Recognize"
+      manual: "Fill in myself"
+      review: "🎁 <b>Check the gift before saving</b>"
+      failed: "Could not recognize the photo — enter a name. Try a closer shot of the price tag or send the image as a file."
+      retry: "Try once more"
+      empty: "not specified"
+      target: "List: %{list}"
+      check: "Check the price and size against the photo: recognition can be wrong. If several prices are shown, enter the right one yourself."
+      photo_public: "Anyone with the list link will see the photo. You can remove it and save only the text."
+      save: "✅ Save to “%{list}”"
+      change_list: "Another list"
+      remove_photo: "Remove photo"
+      choose_list: "Which of your lists should receive the gift?"
+      new_list: "New list “%{list}”"
+      default_list: "My wishes"
+      missing_list: "The list was deleted. Choose another one."
+      unavailable: "This photo draft is closed or expired. Send the photo again."
+      enter_field: "Enter %{field}. Send “-” to leave an optional field empty."
+      finish_input: "Finish or cancel your current input first. The photo draft remains available from its button."
+      one_photo: "One photo per gift. Using the first photo from this album."
+      unsupported: "Send an image as a photo or a JPEG/PNG file up to 10 MB."
+      preparing: "Preparing the image file. You can fill in the fields now, then tap Save."
+      media_failed: "Could not prepare the image. Send it as a photo, or remove the photo and save the text."
+      photo: "🖼 Photo"
+      photo_unavailable: "Could not show the photo. The text card and reservation still work."
+    messages:
+      update_results:
+        photo_gift: "Photo draft received."
+        item_photo: "Gift photo requested."

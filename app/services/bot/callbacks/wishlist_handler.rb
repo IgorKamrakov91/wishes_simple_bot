@@ -11,7 +11,7 @@ module Bot
         shared = user.viewed_wishlists.distinct.count
 
         # A newcomer gets how it works and one next step instead of zero counters
-        if lists.zero? && shared.zero?
+        if lists.zero? && shared.zero? && !InputPrompt.new(context).active?
           keyboard = context.build_keyboard([
             [ context.inline_btn(I18n.t("bot.buttons.create_first_list"), "new_list", style: "primary") ],
             [ context.inline_btn(I18n.t("bot.demo.button"), "demo") ]

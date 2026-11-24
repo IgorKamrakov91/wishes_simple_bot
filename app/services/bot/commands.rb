@@ -23,6 +23,7 @@ module Bot
         else "message"
         end
         user.record_contact!(kind: kind, source: source, private_start: kind != "message")
+        return if PhotoGiftIntake.new(context).handle
         # A tagged start uses exactly the same navigation/input policy as a
         # plain start; its argument must never become a list or gift title.
         text = "/start" if source
@@ -30,6 +31,13 @@ module Bot
         had_input = user.bot_state.present?
         if had_input
           unless context.text.start_with?("/")
+            if user.bot_state == "editing_photo_gift" && PhotoGiftDraft.enabled?
+              Callbacks::PhotoGiftHandler.new(context).field_input
+              return
+            elsif user.bot_state == "photo_gift" && PhotoGiftDraft.enabled?
+              Callbacks::PhotoGiftHandler.new(context).show(user.bot_payload.fetch("photo_gift_draft_id"))
+              return
+            end
             StateHandler.new(context).handle
             return
           end
