@@ -74,14 +74,15 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     assert_no_difference("Item.count") { press_data(callback) }
   end
 
-  test "consent goes pending without a recognition job and later photos skip consent" do
+  test "consent starts recognition once and later photos skip consent" do
     photo(caption: "My caption")
     draft = latest
-    assert_no_enqueued_jobs { press("a", draft) }
+    assert_enqueued_with(job: PhotoGiftRecognitionJob, args: [ draft.id, draft.version + 1 ]) { press("a", draft) }
     assert_equal "pending", draft.reload.status
     assert @owner.reload.photo_ai_consented_at
-    assert_includes text, "My caption"
-    photo(caption: "https://example.com/gift")
+    assert_includes text, I18n.t("bot.photo_gift.recognizing")
+    assert_equal [ "pg:m:#{draft.id}:#{draft.version}", "pg:c:#{draft.id}:#{draft.version}" ], callbacks
+    assert_enqueued_jobs(1, only: PhotoGiftRecognitionJob) { photo(caption: "https://example.com/gift") }
     assert_equal "pending", latest.status
     assert_equal "https://example.com/gift", latest.result["url"]
     assert_equal "cancelled", draft.reload.status

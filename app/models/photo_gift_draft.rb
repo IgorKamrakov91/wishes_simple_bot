@@ -5,6 +5,7 @@ class PhotoGiftDraft < ApplicationRecord
   ACTIVE_STATUSES = %w[awaiting_consent pending ready failed].freeze
   FIELDS = Item::EDITABLE_FIELDS
   KEEP_FOR = 24.hours
+  RECOGNITION_DEADLINE = 2.minutes
 
   belongs_to :user
   belongs_to :wishlist, optional: true
@@ -15,6 +16,10 @@ class PhotoGiftDraft < ApplicationRecord
   validates :file_id, :chat_id, :message_id, :locale, :expires_at, presence: true
   validates :version, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   scope :active, -> { where(status: ACTIVE_STATUSES).where("expires_at > ?", Time.current) }
+
+  # Every move to pending (first photo after consent, consent, retry) is read
+  # once the change is committed; the job ignores versions that moved on.
+  after_commit :enqueue_recognition, if: -> { saved_change_to_status? && status == "pending" }
 
   def self.enabled?
     ENV["PHOTO_GIFTS_ENABLED"] == "true"
@@ -169,7 +174,16 @@ class PhotoGiftDraft < ApplicationRecord
     end
   end
 
+  # Pending for longer than the job's deadline: the job was lost
+  def recognition_stalled?
+    status == "pending" && updated_at < RECOGNITION_DEADLINE.ago
+  end
+
   private
+
+  def enqueue_recognition
+    PhotoGiftRecognitionJob.perform_later(id, version)
+  end
 
   def validate_fields!(values, require_title: false)
     attributes = values.symbolize_keys

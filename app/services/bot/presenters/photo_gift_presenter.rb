@@ -7,10 +7,13 @@ module Bot
       def text
         return t("bot.photo_gift.unavailable") unless draft.editable?
         return t("bot.photo_gift.consent") if draft.status == "awaiting_consent"
+        return t("bot.photo_gift.recognizing") if recognizing?
 
         values = draft.fields
         lines = [ t("bot.photo_gift.review") ]
-        lines << t("bot.photo_gift.failed") if draft.status == "failed"
+        if draft.status == "failed"
+          lines << t(draft.error_code.in?(%w[limit user_limit disabled]) ? "bot.photo_gift.failed_limit" : "bot.photo_gift.failed")
+        end
         FIELD_KEYS.values.each do |field|
           value = values[field]
           value = "≈ #{format_price(value)}" if field == "price" && value.present?
@@ -30,6 +33,8 @@ module Bot
 
         if draft.status == "awaiting_consent"
           rows = [ [ button(t("bot.photo_gift.recognize"), "a"), button(t("bot.photo_gift.manual"), "m") ] ]
+        elsif recognizing?
+          rows = [ [ button(t("bot.photo_gift.manual"), "m") ] ]
         else
           rows = [ [ button(t("bot.photo_gift.save", list: list_title.truncate(35)), "s", style: "primary") ] ]
           rows += FIELD_KEYS.map { |key, field| button(t("bot.fields.#{field}"), key) }.each_slice(2).to_a
@@ -50,6 +55,12 @@ module Bot
       end
 
       private
+
+      # A lost job leaves the draft pending; after the deadline the person
+      # gets the manual review instead of waiting forever
+      def recognizing?
+        draft.status == "pending" && !draft.recognition_stalled?
+      end
 
       def button(label, action, **options)
         context.inline_btn(label, "pg:#{action}:#{draft.id}:#{draft.version}", **options)
