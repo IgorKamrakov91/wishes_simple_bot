@@ -12,6 +12,10 @@ class User < ApplicationRecord
   has_one :onboarding_nudge, dependent: :destroy
   has_many :viewed_wishlists, through: :list_viewers, source: :wishlist
 
+  # The first consent, from any screen, also reads the photos that waited for it
+  after_update_commit :recognize_waiting_photos,
+    if: -> { saved_change_to_photo_ai_consented_at? && saved_change_to_photo_ai_consented_at.first.nil? && photo_ai_consented_at? }
+
   validates :telegram_id, presence: true, uniqueness: true
   validates :reservation_reminder_days, inclusion: { in: RESERVATION_REMINDER_DAYS }
 
@@ -72,5 +76,13 @@ class User < ApplicationRecord
   def full_name
     full_name = [ first_name, last_name ].map(&:presence).compact.join(" ")
     full_name.presence || username.presence || "Anonymous"
+  end
+
+  private
+
+  def recognize_waiting_photos
+    photo_gift_drafts.active.where(status: "awaiting_consent").order(:created_at).each do |draft|
+      draft.consent!(expected_version: draft.version)
+    end
   end
 end

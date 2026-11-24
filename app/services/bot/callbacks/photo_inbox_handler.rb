@@ -32,9 +32,8 @@ module Bot
       def consent
         raise ActiveRecord::RecordNotFound unless PhotoGiftDraft.enabled?
 
-        started = user.photo_gift_drafts.active.where(status: "awaiting_consent").order(:created_at).to_a.count do |draft|
-          draft.consent!(expected_version: draft.version)
-        end
+        started = user.photo_gift_drafts.active.where(status: "awaiting_consent").count
+        # Consenting starts every waiting photo (User#recognize_waiting_photos)
         user.update!(photo_ai_consented_at: Time.current) unless user.photo_ai_consented_at?
         context.render(I18n.t("bot.photo_inbox.recognizing", count: started))
       end

@@ -26,6 +26,7 @@ class PhotoGiftDraft < ApplicationRecord
   # already received for an earlier version.
   before_save :mark_pending_start, if: -> { will_save_change_to_status? && status == "pending" }
   after_commit :enqueue_recognition, if: -> { status == "pending" && (saved_change_to_status? || saved_change_to_version?) }
+  after_commit :enqueue_auto_save, if: -> { auto_save_due? && (saved_change_to_version? || saved_change_to_media_status?) }
 
   def self.enabled?
     ENV["PHOTO_GIFTS_ENABLED"] == "true"
@@ -244,7 +245,16 @@ class PhotoGiftDraft < ApplicationRecord
     (started || created_at) < RECOGNITION_DEADLINE.ago
   end
 
+  # Recognized, a list picked and the photo ready: nothing left to ask
+  def auto_save_due?
+    status == "ready" && result["intent"] == "save" && editable?
+  end
+
   private
+
+  def enqueue_auto_save
+    PhotoGiftAutoSaveJob.perform_later(id, version)
+  end
 
   def mark_pending_start
     self.result = result.merge("pending_at" => Time.current.iso8601(3))

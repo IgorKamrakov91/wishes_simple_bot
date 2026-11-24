@@ -108,6 +108,28 @@ class PhotoInboxDigestJobTest < ActiveJob::TestCase
     assert_no_difference("Item.count") { press("pgd:s:#{foreign.id}") }
   end
 
+  test "an undelivered digest is retried with the same photos" do
+    named = draft(fields: { "title" => "Лампа" })
+    @api.stubs(:send_message).raises(Faraday::TimeoutError)
+
+    assert_enqueued_jobs(1, only: PhotoInboxDigestJob) { PhotoInboxDigestJob.perform_now(@owner.id) }
+    refute named.reload.result.key?("digested_at")
+
+    @api.unstub(:send_message)
+    @api.stubs(:send_message).with { |params| @sent << params; true }
+    perform_enqueued_jobs(only: PhotoInboxDigestJob)
+    assert_includes @sent.last[:text], "Лампа"
+  end
+
+  test "a person who blocked the bot isn't retried" do
+    named = draft(fields: { "title" => "Лампа" })
+    blocked = Telegram::Bot::Exceptions::ResponseError.new(response: stub(status: 403, body: { error_code: 403 }.to_json))
+    @api.stubs(:send_message).raises(blocked)
+
+    assert_no_enqueued_jobs(only: PhotoInboxDigestJob) { PhotoInboxDigestJob.perform_now(@owner.id) }
+    assert named.reload.result.key?("digested_at")
+  end
+
   private
 
   def press(data)

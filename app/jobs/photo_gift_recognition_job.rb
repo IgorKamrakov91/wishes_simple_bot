@@ -16,9 +16,9 @@ class PhotoGiftRecognitionJob < ApplicationJob
     draft = PhotoGiftDraft.find_by(id: draft_id)
     return unless draft
 
-    if reading_earlier_version?(draft, version)
+    if reading?(draft, version)
       # Usually that job takes this version over when it finishes; if it
-      # died, this one does the work a little later
+      # died, this one does the work once its claim has expired
       return self.class.set(wait: TAKEOVER_WAIT).perform_later(draft_id, version)
     end
     return unless claim(draft, version)
@@ -39,17 +39,30 @@ class PhotoGiftRecognitionJob < ApplicationJob
   def claim(draft, version)
     draft.with_lock do
       next false unless PhotoGiftDraft.enabled? && draft.editable? && draft.status == "pending" &&
-        draft.version == version && draft.result["claimed_version"] != version
+        draft.version == version
+      # Taken by a job that is still reading, or that finished with it
+      next false if draft.result["claimed_version"] == version && !claim_expired?(draft)
 
       draft.update!(result: draft.result.merge("claimed_version" => version, "claimed_at" => Time.current.iso8601(3)))
     end
   end
 
-  # Another job is still reading this photo for an older version of the draft
-  def reading_earlier_version?(draft, version)
+  # Another job is reading this photo right now, for this or an older version
+  def reading?(draft, version)
     claimed = draft.result["claimed_version"]
-    claimed_at = Time.zone.parse(draft.result["claimed_at"].to_s) rescue nil
-    claimed.is_a?(Integer) && claimed < version && claimed_at && claimed_at > PhotoGiftDraft::RECOGNITION_DEADLINE.ago
+    claimed.is_a?(Integer) && claimed <= version && claimed_at(draft)&.after?(PhotoGiftDraft::RECOGNITION_DEADLINE.ago)
+  end
+
+  # The reading job died: its mark stayed past the deadline. A finished job
+  # removes the mark, and its version is then done.
+  def claim_expired?(draft)
+    claimed_at(draft)&.before?(PhotoGiftDraft::RECOGNITION_DEADLINE.ago) || false
+  end
+
+  def claimed_at(draft)
+    Time.zone.parse(draft.result["claimed_at"].to_s)
+  rescue ArgumentError
+    nil
   end
 
   def recognize(draft, version)
@@ -80,7 +93,8 @@ class PhotoGiftRecognitionJob < ApplicationJob
     3.times do
       if draft.apply_recognition!(title: found.title, price: found.price&.to_s("F"),
                                   description: found.description, expected_version: version)
-        return save_if_list_chosen(draft, version + 1)
+        # With a list picked, PhotoGiftAutoSaveJob saves it and shows the result
+        return [ "ready", (version + 1 unless draft.reload.result["intent"] == "save") ]
       end
       draft.reload
       return [ "stale", nil ] unless claim(draft, draft.version)
@@ -88,19 +102,6 @@ class PhotoGiftRecognitionJob < ApplicationJob
       version = draft.version
     end
     [ "stale", nil ]
-  end
-
-  # The person picked a list when sending the photo: that choice is the
-  # go-ahead to publish without the review. A photo still being prepared,
-  # or a draft changed meanwhile, falls back to the review.
-  def save_if_list_chosen(draft, version)
-    return [ "ready", version ] unless draft.reload.result["intent"] == "save"
-
-    status, = draft.save_gift!(expected_version: version)
-    status == :saved ? [ "saved", draft.version ] : [ "ready", version ]
-  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound
-    # e.g. the chosen list was deleted meanwhile
-    [ "ready", version ]
   end
 
   # Returns the outcome and the draft version to show, when this job changed

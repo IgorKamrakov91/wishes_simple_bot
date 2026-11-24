@@ -9,6 +9,11 @@ class PhotoInboxDigestJob < ApplicationJob
   queue_as :reminders
   self.log_arguments = false
 
+  class Undelivered < StandardError; end
+  retry_on Undelivered, wait: 1.minute, attempts: 3 do |_job, _error|
+    Rails.logger.info("Photo inbox digest not delivered after retries")
+  end
+
   def perform(user_id)
     user = User.find_by(id: user_id)
     return unless user && PhotoGiftDraft.enabled?
@@ -16,6 +21,12 @@ class PhotoInboxDigestJob < ApplicationJob
     drafts = claim(user)
     return if drafts.empty?
 
+    deliver(user, drafts)
+  end
+
+  private
+
+  def deliver(user, drafts)
     inbox = user.photo_gift_drafts.active.order(:created_at).to_a
     I18n.with_locale(drafts.last.locale) do
       presenter = Bot::Presenters::PhotoInboxDigestPresenter.new(inbox, user, self)
@@ -25,11 +36,15 @@ class PhotoInboxDigestJob < ApplicationJob
       )
     end
   rescue Telegram::Bot::Exceptions::ResponseError, Faraday::Error => e
-    # The drafts stay in the inbox; tomorrow's digest won't repeat them
-    Rails.logger.info("Photo inbox digest not delivered (#{e.class})")
-  end
+    code = e.error_code.to_i if e.is_a?(Telegram::Bot::Exceptions::ResponseError)
+    Rails.logger.info("Photo inbox digest not delivered (#{code || e.class})")
+    # A blocked bot or a rejected message: retrying won't help
+    return if [ 400, 403 ].include?(code)
 
-  private
+    # Unmark them, so the retry sends the same digest
+    PhotoGiftDraft.where(id: drafts.map(&:id)).update_all("result = result - 'digested_at'")
+    raise Undelivered
+  end
 
   # Marks the person's new drafts as digested, so a repeated job sends nothing
   def claim(user)

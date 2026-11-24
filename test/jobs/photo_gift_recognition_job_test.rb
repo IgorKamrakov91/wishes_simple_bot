@@ -27,7 +27,7 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
   teardown { @env.each { |key, value| ENV[key] = value } }
 
   def recognize(id, version)
-    perform_enqueued_jobs(only: PhotoGiftReviewJob) { PhotoGiftRecognitionJob.perform_now(id, version) }
+    perform_enqueued_jobs(only: [ PhotoGiftReviewJob, PhotoGiftAutoSaveJob ]) { PhotoGiftRecognitionJob.perform_now(id, version) }
   end
 
   def start(caption: nil)
@@ -249,7 +249,7 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     assert_difference("@list.items.count", 1) do
       PhotoGiftRecognitionJob.perform_now(draft.id, version)
       # The job queued by the list choice finds its version already taken
-      perform_enqueued_jobs(only: [ PhotoGiftRecognitionJob, PhotoGiftReviewJob ])
+      3.times { perform_enqueued_jobs(only: [ PhotoGiftRecognitionJob, PhotoGiftReviewJob, PhotoGiftAutoSaveJob ]) }
     end
     assert_equal "saved", draft.reload.status
     assert_includes @sent.last[:text], "Лампа"
@@ -270,7 +270,50 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     travel 3.minutes
     @reader.unstub(:call)
     @reader.expects(:call).once.returns(Result.new(title: "Лампа", price: nil, description: nil))
-    PhotoGiftRecognitionJob.perform_now(draft.id, draft.version)
+    recognize(draft.id, draft.version)
     assert_equal "saved", draft.reload.status, "an earlier job that died doesn't block the work"
+  end
+
+  test "a list picked after recognition saves the gift on its own too" do
+    draft = start
+    @reader.stubs(:call).returns(Result.new(title: "Лампа", price: nil, description: nil))
+    recognize(draft.id, draft.version)
+    assert_equal "ready", draft.reload.status
+
+    assert_difference("@list.items.count", 1) do
+      perform_enqueued_jobs(only: [ PhotoGiftAutoSaveJob, PhotoGiftReviewJob ]) do
+        draft.update!(result: draft.result.merge("intake_open" => true))
+        draft.choose_destination!(@list.id, expected_version: draft.version)
+      end
+    end
+    assert_equal "saved", draft.reload.status
+  end
+
+  test "a version taken over by a job that died is read after the deadline" do
+    draft = start
+    draft.update!(result: draft.result.merge("claimed_version" => draft.version, "claimed_at" => 3.minutes.ago.iso8601))
+    @reader.expects(:call).once.returns(Result.new(title: "Лампа", price: nil, description: nil))
+
+    recognize(draft.id, draft.version)
+    assert_equal "ready", draft.reload.status
+  end
+
+  test "a finished version is not read again" do
+    draft = start
+    draft.update!(result: draft.result.merge("claimed_version" => draft.version))
+    @reader.expects(:call).never
+    recognize(draft.id, draft.version)
+  end
+
+  test "the first consent from any screen reads every waiting photo" do
+    @owner.update!(photo_ai_consented_at: nil)
+    waiting = 2.times.map do |i|
+      PhotoGiftDraft.start!(@owner, chat_id: @owner.telegram_id, message_id: 900 + i, file_id: "f#{i}",
+        file_unique_id: "u#{i}", photo_file_id: "p#{i}", media_kind: "photo", media_status: "ready")
+    end
+    assert_equal %w[awaiting_consent awaiting_consent], waiting.map { |d| d.reload.status }
+
+    assert_enqueued_jobs(2, only: PhotoGiftRecognitionJob) { @owner.update!(photo_ai_consented_at: Time.current) }
+    assert_equal %w[pending pending], waiting.map { |d| d.reload.status }
   end
 end

@@ -72,7 +72,14 @@ module Bot
 
       def select_list(id, version, list_id)
         draft = owned(id)
-        return outdated(draft) unless draft.choose_destination!(list_id, expected_version: version)
+        # On the first screen a list means "put it there" (saved on its own
+        # once read); on the review it only changes the list before saving
+        changed = if draft.result["intake_open"]
+          draft.choose_destination!(list_id, expected_version: version)
+        else
+          draft.select_list!(list_id, expected_version: version)
+        end
+        return outdated(draft) unless changed
 
         user.reload
         show(draft.id)
