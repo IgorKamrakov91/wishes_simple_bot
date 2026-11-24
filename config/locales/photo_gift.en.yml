@@ -1,6 +1,16 @@
 en:
   bot:
     photo_gift:
+      received: "📥 Got it! Where should it go?"
+      routing_consent: "By tapping a list, you allow the photo and caption, including future photos, to be sent to Yandex AI. Crop out personal information first."
+      to_list: "✅ To “%{list}”"
+      other_lists: "Another list…"
+      later: "Sort out later"
+      deferred: "📥 Kept in your inbox for 30 days. Open it from the main menu anytime."
+      inbox: "📥 Inbox (%{count})"
+      inbox_title: "📥 Inbox — choose a photo to review."
+      inbox_empty: "📥 Your inbox is empty."
+      untitled: "🖼 Untitled photo"
       consent: "To fill in this gift, the bot will send the image and caption to Yandex AI. Crop out personal information first. After you agree, future photos will also be recognized automatically.\n\nYou can fill in the card yourself without sending the image to AI."
       recognize: "🔍 Recognize"
       manual: "Fill in myself"

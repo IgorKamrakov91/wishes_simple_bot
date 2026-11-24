@@ -6,10 +6,10 @@ module Bot
 
       def text
         return t("bot.photo_gift.unavailable") unless draft.editable?
-        return t("bot.photo_gift.consent") if draft.status == "awaiting_consent"
 
         values = draft.fields
         lines = [ t("bot.photo_gift.review") ]
+        lines << t("bot.photo_gift.routing_consent") unless draft.user.photo_ai_consented_at?
         lines << t("bot.photo_gift.failed") if draft.status == "failed"
         FIELD_KEYS.values.each do |field|
           value = values[field]
@@ -28,15 +28,12 @@ module Bot
       def keyboard
         return context.build_keyboard([]) unless draft.editable?
 
-        if draft.status == "awaiting_consent"
-          rows = [ [ button(t("bot.photo_gift.recognize"), "a"), button(t("bot.photo_gift.manual"), "m") ] ]
-        else
-          rows = [ [ button(t("bot.photo_gift.save", list: list_title.truncate(35)), "s", style: "primary") ] ]
-          rows += FIELD_KEYS.map { |key, field| button(t("bot.fields.#{field}"), key) }.each_slice(2).to_a
-          rows << [ button(t("bot.photo_gift.change_list"), "l") ]
-          rows << [ button(t("bot.photo_gift.remove_photo"), "x") ] unless draft.result["without_photo"]
-          rows << [ button(t("bot.photo_gift.retry"), "r") ] if draft.status == "failed" && !draft.result["retry_used"]
-        end
+        rows = [ [ button(t("bot.photo_gift.save", list: list_title.truncate(35)), "s", style: "primary") ] ]
+        rows += FIELD_KEYS.map { |key, field| button(t("bot.fields.#{field}"), key) }.each_slice(2).to_a
+        rows << [ button(t("bot.photo_gift.change_list"), "l") ]
+        rows << [ button(t("bot.photo_gift.remove_photo"), "x") ] unless draft.result["without_photo"]
+        rows << [ button(t("bot.photo_gift.retry"), "r") ] if draft.status == "failed" && !draft.result["retry_used"]
+        rows << [ button(t("bot.photo_gift.later"), "z") ]
         rows << [ button(t("bot.buttons.cancel"), "c") ]
         context.build_keyboard(rows)
       end

@@ -4,7 +4,7 @@ class PhotoGiftDraft < ApplicationRecord
   STATUSES = %w[awaiting_consent pending ready failed saved cancelled].freeze
   ACTIVE_STATUSES = %w[awaiting_consent pending ready failed].freeze
   FIELDS = Item::EDITABLE_FIELDS
-  KEEP_FOR = 24.hours
+  KEEP_FOR = 30.days
 
   belongs_to :user
   belongs_to :wishlist, optional: true
@@ -25,19 +25,41 @@ class PhotoGiftDraft < ApplicationRecord
       existing = user.photo_gift_drafts.find_by(chat_id: attributes[:chat_id], message_id: attributes[:message_id])
       next existing if existing
 
-      user.photo_gift_drafts.active.update_all("status = 'cancelled', version = version + 1")
       target = if user.bot_state == "adding_item"
         user.wishlists.find(user.bot_payload.fetch("wishlist_id"))
       else
         user.wishlists.order(updated_at: :desc, id: :desc).first
       end
+      matched = list_from_caption(user, attributes[:caption])
+      target = matched || target
+      # A list-name caption is routing, not the gift's title or AI context.
+      attributes[:caption] = nil if matched
       draft = user.photo_gift_drafts.create!(**attributes, wishlist: target,
-        result: caption_result(attributes[:caption]).merge("new_list" => target.nil?),
+        result: caption_result(attributes[:caption]).merge("new_list" => target.nil?,
+          "intent" => matched ? "save" : "later", "intake_open" => true),
         expires_at: KEEP_FOR.from_now, locale: I18n.locale.to_s,
         status: user.photo_ai_consented_at? ? "pending" : "awaiting_consent")
       user.update!(bot_state: "photo_gift", bot_payload: { "photo_gift_draft_id" => draft.id })
       draft
     end
+  end
+
+  # Emoji, variation selectors and joiners are decorative in list names.
+  # Ambiguous normalized names deliberately fall back to normal caption input.
+  def self.list_from_caption(user, caption)
+    name = normalize_list_name(caption)
+    return if name.blank?
+
+    matches = user.wishlists.order(updated_at: :desc, id: :desc).select do |list|
+      normalize_list_name(list.title) == name
+    end
+    matches.first if matches.one?
+  end
+
+  def self.normalize_list_name(value)
+    value.to_s.unicode_normalize(:nfkc).downcase
+      .gsub(/[\p{Extended_Pictographic}\p{Regional_Indicator}\p{Emoji_Modifier}\uFE0F\u200D\u20E3]/, "")
+      .gsub(/[[:space:]]+/, " ").strip
   end
 
   def self.caption_result(caption)
@@ -75,14 +97,46 @@ class PhotoGiftDraft < ApplicationRecord
     user.with_lock do
       change!(expected_version) do
         user.update!(photo_ai_consented_at: Time.current)
-        # Integration point for PR2; enqueue only after the enclosing commit.
-        update!(status: "pending", error_code: nil, version: version + 1)
+        # Bulk consent keeps the routing intent and starts recognition after commit.
+        update!(status: "pending", error_code: nil,
+          result: result.merge("intake_open" => false), version: version + 1)
       end
     end
   end
 
+  # Explicit routing also grants AI consent. Version changes invalidate older
+  # recognition jobs; integration must enqueue the new pending version.
+  def choose_destination!(wishlist_id, expected_version:)
+    user.with_lock do
+      change!(expected_version) do
+        target = user.wishlists.find(wishlist_id) unless wishlist_id.zero?
+        user.update!(photo_ai_consented_at: Time.current) unless user.photo_ai_consented_at?
+        next_status = status == "awaiting_consent" ? "pending" : status
+        update!(wishlist: target, status: next_status, version: version + 1,
+          result: result.merge("intent" => "save", "new_list" => target.nil?, "intake_open" => false))
+      end
+    end
+  end
+
+  def defer!(expected_version:)
+    change!(expected_version) do
+      update!(result: result.merge("intent" => "later", "intake_open" => false), version: version + 1)
+    end
+  end
+
+  # Technical screen metadata never advances the content/recognition version.
+  def remember_screen!(message_id)
+    return unless message_id.is_a?(Integer) && message_id.positive?
+
+    with_lock { update!(result: result.merge("screen_message_id" => message_id)) }
+  end
+
+  def dismiss_intake!
+    with_lock { update!(result: result.merge("intake_open" => false)) }
+  end
+
   def manual!(expected_version:)
-    change!(expected_version) { update!(status: "ready", error_code: nil, version: version + 1) }
+    change!(expected_version) { update!(status: "ready", error_code: nil, result: result.merge("intent" => "later", "intake_open" => false), version: version + 1) }
   end
 
   def retry_recognition!(expected_version:)
@@ -99,7 +153,8 @@ class PhotoGiftDraft < ApplicationRecord
     change!(expected_version) do
       next false unless status == "pending"
 
-      update!(status: "failed", error_code: code.to_s.first(40), version: version + 1)
+      update!(status: "failed", error_code: code.to_s.first(40),
+        result: result.merge("intake_open" => false), version: version + 1)
     end
   end
 
@@ -110,7 +165,7 @@ class PhotoGiftDraft < ApplicationRecord
       values = { "title" => title, "price" => price, "description" => description }.compact
       values = values.reject { |key, _| result[key].present? }
       validate_fields!(fields.merge(values))
-      update!(result: result.merge(values), status: "ready", version: version + 1, error_code: nil)
+      update!(result: result.merge(values).merge("intake_open" => false), status: "ready", version: version + 1, error_code: nil)
     end
   end
 
