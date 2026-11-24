@@ -138,6 +138,17 @@ module Bot
         open_list(wishlist_id)
       end
 
+      # Only the owner previews: a guest already sees the real thing
+      def guest_preview(wishlist_id, page = 0)
+        wishlist = user.wishlists.includes(:items, :user).find(wishlist_id)
+        presenter = Presenters::GuestPreviewPresenter.new(wishlist, user, context, page: page)
+        context.render(presenter.text, presenter.keyboard)
+      end
+
+      def preview_tap
+        context.notice = I18n.t("bot.screens.guest_preview.tap")
+      end
+
       private
 
       def reservations_line
