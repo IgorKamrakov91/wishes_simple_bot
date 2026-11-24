@@ -9,7 +9,7 @@ class PhotoGiftAutoSaveJob < ApplicationJob
 
   def perform(draft_id, version)
     draft = PhotoGiftDraft.find_by(id: draft_id)
-    return unless draft&.auto_save_due? && draft.version == version
+    return unless PhotoGiftDraft.enabled? && draft&.auto_save_due? && draft.version == version
 
     status, = draft.save_gift!(expected_version: version)
     PhotoGiftReviewJob.perform_later(draft.id, status == :saved ? draft.version : version)

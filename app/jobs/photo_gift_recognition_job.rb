@@ -29,7 +29,11 @@ class PhotoGiftRecognitionJob < ApplicationJob
     PhotoGiftReviewJob.perform_later(draft.id, shown_version) if shown_version
   ensure
     # No longer reading: a retry or newer version must not wait for this job
-    PhotoGiftDraft.where(id: draft.id).update_all("result = result - 'claimed_at'") if draft && outcome
+    # Only its own claim: after a deadline another job may have taken over
+    if draft && outcome
+      PhotoGiftDraft.where(id: draft.id).where("result->>'claimed_by' = ?", job_id)
+        .update_all("result = result - 'claimed_at' - 'claimed_by'")
+    end
   end
 
   private
@@ -43,7 +47,7 @@ class PhotoGiftRecognitionJob < ApplicationJob
       # Taken by a job that is still reading, or that finished with it
       next false if draft.result["claimed_version"] == version && !claim_expired?(draft)
 
-      draft.update!(result: draft.result.merge("claimed_version" => version, "claimed_at" => Time.current.iso8601(3)))
+      draft.update!(result: draft.result.merge("claimed_version" => version, "claimed_at" => Time.current.iso8601(3), "claimed_by" => job_id))
     end
   end
 

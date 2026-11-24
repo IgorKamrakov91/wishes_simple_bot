@@ -316,4 +316,24 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     assert_enqueued_jobs(2, only: PhotoGiftRecognitionJob) { @owner.update!(photo_ai_consented_at: Time.current) }
     assert_equal %w[pending pending], waiting.map { |d| d.reload.status }
   end
+
+  test "a finishing job releases only its own claim" do
+    draft = start
+    version = draft.version
+    @reader.expects(:call).with do
+      # Its claim expired and another job took over meanwhile
+      draft.reload.update!(result: draft.result.merge("claimed_at" => Time.current.iso8601, "claimed_by" => "other-job"))
+      true
+    end.returns(nil)
+
+    recognize(draft.id, version)
+    assert_equal [ Time.current.iso8601.first(16), "other-job" ], [ draft.reload.result["claimed_at"].first(16), draft.result["claimed_by"] ]
+  end
+
+  test "auto-save stops when the feature is switched off" do
+    draft = start
+    draft.update!(status: "ready", result: draft.result.merge("intent" => "save", "title" => "Лампа"))
+    ENV["PHOTO_GIFTS_ENABLED"] = "false"
+    assert_no_difference("Item.count") { PhotoGiftAutoSaveJob.perform_now(draft.id, draft.version) }
+  end
 end
