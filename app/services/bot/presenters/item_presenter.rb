@@ -5,9 +5,11 @@ module Bot
     class ItemPresenter < BasePresenter
       object_name :item
 
-      def initialize(item, user, context, reservations_page: nil)
+      def initialize(item, user, context, reservations_page: nil, budget: nil)
         super(item, user, context)
         @reservations_page = reservations_page
+        @guest_selection = GuestList.new(item.wishlist, budget: budget) unless owner? || reservations_page
+        @budget = @guest_selection.budget if @guest_selection && budget
       end
 
       def text
@@ -82,6 +84,8 @@ module Bot
       # A gift marked as bought asks first: releasing it also clears the mark
       # and opens it to other guests
       def release_data
+        return "#{item.purchased? ? 'gc' : 'gu'}:#{item.id}:#{item.reservation_version}:#{@budget}" if @budget
+
         prefix = item.purchased? ? "confirm_release" : (@reservations_page ? "release_book" : "unreserve_item")
         [ prefix, item.id, item.reservation_version, @reservations_page ].compact.join(":")
       end
@@ -89,6 +93,7 @@ module Bot
       def purchased_button
         value = item.purchased? ? 0 : 1
         data = [ "mark_purchased", item.id, item.reservation_version, value, @reservations_page ].compact.join(":")
+        data = "gp:#{item.id}:#{item.reservation_version}:#{value}:#{@budget}" if @budget
         label = item.purchased? ? t("bot.buttons.not_purchased") : t("bot.buttons.purchased")
         context.inline_btn(label, data, **(item.purchased? ? {} : { style: "primary" }))
       end
@@ -105,7 +110,8 @@ module Bot
 
         unless owner?
           if !item.reserved?
-            buttons << [ context.inline_btn(t("bot.buttons.reserve"), "reserve_item:#{item.id}:#{item.reservation_version}", style: "success") ]
+            data = @budget ? "gr:#{item.id}:#{item.reservation_version}:#{@budget}" : "reserve_item:#{item.id}:#{item.reservation_version}"
+            buttons << [ context.inline_btn(t("bot.buttons.reserve"), data, style: "success") ]
           elsif reserved_by_me?
             buttons << [ purchased_button, context.inline_btn(t("bot.buttons.unreserve"), release_data) ]
           end
@@ -126,7 +132,9 @@ module Bot
           ]
         end
 
-        back_to_list = context.inline_btn(t("bot.buttons.back_to_list"), "list_page:#{wishlist.id}:#{WishlistPresenter.page_of(position)}")
+        back_page = owner? ? WishlistPresenter.page_of(position) : (@guest_selection || GuestList.new(wishlist)).page_for(item.id)
+        back_data = @budget ? @guest_selection.page_callback(back_page) : "list_page:#{wishlist.id}:#{back_page}"
+        back_to_list = context.inline_btn(t("bot.buttons.back_to_list"), back_data)
         if @reservations_page
           # Opened from My reservations: back to either, no neighbours
           buttons << [ back_to_list, context.inline_btn(t("bot.screens.reservations.back"), "show_reservations:#{@reservations_page}") ]
@@ -145,9 +153,9 @@ module Bot
         previous_id = item_ids[position - 1] if position.positive?
         next_id = item_ids[position + 1]
         [
-          (context.inline_btn(t("bot.buttons.prev_item"), "open_item:#{previous_id}") if previous_id),
+          (context.inline_btn(t("bot.buttons.prev_item"), item_callback(previous_id)) if previous_id),
           back_to_list,
-          (context.inline_btn(t("bot.buttons.next_item"), "open_item:#{next_id}") if next_id)
+          (context.inline_btn(t("bot.buttons.next_item"), item_callback(next_id)) if next_id)
         ].compact
       end
 
@@ -163,7 +171,17 @@ module Bot
       end
 
       def item_ids
-        @item_ids ||= wishlist.items.pluck(:id)
+        @item_ids ||= begin
+          ids = @guest_selection ? @guest_selection.items.map(&:id) : wishlist.items.pluck(:id)
+          # An old button may open a gift whose price has since changed.
+          # Keep its card usable even when it no longer matches the budget.
+          ids.unshift(item.id) unless ids.include?(item.id)
+          ids
+        end
+      end
+
+      def item_callback(id)
+        @budget ? @guest_selection.item_callback(id) : "open_item:#{id}"
       end
 
       def position

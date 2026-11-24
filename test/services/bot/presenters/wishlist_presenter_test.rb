@@ -66,8 +66,8 @@ class BotPresentersWishlistPresenterTest < ActiveSupport::TestCase
     presenter = presenter_for(@guest)
     buttons = rows(presenter).flatten
 
-    assert_equal [ "★ Mine", "✓ Theirs", "Free" ], buttons.first(3).map(&:text)
-    assert_equal [ "primary", nil, nil ], buttons.first(3).map(&:style)
+    assert_equal [ "Free", "★ Mine", "✓ Theirs" ], buttons.first(3).map(&:text)
+    assert_equal [ nil, "primary", nil ], buttons.first(3).map(&:style)
     assert_match "●●○  2 из 3 забронировано", presenter.text
     assert_match I18n.t("bot.screens.list.legend"), presenter.text
     assert_match "tg://user?id=3001", presenter.text

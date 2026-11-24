@@ -126,11 +126,13 @@ module Bot
         show_lists
       end
 
-      def open_list(wishlist_id, page = 0)
+      def open_list(wishlist_id, page = nil, budget = nil)
         wishlist = Wishlist.accessible_to(user).includes(:items, :user).find(wishlist_id)
         UpdateDelivery.record_view("list_view", wishlist.id)
 
-        presenter = Presenters::WishlistPresenter.new(wishlist, user, context, page: page)
+        page ||= GuestList.page_from_callback(context.callback_data) || 0
+        budget ||= context.guest_budget
+        presenter = Presenters::WishlistPresenter.new(wishlist, user, context, page: page, budget: budget)
         context.render(presenter.text, presenter.keyboard)
       end
 

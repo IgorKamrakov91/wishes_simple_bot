@@ -7,7 +7,7 @@ module Bot
         scope = reservations_page.nil? ? Item.accessible_to(user) : Presenters::ReservationsPresenter.scope_for(user)
         item = scope.includes(wishlist: :user).find(item_id)
         UpdateDelivery.record_view("item_view", item.id)
-        presenter = Presenters::ItemPresenter.new(item, user, context, reservations_page: reservations_page)
+        presenter = Presenters::ItemPresenter.new(item, user, context, reservations_page: reservations_page, budget: context.guest_budget)
         context.render(presenter.text, presenter.keyboard, link_preview_options: presenter.link_preview_options)
       end
 
@@ -132,6 +132,8 @@ module Bot
 
         release, back = if reservations_page
           [ "release_book:#{item.id}:#{reservation_version}:#{reservations_page}", "open_booked_item:#{item.id}:#{reservations_page}" ]
+        elsif context.guest_budget
+          [ "gu:#{item.id}:#{reservation_version}:#{context.guest_budget}", "gi:#{item.id}:#{context.guest_budget}" ]
         else
           [ "unreserve_item:#{item.id}:#{reservation_version}", "open_item:#{item.id}" ]
         end
