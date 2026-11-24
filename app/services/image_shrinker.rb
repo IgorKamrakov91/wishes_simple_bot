@@ -22,8 +22,10 @@ module ImageShrinker
     header = Vips::Image.new_from_buffer(bytes, "")
     raise YandexAi::Client::Error, "too_large" if header.width * header.height > max_pixels
 
-    Vips::Image.thumbnail_buffer(bytes, max_side, height: max_side, size: :down)
-      .jpegsave_buffer(Q: QUALITY, strip: true)
+    image = Vips::Image.thumbnail_buffer(bytes, max_side, height: max_side, size: :down)
+    # JPEG has no transparency: a see-through PNG would turn black
+    image = image.flatten(background: [ 255, 255, 255 ]) if image.has_alpha?
+    image.jpegsave_buffer(Q: QUALITY, strip: true)
   rescue Vips::Error
     raise YandexAi::Client::Error, "not_an_image"
   end
