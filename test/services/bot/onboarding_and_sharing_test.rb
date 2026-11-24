@@ -118,6 +118,27 @@ class BotOnboardingAndSharingTest < ActiveSupport::TestCase
     assert results[:is_personal]
   end
 
+  test "inline browsing counts gifts without loading gift records" do
+    empty_list = @owner.wishlists.create!(title: "Пустой")
+    3.times { |i| @friends_list.items.create!(title: "Gift #{i}", description: "x" * 1000) }
+    @user.wishlists.create!(title: "Private").items.create!(title: "Not shared")
+    loaded_items = 0
+    subscriber = ->(*args) do
+      payload = args.last
+      loaded_items += payload[:record_count] if payload[:class_name] == "Item"
+    end
+
+    result = ActiveSupport::Notifications.subscribed(subscriber, "instantiation.active_record") do
+      inline_query("")
+    end
+    cards = result[:results].index_by(&:id)
+
+    assert_equal I18n.t("bot.inline.gifts", count: 3), cards.fetch(@friends_list.id.to_s).description
+    assert_equal I18n.t("bot.inline.gifts", count: 0), cards.fetch(empty_list.id.to_s).description
+    assert_equal 2, cards.size
+    assert_equal 0, loaded_items, "inline sharing needs counts, not full gift records"
+  end
+
   test "legacy long titles stay shareable without changing the stored list" do
     title = "🎁" * 5000
     @friends_list.update_column(:title, title)
