@@ -106,23 +106,32 @@ module Bot
 
     CAPTION_LIMIT = 1024
 
+    # Telegram limits captions to 1024 characters. Cutting HTML can split a
+    # tag or an entity and get the card rejected, so a caption that doesn\x27t
+    # fit goes as plain text, cut. Returns the caption and its parse mode.
+    def self.caption(html)
+      return [ html, "HTML" ] if html.length <= CAPTION_LIMIT
+
+      [ CGI.unescapeHTML(html.gsub(/<[^>]*>/, "")).truncate(CAPTION_LIMIT), nil ]
+    end
+
     # The draft's screens are a photo card: the picture with the text as its
     # caption. Buttons on the card change the caption in place; anywhere else
     # (a typed reply, a text screen) a new card is sent, since Telegram can't
     # turn a text message into a photo. Returns the card's message id.
     def render_card(photo, text, keyboard)
-      caption = text.to_s.truncate(CAPTION_LIMIT)
+      caption, parse_mode = self.class.caption(text.to_s)
       if editable_message? && source.message.photo.present?
         begin
-          bot.api.edit_message_caption(chat_id: chat_id, message_id: source.message.message_id, caption: caption,
-                                       reply_markup: keyboard, parse_mode: "HTML")
+          bot.api.edit_message_caption(**{ chat_id: chat_id, message_id: source.message.message_id, caption: caption,
+                                           reply_markup: keyboard, parse_mode: parse_mode }.compact)
           return source.message.message_id
         rescue Telegram::Bot::Exceptions::ResponseError => e
           return source.message.message_id if e.message.include?("message is not modified")
         end
       end
-      bot.api.send_photo(chat_id: chat_id, photo: photo, caption: caption, reply_markup: keyboard,
-                         parse_mode: "HTML").message_id
+      bot.api.send_photo(**{ chat_id: chat_id, photo: photo, caption: caption, reply_markup: keyboard,
+                             parse_mode: parse_mode }.compact).message_id
     end
 
     # Captions on forwarded store photos/documents are usable input too.

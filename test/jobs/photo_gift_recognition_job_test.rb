@@ -339,4 +339,16 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     ENV["PHOTO_GIFTS_ENABLED"] = "false"
     assert_no_difference("Item.count") { PhotoGiftAutoSaveJob.perform_now(draft.id, draft.version) }
   end
+
+  test "a retried edit that already went through sends no second card" do
+    draft = start
+    draft.update!(result: draft.result.merge("screen_message_id" => 555, "screen_photo" => true))
+    @reader.stubs(:call).returns(Result.new(title: "Лампа", price: nil, description: nil))
+    @api.stubs(:edit_message_caption).raises(Telegram::Bot::Exceptions::ResponseError.new(
+      response: stub(status: 400, body: { ok: false, error_code: 400, description: "Bad Request: message is not modified" }.to_json)
+    ))
+
+    recognize(draft.id, draft.version)
+    assert_empty @sent
+  end
 end
