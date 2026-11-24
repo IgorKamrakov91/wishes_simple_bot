@@ -7,7 +7,7 @@ module Bot
 
     # "ozon.ru/t/abc" without a scheme is still clearly a link
     BARE_LINK = %r{\A[\w-]+(\.[\w-]+)+(?::\d+)?([/?#]\S*)?\z}
-    CURRENCY_SUFFIX = /(?<=\d)(₽|руб\.?|р\.?|рубль|рубля|рублей|RUB)\z/i
+    CURRENCY_AFFIX = /\A(?:₽|RUB)(?=[+-]?\d)|(?<=\d)(?:₽|руб\.?|р\.?|рубль|рубля|рублей|RUB)\z/i
 
     attr_reader :context
     delegate :bot, :user, :chat_id, :text, to: :context
@@ -221,8 +221,9 @@ module Bot
 
       case field
       when "price"
-        # "6 000,50 ₽" -> "6000.50"
-        normalized_value.gsub(/[[:space:]]/, "").sub(CURRENCY_SUFFIX, "").tr(",", ".")
+        # "6 000,50 ₽" or "RUB 6000,50" -> "6000.50". Strip only one
+        # currency marker so duplicated or mixed markers remain invalid input.
+        normalized_value.gsub(/[[:space:]]/, "").sub(CURRENCY_AFFIX, "").tr(",", ".")
       when "url"
         BARE_LINK.match?(normalized_value) ? "https://#{normalized_value}" : normalized_value
       else
