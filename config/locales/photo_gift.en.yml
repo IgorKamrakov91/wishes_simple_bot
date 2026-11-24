@@ -35,6 +35,11 @@ en:
       photo: "🖼 Photo"
       prepared_photo: "Photo for your gift"
       photo_unavailable: "Could not show the photo. The text card and reservation still work."
+      added: "✅ Added “%{title}”%{price} to “%{list}”.\n\nAI may have misread the name or price — please check."
+      fix: "✏️ Edit"
+      undo: "↩️ Undo"
+      undone: "Removed the gift from the list."
+      undo_reserved: "It is already reserved — you can delete it from the gift card."
     messages:
       update_results:
         photo_gift: "Photo draft received."

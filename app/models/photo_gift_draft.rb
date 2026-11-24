@@ -16,6 +16,9 @@ class PhotoGiftDraft < ApplicationRecord
   validates :file_id, :chat_id, :message_id, :locale, :expires_at, presence: true
   validates :version, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   scope :active, -> { where(status: ACTIVE_STATUSES).where("expires_at > ?", Time.current) }
+  # Left in the inbox and not yet in an evening digest; drafts still being
+  # recognized wait for the next evening
+  scope :for_digest, -> { active.where.not(status: "pending").where("NOT (result ? 'digested_at')") }
 
   # Every move to pending (first photo after consent, consent, retry) is read
   # once the change is committed; the job ignores versions that moved on.

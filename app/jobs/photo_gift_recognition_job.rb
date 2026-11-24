@@ -16,10 +16,9 @@ class PhotoGiftRecognitionJob < ApplicationJob
     return unless draft && claim(draft, version)
 
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    outcome, changed = recognize(draft, version)
+    outcome, shown_version = recognize(draft, version)
     log(draft, outcome, started)
-    # Every change this job makes moves the draft exactly one version on
-    PhotoGiftReviewJob.perform_later(draft.id, version + 1) if changed
+    PhotoGiftReviewJob.perform_later(draft.id, shown_version) if shown_version
   end
 
   private
@@ -45,7 +44,9 @@ class PhotoGiftRecognitionJob < ApplicationJob
 
     applied = draft.apply_recognition!(title: found.title, price: found.price&.to_s("F"),
                                        description: found.description, expected_version: version)
-    applied ? [ "ready", true ] : [ "stale", false ]
+    return [ "stale", nil ] unless applied
+
+    save_if_list_chosen(draft, version + 1)
   rescue YandexAi::Client::Error => e
     fail(draft, e.code, version)
   rescue Bot::TelegramFile::Error => e
@@ -57,9 +58,23 @@ class PhotoGiftRecognitionJob < ApplicationJob
     fail(draft, "error", version)
   end
 
-  # Returns the outcome and whether this job changed the draft
+  # The person picked a list when sending the photo: that choice is the
+  # go-ahead to publish without the review. A photo still being prepared,
+  # or a draft changed meanwhile, falls back to the review.
+  def save_if_list_chosen(draft, version)
+    return [ "ready", version ] unless draft.reload.result["intent"] == "save"
+
+    status, = draft.save_gift!(expected_version: version)
+    status == :saved ? [ "saved", draft.version ] : [ "ready", version ]
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound
+    # e.g. the chosen list was deleted meanwhile
+    [ "ready", version ]
+  end
+
+  # Returns the outcome and the draft version to show, when this job changed
+  # the draft (each change moves it exactly one version on)
   def fail(draft, code, version)
-    [ code, draft.fail_recognition!(code, expected_version: version) == true ]
+    [ code, (version + 1 if draft.fail_recognition!(code, expected_version: version) == true) ]
   end
 
   def log(draft, outcome, started)

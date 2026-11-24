@@ -14,6 +14,8 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     @sent = []
     @api = stub("api")
     @api.stubs(:send_message).with { |params| @sent << params; true }
+    @edited = []
+    @api.stubs(:edit_message_text).with { |params| @edited << params; true }
     Telegram::Bot::Client.stubs(:new).returns(stub(api: @api))
     @files = stub("files")
     @files.stubs(:download).returns("\xFF\xD8\xFFjpeg".b)
@@ -195,5 +197,44 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
 
     travel 3.minutes
     assert_includes presenter.call.text, I18n.t("bot.photo_gift.review")
+  end
+
+  test "a list picked with the photo saves the gift on its own and edits the same message" do
+    draft = start
+    draft.update!(result: draft.result.merge("intent" => "save", "screen_message_id" => 555))
+    @reader.stubs(:call).returns(Result.new(title: "Ботинки BOSS", price: BigDecimal("20990"), description: "Детали: 43"))
+
+    assert_difference("@list.items.count") { recognize(draft.id, draft.version) }
+
+    item = @list.items.last
+    assert_equal [ "Ботинки BOSS", BigDecimal("20990"), "photo-large" ], [ item.title, item.price, item.photo_file_id ]
+    assert_equal "saved", draft.reload.status
+    assert_empty @sent
+    assert_equal 555, @edited.last[:message_id]
+    assert_includes @edited.last[:text], "Ботинки BOSS"
+    assert_includes @edited.last[:text], "Birthday"
+    buttons = @edited.last[:reply_markup].inline_keyboard.flatten.map(&:callback_data)
+    assert_equal [ "open_item:#{item.id}", "pgu:#{draft.id}" ], buttons
+  end
+
+  test "without a chosen list the review replaces the same message, or comes anew" do
+    draft = start
+    draft.update!(result: draft.result.merge("screen_message_id" => 555))
+    @reader.stubs(:call).returns(Result.new(title: "Лампа", price: nil, description: nil))
+    @api.stubs(:edit_message_text).raises(Telegram::Bot::Exceptions::ResponseError.new(response: stub(status: 400, body: {}.to_json)))
+
+    assert_no_difference("Item.count") { recognize(draft.id, draft.version) }
+    assert_equal "ready", draft.reload.status
+    assert_includes @sent.last[:text], "Лампа"
+  end
+
+  test "a chosen list deleted meanwhile falls back to the review" do
+    draft = start
+    draft.update!(result: draft.result.merge("intent" => "save"))
+    @reader.stubs(:call).with { @list.destroy!; true }.returns(Result.new(title: "Лампа", price: nil, description: nil))
+
+    assert_no_difference("Item.count") { recognize(draft.id, draft.version) }
+    assert_equal "ready", draft.reload.status
+    assert_includes @sent.last[:text], "Лампа"
   end
 end
