@@ -1,12 +1,8 @@
-require "telegram/bot"
-
 # Reads one pending photo draft with the vision model and sends the filled-in
 # review. Each pending version is read at most once: a repeated or late job,
 # or one for a draft the person has since edited, cancelled or replaced,
 # neither calls the model nor touches the draft.
 class PhotoGiftRecognitionJob < ApplicationJob
-  include Bot::Helpers
-
   queue_as :default
   self.log_arguments = false
   # Shares the gift ideas slots: at most two model calls at a time, so the
@@ -22,7 +18,8 @@ class PhotoGiftRecognitionJob < ApplicationJob
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     outcome, changed = recognize(draft, version)
     log(draft, outcome, started)
-    deliver(draft.reload) if changed
+    # Every change this job makes moves the draft exactly one version on
+    PhotoGiftReviewJob.perform_later(draft.id, version + 1) if changed
   end
 
   private
@@ -63,20 +60,6 @@ class PhotoGiftRecognitionJob < ApplicationJob
   # Returns the outcome and whether this job changed the draft
   def fail(draft, code, version)
     [ code, draft.fail_recognition!(code, expected_version: version) == true ]
-  end
-
-  # A new message, so the review appears below the "looking" one even if
-  # the person scrolled away
-  def deliver(draft)
-    I18n.with_locale(draft.locale) do
-      presenter = Bot::Presenters::PhotoGiftPresenter.new(draft, draft.user, self)
-      bot = Telegram::Bot::Client.new(ENV.fetch("TELEGRAM_BOT_TOKEN"))
-      bot.api.send_message(chat_id: draft.chat_id, text: presenter.text, reply_markup: presenter.keyboard,
-                           parse_mode: "HTML", link_preview_options: no_link_preview)
-    end
-  rescue Telegram::Bot::Exceptions::ResponseError, Faraday::Error => e
-    # The draft keeps the result; the person can open it from the menu
-    Rails.logger.info("Photo gift #{draft.id} not delivered (#{e.class})")
   end
 
   def log(draft, outcome, started)

@@ -24,6 +24,10 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
 
   teardown { @env.each { |key, value| ENV[key] = value } }
 
+  def recognize(id, version)
+    perform_enqueued_jobs(only: PhotoGiftReviewJob) { PhotoGiftRecognitionJob.perform_now(id, version) }
+  end
+
   def start(caption: nil)
     draft = nil
     assert_enqueued_jobs(1, only: PhotoGiftRecognitionJob) do
@@ -40,7 +44,7 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     @reader.expects(:call).with("\xFF\xD8\xFFjpeg".b, caption: nil)
       .returns(Result.new(title: "Ботинки BOSS", price: BigDecimal("20990"), description: "Детали: размер 43"))
 
-    assert_difference("AiCall.count") { PhotoGiftRecognitionJob.perform_now(draft.id, draft.version) }
+    assert_difference("AiCall.count") { recognize(draft.id, draft.version) }
 
     draft.reload
     assert_equal "ready", draft.status
@@ -57,7 +61,7 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     @reader.expects(:call).with(anything, caption: "Ботинки на зиму")
       .returns(Result.new(title: "Ботинки BOSS", price: BigDecimal("20990"), description: nil))
 
-    PhotoGiftRecognitionJob.perform_now(draft.id, draft.version)
+    recognize(draft.id, draft.version)
 
     assert_equal "Ботинки на зиму", draft.reload.fields["title"]
     assert_equal "20990.0", draft.fields["price"]
@@ -68,8 +72,8 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     version = draft.version
     @reader.expects(:call).once.returns(Result.new(title: "Лампа", price: nil, description: nil))
 
-    PhotoGiftRecognitionJob.perform_now(draft.id, version)
-    PhotoGiftRecognitionJob.perform_now(draft.id, version)
+    recognize(draft.id, version)
+    recognize(draft.id, version)
 
     assert_equal 1, @sent.size
   end
@@ -81,7 +85,7 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     @reader.expects(:call).never
     @files.expects(:download).never
 
-    assert_no_difference("AiCall.count") { PhotoGiftRecognitionJob.perform_now(draft.id, version) }
+    assert_no_difference("AiCall.count") { recognize(draft.id, version) }
     assert_equal "ready", draft.reload.status
     assert_empty @sent
   end
@@ -94,7 +98,7 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
       true
     end.returns(Result.new(title: "Лампа", price: BigDecimal("100"), description: nil))
 
-    PhotoGiftRecognitionJob.perform_now(draft.id, version)
+    recognize(draft.id, version)
 
     assert_equal({ "title" => "Мой вариант" }, draft.reload.fields)
     assert_empty @sent, "the person is already looking at their own edit"
@@ -105,7 +109,7 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     AiCall.stubs(:reserve!).returns(:user_limit)
     @files.expects(:download).never
 
-    PhotoGiftRecognitionJob.perform_now(draft.id, draft.version)
+    recognize(draft.id, draft.version)
 
     assert_equal [ "failed", "user_limit" ], [ draft.reload.status, draft.error_code ]
     assert_includes @sent.last[:text], I18n.t("bot.photo_gift.failed_limit")
@@ -123,7 +127,7 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
         @reader.stubs(:call).returns(nil)
       end
 
-      PhotoGiftRecognitionJob.perform_now(draft.id, draft.version)
+      recognize(draft.id, draft.version)
 
       assert_equal [ "failed", code ], [ draft.reload.status, draft.error_code ]
       assert_includes @sent.last[:text], I18n.t("bot.photo_gift.failed")
@@ -137,28 +141,49 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
   test "a retry is read again" do
     draft = start
     @reader.stubs(:call).raises(YandexAi::Client::Error.new("timeout"))
-    PhotoGiftRecognitionJob.perform_now(draft.id, draft.version)
+    recognize(draft.id, draft.version)
 
     assert_enqueued_with(job: PhotoGiftRecognitionJob) { draft.reload.retry_recognition!(expected_version: draft.version) }
     @reader.stubs(:call).returns(Result.new(title: "Лампа", price: nil, description: nil))
-    PhotoGiftRecognitionJob.perform_now(draft.id, draft.reload.version)
+    recognize(draft.id, draft.reload.version)
     assert_equal [ "ready", "Лампа" ], [ draft.reload.status, draft.fields["title"] ]
   end
 
-  test "an undelivered review keeps the result" do
+  test "an undelivered review is retried and the result kept" do
     draft = start
-    @reader.stubs(:call).returns(Result.new(title: "Лампа", price: nil, description: nil))
-    @api.stubs(:send_message).raises(Faraday::TimeoutError)
+    @reader.expects(:call).once.returns(Result.new(title: "Лампа", price: nil, description: nil))
+    @api.expects(:send_message).times(3).raises(Faraday::TimeoutError)
 
-    PhotoGiftRecognitionJob.perform_now(draft.id, draft.version)
+    recognize(draft.id, draft.version)
     assert_equal "ready", draft.reload.status
+  end
+
+  test "a draft closed before delivery gets no late review" do
+    draft = start
+    version = draft.version
+    @reader.stubs(:call).returns(Result.new(title: "Лампа", price: nil, description: nil))
+    PhotoGiftRecognitionJob.perform_now(draft.id, version)
+    draft.reload.cancel!(expected_version: draft.version)
+
+    perform_enqueued_jobs(only: PhotoGiftReviewJob)
+    assert_empty @sent
+  end
+
+  test "a stalled draft stays manual after other changes" do
+    draft = start
+    travel 3.minutes do
+      draft.reload.remove_photo!(expected_version: draft.version)
+      assert draft.reload.recognition_stalled?
+      context = Object.new.extend(Bot::Helpers)
+      assert_includes Bot::Presenters::PhotoGiftPresenter.new(draft, @owner, context).text, I18n.t("bot.photo_gift.review")
+    end
   end
 
   test "switching the feature off stops queued work" do
     draft = start
     ENV["PHOTO_GIFTS_ENABLED"] = "false"
     @reader.expects(:call).never
-    PhotoGiftRecognitionJob.perform_now(draft.id, draft.version)
+    recognize(draft.id, draft.version)
     assert_equal "pending", draft.reload.status
   end
 
@@ -168,7 +193,7 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     presenter = -> { Bot::Presenters::PhotoGiftPresenter.new(draft, @owner, context) }
     assert_includes presenter.call.text, I18n.t("bot.photo_gift.recognizing")
 
-    draft.update_column(:updated_at, 3.minutes.ago)
+    travel 3.minutes
     assert_includes presenter.call.text, I18n.t("bot.photo_gift.review")
   end
 end

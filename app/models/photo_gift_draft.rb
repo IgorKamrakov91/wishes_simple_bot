@@ -19,6 +19,7 @@ class PhotoGiftDraft < ApplicationRecord
 
   # Every move to pending (first photo after consent, consent, retry) is read
   # once the change is committed; the job ignores versions that moved on.
+  before_save :mark_pending_start, if: -> { will_save_change_to_status? && status == "pending" }
   after_commit :enqueue_recognition, if: -> { saved_change_to_status? && status == "pending" }
 
   def self.enabled?
@@ -174,12 +175,20 @@ class PhotoGiftDraft < ApplicationRecord
     end
   end
 
-  # Pending for longer than the job's deadline: the job was lost
+  # Pending for longer than the job's deadline: the job was lost. Counted from
+  # the move to pending, so later edits don't restart the wait.
   def recognition_stalled?
-    status == "pending" && updated_at < RECOGNITION_DEADLINE.ago
+    return false unless status == "pending"
+
+    started = Time.zone.parse(result["pending_at"].to_s) rescue nil
+    (started || created_at) < RECOGNITION_DEADLINE.ago
   end
 
   private
+
+  def mark_pending_start
+    self.result = result.merge("pending_at" => Time.current.iso8601(3))
+  end
 
   def enqueue_recognition
     PhotoGiftRecognitionJob.perform_later(id, version)
