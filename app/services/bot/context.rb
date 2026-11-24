@@ -101,6 +101,15 @@ module Bot
       source.is_a?(Telegram::Bot::Types::CallbackQuery) ? source.data : nil
     end
 
+    # Reuse Telegram's file, never forward the uploader's original message.
+    def send_photo(file_id)
+      return UpdateDelivery.current.defer { send_photo(file_id) } if UpdateDelivery.current
+
+      bot.api.send_photo(chat_id: chat_id, photo: file_id)
+    rescue Telegram::Bot::Exceptions::ResponseError, Faraday::Error
+      send_text(I18n.t("bot.photo_gift.photo_unavailable"))
+    end
+
     private
 
     # Telegram counts the limit in UTF-16 units after parsing the markup;

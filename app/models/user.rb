@@ -8,6 +8,7 @@ class User < ApplicationRecord
   has_many :list_viewers, dependent: :destroy
   has_many :gift_suggestions, dependent: :delete_all
   has_many :ai_calls, dependent: :delete_all
+  has_many :photo_gift_drafts, dependent: :delete_all
   has_one :onboarding_nudge, dependent: :destroy
   has_many :viewed_wishlists, through: :list_viewers, source: :wishlist
 
@@ -65,6 +66,10 @@ class User < ApplicationRecord
   end
 
   def clear_state!
+    if %w[photo_gift editing_photo_gift].include?(bot_state)
+      photo_gift_drafts.active.where(id: bot_payload&.dig("photo_gift_draft_id"))
+        .update_all("status = 'cancelled', version = version + 1")
+    end
     update!(bot_state: nil, bot_payload: nil)
   end
 

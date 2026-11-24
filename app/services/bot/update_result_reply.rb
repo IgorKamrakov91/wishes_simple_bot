@@ -37,6 +37,10 @@ module Bot
 
     def check_access!
       case @receipt.result_kind
+      when "photo_gift"
+        @user.photo_gift_drafts.find(@receipt.result_id)
+      when "item_photo"
+        Item.accessible_to(@user).find(@receipt.result_id)
       when "list_view"
         Wishlist.accessible_to(@user).find(@receipt.result_id)
       when "list_created", "list_renamed", "gift_deleted"
@@ -53,6 +57,10 @@ module Bot
 
     def render_result
       case @receipt.result_kind
+      when "photo_gift"
+        Callbacks::PhotoGiftHandler.new(@context).show(@receipt.result_id)
+      when "item_photo"
+        Callbacks::ItemHandler.new(@context).show_photo(@receipt.result_id)
       when "list_view", "list_created", "list_renamed", "gift_deleted"
         Callbacks::WishlistHandler.new(@context).open_list(@receipt.result_id)
       when "item_view", "gift_added", "gift_updated", "reserved", "released", "purchased", "unpurchased", "thanked",

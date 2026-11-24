@@ -3,6 +3,16 @@
 module Bot
   module Callbacks
     class ItemHandler < BaseHandler
+      def show_photo(item_id)
+        raise ActiveRecord::RecordNotFound unless PhotoGiftDraft.enabled?
+
+        item = Item.accessible_to(user).find(item_id)
+        raise ActiveRecord::RecordNotFound if item.photo_file_id.blank?
+
+        UpdateDelivery.record_view("item_photo", item.id)
+        context.send_photo(item.photo_file_id)
+      end
+
       def show_item(item_id, reservations_page: nil)
         scope = reservations_page.nil? ? Item.accessible_to(user) : Presenters::ReservationsPresenter.scope_for(user)
         item = scope.includes(wishlist: :user).find(item_id)

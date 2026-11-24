@@ -10,6 +10,9 @@
 #     schedule: at 5am every day
 
 production:
+  clear_photo_gift_drafts:
+    class: CleanupPhotoGiftDraftsJob
+    schedule: every hour at minute 30
   clear_bot_update_receipts:
     class: CleanupBotUpdateReceiptsJob
     schedule: every hour at minute 20
