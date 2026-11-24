@@ -54,7 +54,7 @@ class GiftSuggestion < ApplicationRecord
 
       # The cost bound still includes every request, even failed or stale ones.
       connection.execute("SELECT pg_advisory_xact_lock(#{GLOBAL_LOCK_KEY})")
-      next Request.new(:global_limit) if today.count >= global_daily_limit
+      next Request.new(:global_limit) if AiCall.total_today >= global_daily_limit
 
       suggestion = create!(user: user, wishlist: wishlist, locale: I18n.locale.to_s)
       ActiveRecord.after_all_transactions_commit { GiftIdeasJob.perform_later(suggestion.id) }
@@ -71,7 +71,7 @@ class GiftSuggestion < ApplicationRecord
 
     user.with_lock do
       connection.execute("SELECT pg_advisory_xact_lock(#{GLOBAL_LOCK_KEY})")
-      next Request.new(:global_limit) if today.count >= global_daily_limit
+      next Request.new(:global_limit) if AiCall.total_today >= global_daily_limit
 
       Request.new(:created, create!(user: user, wishlist: wishlist, locale: I18n.locale.to_s, system_generated: true))
     end

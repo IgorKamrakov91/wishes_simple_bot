@@ -17,13 +17,18 @@ module YandexAi
     DEFAULT_MODEL = "aliceai-llm-flash"
     OPEN_TIMEOUT = 3
     READ_TIMEOUT = 20
+    # An image upload is a few hundred kilobytes
+    WRITE_TIMEOUT = 10
     MAX_RESPONSE_BYTES = 64.kilobytes
 
     def initialize(api_key: ENV.fetch("YANDEX_AI_API_KEY"), folder_id: ENV.fetch("YANDEX_AI_FOLDER_ID"),
-                   model: ENV["YANDEX_AI_MODEL"].presence || DEFAULT_MODEL)
+                   model: ENV["YANDEX_AI_MODEL"].presence || DEFAULT_MODEL,
+                   read_timeout: READ_TIMEOUT, max_response_bytes: MAX_RESPONSE_BYTES)
       @api_key = api_key
       @folder_id = folder_id
       @model = model
+      @read_timeout = read_timeout
+      @max_response_bytes = max_response_bytes
     end
 
     # Returns the assistant's text
@@ -34,7 +39,7 @@ module YandexAi
 
       response = post(body)
       raise Error, "http_#{response.code}" unless response.is_a?(Net::HTTPSuccess)
-      raise Error, "too_large" if response.body.to_s.bytesize > MAX_RESPONSE_BYTES
+      raise Error, "too_large" if response.body.to_s.bytesize > @max_response_bytes
 
       data = JSON.parse(response.body)
       choice = data.dig("choices", 0)
@@ -61,7 +66,7 @@ module YandexAi
 
       response = nil
       Net::HTTP.start(ENDPOINT.host, ENDPOINT.port, use_ssl: true,
-                      open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT, write_timeout: OPEN_TIMEOUT) do |http|
+                      open_timeout: OPEN_TIMEOUT, read_timeout: @read_timeout, write_timeout: WRITE_TIMEOUT) do |http|
         response = http.request(request)
       end
       response

@@ -10,9 +10,18 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_20_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_24_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "ai_calls", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "kind", null: false
+    t.datetime "created_at", null: false
+    t.index ["created_at"], name: "index_ai_calls_on_created_at"
+    t.index ["user_id", "kind", "created_at"], name: "index_ai_calls_on_user_id_and_kind_and_created_at"
+    t.index ["user_id"], name: "index_ai_calls_on_user_id"
+  end
 
   create_table "birthday_reminder_deliveries", force: :cascade do |t|
     t.bigint "recipient_id", null: false
@@ -147,6 +156,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_190000) do
     t.index ["user_id"], name: "index_wishlists_on_user_id"
   end
 
+  add_foreign_key "ai_calls", "users", on_delete: :cascade
   add_foreign_key "birthday_reminder_deliveries", "users", column: "owner_id", on_delete: :cascade
   add_foreign_key "birthday_reminder_deliveries", "users", column: "recipient_id", on_delete: :cascade
   add_foreign_key "gift_suggestions", "users", on_delete: :cascade
