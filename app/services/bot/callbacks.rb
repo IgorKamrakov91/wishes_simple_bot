@@ -38,6 +38,9 @@ module Bot
       /\Agc:(\d+):(\d+):([asmlhn])\z/ => "Callbacks::GuestListHandler#confirm_release",
       /\Agp:(\d+):(\d+):([01]):([asmlhn])\z/ => "Callbacks::GuestListHandler#mark_purchased",
       /^open_shared_list:(\d+)$/ => "Callbacks::WishlistHandler#open_shared_list",
+      /^guest_preview:(\d+)$/ => "Callbacks::WishlistHandler#guest_preview",
+      /^guest_preview:(\d+):(\d+)$/ => "Callbacks::WishlistHandler#guest_preview",
+      /^preview_tap$/ => "Callbacks::WishlistHandler#preview_tap",
       /^gift_ideas:(\d+)$/ => "Callbacks::GiftIdeasHandler#request_ideas",
       /^show_gift_ideas:(\d+)$/ => "Callbacks::GiftIdeasHandler#show_ideas",
       /^add_idea:(\d+):(\d+)$/ => "Callbacks::GiftIdeasHandler#add_idea",
@@ -65,7 +68,7 @@ module Bot
 
     # Buttons that finish the pending input, do nothing, or only look
     # something up (help, settings), so they keep it
-    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|quick_list:\w+|demo(:\d)?|demo_taken|noop|help|settings|set_setting:\w+:[01]|reservation_reminders|set_reminder_days:(0|7|14|30)|resume_input|cancel_input|gift_ideas:\d+|show_gift_ideas:\d+|add_idea:\d+:\d+)\z/
+    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|quick_list:\w+|demo(:\d)?|demo_taken|noop|preview_tap|guest_preview:\d+(:\d+)?|help|settings|set_setting:\w+:[01]|reservation_reminders|set_reminder_days:(0|7|14|30)|resume_input|cancel_input|gift_ideas:\d+|show_gift_ideas:\d+|add_idea:\d+:\d+)\z/
 
     class << self
       def handle(bot, callback)

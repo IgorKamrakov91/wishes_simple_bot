@@ -19,6 +19,7 @@ module Bot
                       title: escape_html(@item.title.to_s.truncate(Item::TITLE_LIMIT)),
                       list: escape_html(wishlist.title.to_s.truncate(Wishlist::TITLE_LIMIT)))
         rows = [ [ WishlistPresenter.send_to_friend_button(@context, wishlist) ] ]
+        rows << [ @context.inline_btn(I18n.t("bot.buttons.guest_preview"), "guest_preview:#{wishlist.id}") ]
         rows << [ @context.inline_btn(I18n.t("bot.buttons.add_more"), "add_item:#{wishlist.id}", style: "primary") ]
         rows << [ @context.inline_btn(I18n.t("bot.buttons.add_link"), "edit_item_field:url:#{@item.id}") ] if @item.url.blank?
         rows << [ @context.inline_btn(I18n.t("bot.buttons.open_list"), "open_list:#{wishlist.id}") ]

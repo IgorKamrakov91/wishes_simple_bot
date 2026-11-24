@@ -53,6 +53,7 @@ module Bot
             send_to_friend_button,
             context.inline_btn(t("bot.buttons.share"), nil, copy_text: { text: share_link(wishlist) })
           ]
+          rows << [ context.inline_btn(t("bot.buttons.guest_preview"), "guest_preview:#{wishlist.id}") ] if items.any?
           rows << [
             context.inline_btn(t("bot.buttons.back_to_lists"), ListCollectionPresenter.back_callback(wishlist, user, shared: false)),
             context.inline_btn(t("bot.buttons.list_settings"), "list_settings:#{wishlist.id}")

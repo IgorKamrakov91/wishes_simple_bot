@@ -14,7 +14,7 @@ class BotProfileTest < ActiveSupport::TestCase
     default = calls.reject { |_, params| params.key?(:language_code) }.to_h
     assert_equal %w[start my new reservations settings help], default[:set_my_commands][:commands].map { |c| c[:command] }
     assert_equal "Главное меню", default[:set_my_commands][:commands].first[:description]
-    assert_match "Вишлисты", default[:set_my_short_description][:short_description]
+    assert_match "Договориться о подарках", default[:set_my_short_description][:short_description]
 
     english = calls.select { |_, params| params[:language_code] == "en" }.to_h
     assert english.key?(:delete_my_commands)

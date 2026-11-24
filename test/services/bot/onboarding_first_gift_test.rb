@@ -76,7 +76,7 @@ class BotOnboardingFirstGiftTest < ActiveSupport::TestCase
     assert_includes screen[:text], "первый подарок в списке «Хотелки»"
     share = buttons.first
     assert_equal Bot::Inline.share_query(list), share.switch_inline_query_chosen_chat.query
-    assert_equal [ "add_item:#{list.id}", "edit_item_field:url:#{item.id}", "open_list:#{list.id}" ], callbacks.compact
+    assert_equal [ "guest_preview:#{list.id}", "add_item:#{list.id}", "edit_item_field:url:#{item.id}", "open_list:#{list.id}" ], callbacks.compact
   end
 
   test "a link sent first still asks for the name and keeps the link" do
