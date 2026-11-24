@@ -83,14 +83,17 @@ module Bot
       send_text(text, keyboard, parse_mode: "HTML", link_preview_options: link_preview_options)
     end
 
-    # For StateHandler, which needs the message text
+    # Captions on forwarded store photos/documents are usable input too.
+    # Only their text is consumed; attachments are not stored.
     def text
-      source.is_a?(Telegram::Bot::Types::Message) ? source.text.to_s.strip : nil
+      return unless source.is_a?(Telegram::Bot::Types::Message)
+
+      (source.text.presence || source.caption).to_s.strip
     end
 
-    # A photo, sticker or other message without text
+    # A photo, sticker or other message without usable text or a caption
     def non_text_message?
-      source.is_a?(Telegram::Bot::Types::Message) && source.text.nil?
+      source.is_a?(Telegram::Bot::Types::Message) && source.text.nil? && source.caption.blank?
     end
 
     # For Callback handlers, which need the callback data
