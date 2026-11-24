@@ -61,7 +61,7 @@ module Bot
 
     # Buttons that finish the pending input, do nothing, or only look
     # something up (help, settings), so they keep it
-    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|quick_list:\w+|demo(:\d)?|demo_taken|noop|preview_tap|help|settings|set_setting:\w+:[01]|reservation_reminders|set_reminder_days:(0|7|14|30)|resume_input|cancel_input|gift_ideas:\d+|show_gift_ideas:\d+|add_idea:\d+:\d+)\z/
+    KEEP_INPUT_CALLBACKS = /\A(skip_item_url(:\w+)?|quick_list:\w+|demo(:\d)?|demo_taken|noop|preview_tap|guest_preview:\d+(:\d+)?|help|settings|set_setting:\w+:[01]|reservation_reminders|set_reminder_days:(0|7|14|30)|resume_input|cancel_input|gift_ideas:\d+|show_gift_ideas:\d+|add_idea:\d+:\d+)\z/
 
     class << self
       def handle(bot, callback)

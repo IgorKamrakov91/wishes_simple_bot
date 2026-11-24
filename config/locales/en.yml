@@ -341,7 +341,7 @@ en:
         greater_than: "The price must be greater than zero."
         less_than: "The price must be less than %{limit}. Enter a smaller amount or tap “Cancel”."
     profile:
-      description: "Sort out gifts in Telegram — no separate app, no awkward “what do you want?”, no duplicates or forgotten reservations.\n\n🎁 Make a wish list and send it to friends with one tap.\n✅ Friends reserve gifts so nobody gives the same thing twice. You won't know who picked what.\n🎂 The bot reminds friends of your birthday if your Telegram profile shows the date.\n💡 Not sure what to ask for? AI suggests ideas.\n\nTap Start — your first list takes a minute."
+      description: "Sort out gifts in Telegram — no separate app, no awkward “what do you want?”, no duplicates or forgotten reservations.\n\n🎁 Make a wish list and send it to friends with one tap.\n✅ Friends reserve gifts — no duplicates, and you won't know who picked what.\n📋 Your reservations live in “My reservations”; purchase reminders can be turned on.\n🎂 The bot reminds friends of your birthday if Telegram shows the date.\n💡 AI suggests gift ideas.\n\nTap Start — your first list takes a minute."
       short_description: "Sort out gifts in Telegram — no awkward “what do you want?”, no duplicates, no forgotten reservations."
       commands:
         start: "Main menu"

@@ -65,8 +65,9 @@ class BotGuestPreviewTest < ActiveSupport::TestCase
     assert_equal I18n.t("bot.messages.not_available"), @answers.last[:text]
   end
 
-  test "tapping a gift in the preview explains itself and keeps pending input" do
+  test "opening the preview and tapping a gift explain themselves and keep pending input" do
     @owner.update!(bot_state: "adding_item", bot_payload: { "wishlist_id" => @list.id })
+    press(@owner, "guest_preview:#{@list.id}")
     assert_no_difference("@screens.size") { press(@owner, "preview_tap") }
     assert_equal I18n.t("bot.screens.guest_preview.tap"), @answers.last[:text]
     assert_equal "adding_item", @owner.reload.bot_state
