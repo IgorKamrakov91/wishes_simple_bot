@@ -6,7 +6,7 @@ class BotPhotoGiftDocumentTest < ActiveSupport::TestCase
   setup do
     @api = mock("Telegram API")
     @processor = Bot::PhotoGiftDocument.new(api: @api, token: "test-token")
-    @draft = stub(file_id: "document-id", chat_id: 97921)
+    @draft = stub(file_id: "document-id", chat_id: 97921, locale: "ru")
     @api.stubs(:get_file).with(file_id: "document-id").returns(stub(file_path: "documents/file.png"))
   end
 
@@ -20,6 +20,7 @@ class BotPhotoGiftDocumentTest < ActiveSupport::TestCase
       assert_operator converted.height, :>, 0
       assert_equal "image/jpeg", part.content_type
       assert_equal 97921, params[:chat_id]
+      assert_equal "Фото для подарка", params[:caption]
       true
     end.returns(stub(photo: [ stub(width: 100, height: 10, file_id: "small"), stub(width: 2048, height: 68, file_id: "photo-id") ]))
     assert_equal "photo-id", @processor.prepare(@draft)
@@ -35,11 +36,24 @@ class BotPhotoGiftDocumentTest < ActiveSupport::TestCase
     assert_equal "photo", @processor.prepare(@draft)
   end
 
+  test "a full-resolution phone JPEG is accepted and downsized with an English caption" do
+    @draft.stubs(:locale).returns("en")
+    jpeg = Vips::Image.black(8064, 6048, bands: 3).jpegsave_buffer
+    @processor.stubs(:download).returns(jpeg)
+    @api.expects(:send_photo).with do |params|
+      image = Vips::Image.new_from_buffer(params[:photo].io.read, "")
+      assert_equal [ 2048, 1536 ], [ image.width, image.height ]
+      assert_equal "Photo for your gift", params[:caption]
+      true
+    end.returns(stub(photo: [ stub(width: 2048, height: 1536, file_id: "phone-photo") ]))
+    assert_equal "phone-photo", @processor.prepare(@draft)
+  end
+
   test "a forged image and excessive decoded pixels are rejected before upload" do
     @api.expects(:send_photo).never
     @processor.stubs(:download).returns("<html>not a PNG</html>")
     assert_raises(Bot::PhotoGiftDocument::InvalidImage) { @processor.prepare(@draft) }
-    @processor.stubs(:download).returns(Vips::Image.black(10_000, 5000).pngsave_buffer)
+    @processor.stubs(:download).returns(Vips::Image.black(10_001, 10_000).pngsave_buffer)
     assert_raises(Bot::PhotoGiftDocument::InvalidImage) { @processor.prepare(@draft) }
   end
 

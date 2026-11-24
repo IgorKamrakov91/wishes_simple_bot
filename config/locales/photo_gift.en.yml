@@ -26,6 +26,7 @@ en:
       preparing: "Preparing the image file. You can fill in the fields now, then tap Save."
       media_failed: "Could not prepare the image. Send it as a photo, or remove the photo and save the text."
       photo: "🖼 Photo"
+      prepared_photo: "Photo for your gift"
       photo_unavailable: "Could not show the photo. The text card and reservation still work."
     messages:
       update_results:

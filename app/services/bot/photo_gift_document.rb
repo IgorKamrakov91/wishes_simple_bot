@@ -23,10 +23,12 @@ module Bot
       png = bytes.start_with?("\x89PNG\r\n\x1A\n".b)
       raise InvalidImage unless jpeg || png
 
-      image = Vips::Image.new_from_buffer(bytes, "", access: :sequential)
-      raise InvalidImage if image.width * image.height > PhotoGiftIntake::MAX_PIXELS
+      header = Vips::Image.new_from_buffer(bytes, "")
+      raise InvalidImage if header.width * header.height > PhotoGiftIntake::MAX_PIXELS
 
-      image = image.thumbnail_image(2048, height: 2048, size: :down)
+      # Reading from the compressed buffer enables JPEG shrink-on-load rather
+      # than decoding the full phone photo before resizing it.
+      image = Vips::Image.thumbnail_buffer(bytes, 2048, height: 2048, size: :down)
       image = image.flatten(background: [ 255, 255, 255 ]) if image.has_alpha?
       output = image.jpegsave_buffer(strip: true, Q: 90)
       raise InvalidImage if output.bytesize > PhotoGiftIntake::MAX_BYTES
@@ -34,6 +36,7 @@ module Bot
       # Uploading a document id as photo is unsupported. The returned photo id
       # is what a saved gift can safely reuse for owners and admitted guests.
       response = @api.send_photo(chat_id: draft.chat_id,
+        caption: I18n.t("bot.photo_gift.prepared_photo", locale: draft.locale),
         photo: Faraday::Multipart::FilePart.new(StringIO.new(output), "image/jpeg", "gift.jpg"))
       response.photo.max_by { |photo| photo.width * photo.height }.file_id
     end
