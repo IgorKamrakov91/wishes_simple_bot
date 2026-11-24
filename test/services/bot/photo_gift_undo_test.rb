@@ -29,6 +29,7 @@ class BotPhotoGiftUndoTest < ActiveSupport::TestCase
   test "undo removes the gift saved on its own, once" do
     assert_difference("Item.count", -1) { press("pgu:#{@draft.id}") }
     assert_includes @screens.last[:text], I18n.t("bot.photo_gift.undone")
+    assert_equal [ "open_list:#{@list.id}", "main_menu" ], @screens.last[:reply_markup].inline_keyboard.flatten.map(&:callback_data)
     assert_no_difference("Item.count") { press("pgu:#{@draft.id}") }
   end
 
