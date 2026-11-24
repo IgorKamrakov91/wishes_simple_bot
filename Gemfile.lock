@@ -116,7 +116,7 @@ GEM
       dry-types (~> 1.8, >= 1.8.2)
       ice_nine (~> 0.11)
       zeitwerk (~> 2.6)
-    dry-types (1.9.1)
+    dry-types (1.9.2)
       bigdecimal (>= 3.0)
       concurrent-ruby (~> 1.0)
       dry-core (~> 1.0)
@@ -191,14 +191,15 @@ GEM
       ruby2_keywords (>= 0.0.5)
     msgpack (1.8.7)
     multipart-post (2.4.1)
-    net-http (0.9.1)
+    net-http (0.10.0)
+      net-protocol (>= 0.3.0)
       uri (>= 0.11.1)
     net-imap (0.6.6)
       date
       net-protocol
     net-pop (0.1.2)
       net-protocol
-    net-protocol (0.2.2)
+    net-protocol (0.4.0)
       timeout
     net-scp (4.2.1)
       net-ssh (>= 2.6.5, < 9.0.0)
@@ -352,7 +353,7 @@ GEM
       net-sftp (>= 2.1.2)
       net-ssh (>= 2.8.0)
       ostruct
-    telegram-bot-ruby (2.8.1)
+    telegram-bot-ruby (2.9.0)
       dry-struct (~> 1.6)
       faraday (~> 2.0)
       faraday-multipart (~> 1.0)
