@@ -87,6 +87,31 @@ class BotInputFeedbackTest < ActiveSupport::TestCase
     end
   end
 
+  test "pasted prices accept a leading ruble sign or currency code" do
+    [ "₽2 500,50", "₽ 2\u202F500,50", "RUB 2\u00A0500.50", "rub2500,50", "  RUB 2500.50  " ].each do |value|
+      edit("price")
+      say(value)
+
+      assert_equal BigDecimal("2500.50"), @item.reload.price, value
+      assert_nil @user.reload.bot_state, value
+    end
+  end
+
+  test "invalid prefixed prices preserve the previous price and allow retry" do
+    [ "₽", "RUB", "₽-2500", "RUB 0", "USD 2500", "₽2500 RUB", "RUB RUB 2500", "RUB2500 extra" ].each do |value|
+      edit("price")
+      say(value)
+
+      assert_equal 10, @item.reload.price, value
+      assert_equal "editing_item", @user.reload.bot_state, value
+      assert_includes last_buttons.map(&:callback_data), "open_item:#{@item.id}", value
+    end
+
+    say("₽ 2 500,50")
+    assert_equal BigDecimal("2500.50"), @item.reload.price
+    assert_nil @user.reload.bot_state
+  end
+
   test "currency names do not turn invalid prices into valid amounts" do
     [ "₽", "руб.", "р.", "RUB", "рублей", "2500 рублей extra", "2500 USD", "-2500 RUB", "0 рублей" ].each do |value|
       edit("price")
