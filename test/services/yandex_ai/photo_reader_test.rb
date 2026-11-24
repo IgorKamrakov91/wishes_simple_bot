@@ -8,7 +8,7 @@ class YandexAiPhotoReaderTest < ActiveSupport::TestCase
   setup do
     @client = mock("client")
     @reader = YandexAi::PhotoReader.new(client: @client)
-    ImageShrinker.stubs(:call).returns(nil)
+    ImageShrinker.stubs(:call).returns(JPEG)
   end
 
   def answer(content)
@@ -37,7 +37,7 @@ class YandexAiPhotoReaderTest < ActiveSupport::TestCase
 
   test "keeps unknown fields empty and never trusts a strange price" do
     { "20 990 ₽" => BigDecimal("20990"), "2500,50" => BigDecimal("2500.5"), "от 500" => nil,
-      0 => nil, -5 => nil, 10**9 => nil, "null" => nil, nil => nil }.each do |raw, expected|
+      0 => nil, -5 => nil, 10**9 => nil, 0.001 => nil, 99_999_999.999 => nil, 99_999_999.99 => BigDecimal("99999999.99"), "null" => nil, nil => nil }.each do |raw, expected|
       answer({ title: "Ботинки BOSS", price: raw, brand: "BOSS", details: nil, article: "null", store: "" }.to_json)
       result = @reader.call(JPEG)
       expected.nil? ? assert_nil(result.price, raw.inspect) : assert_equal(expected, result.price, raw.inspect)
@@ -73,12 +73,13 @@ class YandexAiPhotoReaderTest < ActiveSupport::TestCase
     end
   end
 
-  test "only JPEG and PNG pictures are read, and without libvips only small JPEG" do
+  test "only JPEG and PNG pictures are read, and never unshrunk" do
     @client.expects(:chat).never
     assert_equal "not_an_image", assert_raises(YandexAi::Client::Error) { @reader.call("GIF89a".b) }.code
-    assert_equal "not_an_image", assert_raises(YandexAi::Client::Error) { @reader.call(PNG) }.code
-    big = JPEG + ("x" * 5.megabytes).b
-    assert_equal "too_large", assert_raises(YandexAi::Client::Error) { @reader.call(big) }.code
+
+    # Without libvips the original, with its metadata, must not leave
+    ImageShrinker.stubs(:call).returns(nil)
+    assert_equal "no_image_support", assert_raises(YandexAi::Client::Error) { @reader.call(JPEG) }.code
   end
 
   test "a shrunk picture is what gets sent" do
