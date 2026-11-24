@@ -10,9 +10,18 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_20_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_24_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "ai_calls", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "kind", null: false
+    t.datetime "created_at", null: false
+    t.index ["created_at"], name: "index_ai_calls_on_created_at"
+    t.index ["user_id", "kind", "created_at"], name: "index_ai_calls_on_user_id_and_kind_and_created_at"
+    t.index ["user_id"], name: "index_ai_calls_on_user_id"
+  end
 
   create_table "birthday_reminder_deliveries", force: :cascade do |t|
     t.bigint "recipient_id", null: false
@@ -67,6 +76,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_190000) do
     t.bigint "reservation_version", default: 0, null: false
     t.datetime "purchased_at"
     t.datetime "thanked_at"
+    t.string "photo_file_id"
     t.index ["reserved_by"], name: "index_items_on_reserved_by"
     t.index ["wishlist_id"], name: "index_items_on_wishlist_id"
   end
@@ -98,6 +108,36 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_190000) do
     t.index ["gift_suggestion_id"], name: "index_onboarding_nudges_on_gift_suggestion_id"
     t.index ["user_id"], name: "index_onboarding_nudges_on_user_id", unique: true
     t.index ["wishlist_id"], name: "index_onboarding_nudges_on_wishlist_id"
+  end
+
+  create_table "photo_gift_drafts", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "wishlist_id"
+    t.bigint "item_id"
+    t.bigint "chat_id", null: false
+    t.bigint "message_id", null: false
+    t.string "media_group_id"
+    t.string "file_id", null: false
+    t.string "file_unique_id"
+    t.string "photo_file_id"
+    t.string "media_kind", default: "photo", null: false
+    t.string "media_status", default: "ready", null: false
+    t.text "caption"
+    t.string "locale", null: false
+    t.string "status", default: "awaiting_consent", null: false
+    t.jsonb "result", default: {}, null: false
+    t.string "error_code"
+    t.integer "version", default: 0, null: false
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["chat_id", "message_id"], name: "index_photo_gift_drafts_on_chat_id_and_message_id", unique: true
+    t.index ["expires_at"], name: "index_photo_gift_drafts_on_expires_at"
+    t.index ["item_id"], name: "index_photo_gift_drafts_on_item_id"
+    t.index ["user_id", "media_group_id"], name: "index_photo_gift_drafts_on_user_id_and_media_group_id", unique: true, where: "(media_group_id IS NOT NULL)"
+    t.index ["user_id"], name: "index_photo_gift_drafts_on_user_id"
+    t.index ["wishlist_id"], name: "index_photo_gift_drafts_on_wishlist_id"
+    t.check_constraint "version >= 0", name: "photo_gift_drafts_version"
   end
 
   create_table "users", force: :cascade do |t|
@@ -132,6 +172,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_190000) do
     t.datetime "first_share_query_at"
     t.datetime "first_shared_list_open_at"
     t.boolean "notify_onboarding", default: true, null: false
+    t.datetime "photo_ai_consented_at"
     t.index ["reservation_reminder_next_at"], name: "index_users_on_reservation_reminder_next_at"
     t.index ["telegram_id"], name: "index_users_on_telegram_id", unique: true
     t.check_constraint "reservation_reminder_days = ANY (ARRAY[0, 7, 14, 30])", name: "users_reservation_reminder_days"
@@ -147,6 +188,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_190000) do
     t.index ["user_id"], name: "index_wishlists_on_user_id"
   end
 
+  add_foreign_key "ai_calls", "users", on_delete: :cascade
   add_foreign_key "birthday_reminder_deliveries", "users", column: "owner_id", on_delete: :cascade
   add_foreign_key "birthday_reminder_deliveries", "users", column: "recipient_id", on_delete: :cascade
   add_foreign_key "gift_suggestions", "users", on_delete: :cascade
@@ -157,5 +199,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_190000) do
   add_foreign_key "onboarding_nudges", "gift_suggestions", on_delete: :nullify
   add_foreign_key "onboarding_nudges", "users", on_delete: :cascade
   add_foreign_key "onboarding_nudges", "wishlists", on_delete: :nullify
+  add_foreign_key "photo_gift_drafts", "items", on_delete: :nullify
+  add_foreign_key "photo_gift_drafts", "users", on_delete: :cascade
+  add_foreign_key "photo_gift_drafts", "wishlists", on_delete: :nullify
   add_foreign_key "wishlists", "users"
 end

@@ -1,0 +1,25 @@
+en:
+  bot:
+    photo_inbox:
+      digest:
+        one: "📸 %{count} gift photo in your inbox:"
+        other: "📸 %{count} gift photos in your inbox:"
+      more:
+        one: "…and %{count} more"
+        other: "…and %{count} more"
+      unnamed: "photo without a name"
+      needs_consent: "To sort the photos for you, allow sending them to Yandex AI. Or sort them yourself."
+      allow: "🔍 Allow recognition"
+      save_all: "✅ All to “%{list}”"
+      one_by_one: "📥 Sort one by one"
+      saved:
+        zero: "Nothing to save: the photos have no names yet."
+        one: "✅ Saved %{count} gift to “%{list}”."
+        other: "✅ Saved %{count} gifts to “%{list}”."
+      left:
+        one: "%{count} photo without a name is left in the inbox."
+        other: "%{count} photos without a name are left in the inbox."
+      recognizing:
+        zero: "Done: from now on photos will be recognized automatically."
+        one: "🔍 Reading %{count} photo — I'll send the card when it's ready."
+        other: "🔍 Reading %{count} photos — I'll send the cards when they're ready."

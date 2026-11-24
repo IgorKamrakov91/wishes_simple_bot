@@ -6,8 +6,14 @@ module Bot
     # typing and then carry on
     class HelpHandler < BaseHandler
       def self.text
+        help = I18n.t("bot.commands.help").rstrip
+        if PhotoGiftDraft.enabled?
+          # Before the closing paragraph that introduces the commands
+          before, _, commands = help.rpartition("\n\n")
+          help = [ before, I18n.t("bot.photo_gift.help").rstrip, commands ].join("\n\n")
+        end
         [
-          I18n.t("bot.commands.help").rstrip,
+          help,
           Profile.command_list,
           I18n.t("bot.commands.help_cancel"),
           "",

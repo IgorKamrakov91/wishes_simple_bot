@@ -34,6 +34,7 @@ env:
     # Run Solid Queue inside Puma: single small server.
     SOLID_QUEUE_IN_PUMA: true
     WEB_CONCURRENCY: 1
+    PHOTO_GIFTS_ENABLED: "true"
 
 aliases:
   console: app exec --interactive --reuse "bin/rails console"

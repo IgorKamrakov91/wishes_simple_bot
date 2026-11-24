@@ -118,6 +118,9 @@ module Bot
         end
 
         buttons << [ context.inline_btn(t("bot.buttons.open_in_store"), url: web_url.to_s) ] if web_url
+        if PhotoGiftDraft.enabled? && item.photo_file_id.present?
+          buttons << [ context.inline_btn(t("bot.photo_gift.photo"), "ip:#{item.id}") ]
+        end
 
         # Thanks, returning and deleting wait behind "Gift received", so the
         # thanks read as being for the gift, not for the reservation

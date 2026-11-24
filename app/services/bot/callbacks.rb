@@ -3,6 +3,16 @@ module Bot
     extend Bot::Helpers
 
     CALLBACK_ROUTES = {
+      /\Apg:([amstpdulxcrz]):(\d+):(\d+)\z/ => "Callbacks::PhotoGiftHandler#action",
+      /\Apgl:(\d+):(\d+):(\d+)\z/ => "Callbacks::PhotoGiftHandler#lists",
+      /\Apgw:(\d+):(\d+):(\d+)\z/ => "Callbacks::PhotoGiftHandler#select_list",
+      /\Apgi:(\d+)\z/ => "Callbacks::PhotoGiftHandler#inbox",
+      /\Apgo:(\d+)\z/ => "Callbacks::PhotoGiftHandler#open_review",
+      /\Apgb:(\d+)\z/ => "Callbacks::PhotoGiftHandler#back",
+      /\Apgu:(\d+)\z/ => "Callbacks::PhotoGiftResultHandler#undo",
+      /\Apgd:s:(\d+)\z/ => "Callbacks::PhotoInboxHandler#save_all",
+      /\Apgd:c\z/ => "Callbacks::PhotoInboxHandler#consent",
+      /\Aip:(\d+)\z/ => "Callbacks::ItemHandler#show_photo",
       /^main_menu$/ => "Callbacks::WishlistHandler#main_menu",
       /^settings$/ => "Callbacks::SettingsHandler#show_settings",
       /^set_setting:(\w+):([01])$/ => "Callbacks::SettingsHandler#set_setting",
@@ -92,6 +102,7 @@ module Bot
         # Pressing a button abandons any pending input, prompts start a new one.
         # The menu keeps a newcomer's unfinished first gift.
         keep = KEEP_INPUT_CALLBACKS.match?(callback.data.to_s) || GuestList::NAVIGATION_CALLBACK_PATTERN.match?(callback.data.to_s) ||
+          PhotoGiftHandler::CALLBACK_PATTERN.match?(callback.data.to_s) ||
           (callback.data == "main_menu" && InputPrompt.new(context).onboarding_draft?)
         user.clear_state! if user.bot_state.present? && !keep
 

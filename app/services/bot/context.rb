@@ -83,6 +83,21 @@ module Bot
       send_text(text, keyboard, parse_mode: "HTML", link_preview_options: link_preview_options)
     end
 
+    # Capture the actual bot message after deferred delivery (outside the
+    # business transaction). Callback edits retain their existing message id;
+    # a failed edit falls back to a new message and records that id instead.
+    def render_photo_gift(draft, text, keyboard)
+      if (delivery = UpdateDelivery.current)
+        return delivery.defer { render_photo_gift(draft, text, keyboard) }
+      end
+
+      response = render(text, keyboard)
+      id = response.message_id if response.respond_to?(:message_id)
+      id ||= source.message.message_id if editable_message? && response.nil?
+      draft.remember_screen!(id)
+      response
+    end
+
     # Captions on forwarded store photos/documents are usable input too.
     # Only their text is consumed; attachments are not stored.
     def text
@@ -99,6 +114,15 @@ module Bot
     # For Callback handlers, which need the callback data
     def callback_data
       source.is_a?(Telegram::Bot::Types::CallbackQuery) ? source.data : nil
+    end
+
+    # Reuse Telegram's file, never forward the uploader's original message.
+    def send_photo(file_id)
+      return UpdateDelivery.current.defer { send_photo(file_id) } if UpdateDelivery.current
+
+      bot.api.send_photo(chat_id: chat_id, photo: file_id)
+    rescue Telegram::Bot::Exceptions::ResponseError, Faraday::Error
+      send_text(I18n.t("bot.photo_gift.photo_unavailable"))
     end
 
     private

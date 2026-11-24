@@ -12,5 +12,5 @@ Rails.application.config.filter_parameters += [
 # people are stay out of the logs. Exact key names, so ids, chat types and
 # callback data stay visible.
 Rails.application.config.filter_parameters += [
-  /\A(text|caption|query|url|first_name|last_name|username|phone_number|title|description)\z/
+  /\A(text|caption|query|url|first_name|last_name|username|phone_number|title|description|file_id|file_unique_id|file_path|file_name)\z/
 ]
