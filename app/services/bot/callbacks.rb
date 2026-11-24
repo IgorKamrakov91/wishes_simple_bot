@@ -30,6 +30,13 @@ module Bot
       /^delete_list:(\d+)$/ => "Callbacks::WishlistHandler#delete_list",
       /^open_list:(\d+)$/ => "Callbacks::WishlistHandler#open_list",
       /^list_page:(\d+):(\d+)$/ => "Callbacks::WishlistHandler#open_list",
+      /\Agl:(\d+):(\d+):([asmlhn])\z/ => "Callbacks::GuestListHandler#open",
+      /\Agf:(\d+):(\d+):([asmlhn])\z/ => "Callbacks::GuestListHandler#filter_menu",
+      /\Agi:(\d+):([asmlhn])\z/ => "Callbacks::GuestListHandler#show_item",
+      /\Agr:(\d+):(\d+):([asmlhn])\z/ => "Callbacks::GuestListHandler#reserve",
+      /\Agu:(\d+):(\d+):([asmlhn])\z/ => "Callbacks::GuestListHandler#release",
+      /\Agc:(\d+):(\d+):([asmlhn])\z/ => "Callbacks::GuestListHandler#confirm_release",
+      /\Agp:(\d+):(\d+):([01]):([asmlhn])\z/ => "Callbacks::GuestListHandler#mark_purchased",
       /^open_shared_list:(\d+)$/ => "Callbacks::WishlistHandler#open_shared_list",
       /^guest_preview:(\d+)$/ => "Callbacks::WishlistHandler#guest_preview",
       /^guest_preview:(\d+):(\d+)$/ => "Callbacks::WishlistHandler#guest_preview",
@@ -84,7 +91,7 @@ module Bot
 
         # Pressing a button abandons any pending input, prompts start a new one.
         # The menu keeps a newcomer's unfinished first gift.
-        keep = KEEP_INPUT_CALLBACKS.match?(callback.data.to_s) ||
+        keep = KEEP_INPUT_CALLBACKS.match?(callback.data.to_s) || GuestList::NAVIGATION_CALLBACK_PATTERN.match?(callback.data.to_s) ||
           (callback.data == "main_menu" && InputPrompt.new(context).onboarding_draft?)
         user.clear_state! if user.bot_state.present? && !keep
 

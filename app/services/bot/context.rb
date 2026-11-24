@@ -16,6 +16,14 @@ module Bot
 
     # Short text shown as a toast when the callback query is answered
     attr_accessor :notice
+    attr_writer :guest_budget
+
+    # Also recover navigation from the original button on webhook redelivery.
+    def guest_budget
+      return @guest_budget if defined?(@guest_budget)
+
+      @guest_budget = GuestList.budget_from_callback(callback_data)
+    end
 
     def initialize(bot:, user:, source:)
       @bot = bot

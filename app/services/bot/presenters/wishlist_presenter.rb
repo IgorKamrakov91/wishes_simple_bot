@@ -27,13 +27,14 @@ module Bot
                            })
       end
 
-      def initialize(wishlist, user, context, page: 0)
+      def initialize(wishlist, user, context, page: 0, budget: nil)
         super(wishlist, user, context)
+        @guest_selection = GuestList.new(wishlist, budget: budget) unless owner?
         @page = page.clamp(0, total_pages - 1)
       end
 
       def text
-        [ header, body ].compact.join("\n\n")
+        [ header, body, budget_hint ].compact.join("\n\n")
       end
 
       def keyboard
@@ -58,6 +59,7 @@ module Bot
             context.inline_btn(t("bot.buttons.list_settings"), "list_settings:#{wishlist.id}")
           ]
         else
+          rows << [ context.inline_btn(t("bot.guest_budget.button", budget: @guest_selection.label), @guest_selection.menu_callback(page)) ] if items.any?
           row = [ context.inline_btn(t("bot.buttons.back_to_shared_lists"), ListCollectionPresenter.back_callback(wishlist, user, shared: true)) ]
           # A guest without lists of their own is one tap away from making one
           row << context.inline_btn(t("bot.buttons.create_own_list"), "new_list") unless user.wishlists.exists?
@@ -94,6 +96,8 @@ module Bot
       def body
         if items.empty?
           owner? ? t("bot.screens.list.owner_empty") : t("bot.screens.list.guest_empty")
+        elsif !owner? && visible_items.empty?
+          t("bot.guest_budget.empty")
         elsif !owner? && items.any?(&:reserved?)
           t("bot.screens.list.legend")
         end
@@ -102,7 +106,8 @@ module Bot
       # The ★ and ✓ marks carry the status in clients that ignore button colors
       def item_button(item)
         options = reserved_by_me?(item) ? { style: MY_RESERVATION_STYLE } : {}
-        context.inline_btn(item_label(item), "open_item:#{item.id}", **options)
+        data = owner? ? "open_item:#{item.id}" : @guest_selection.item_callback(item.id)
+        context.inline_btn(item_label(item), data, **options)
       end
 
       def item_label(item)
@@ -122,8 +127,8 @@ module Bot
       # Only the steps that exist; the page number is in the text
       def pager_row
         @pager_row ||= [
-          (context.inline_btn(t("bot.buttons.prev_page"), "list_page:#{wishlist.id}:#{page - 1}") if page.positive?),
-          (context.inline_btn(t("bot.buttons.next_page"), "list_page:#{wishlist.id}:#{page + 1}") if page < total_pages - 1)
+          (context.inline_btn(t("bot.buttons.prev_page"), page_callback(page - 1)) if page.positive?),
+          (context.inline_btn(t("bot.buttons.next_page"), page_callback(page + 1)) if page < total_pages - 1)
         ].compact
       end
 
@@ -132,11 +137,25 @@ module Bot
       end
 
       def page_items
-        items.to_a.slice(page * PER_PAGE, PER_PAGE) || []
+        visible_items.slice(page * PER_PAGE, PER_PAGE) || []
       end
 
       def total_pages
-        [ (items.size.to_f / PER_PAGE).ceil, 1 ].max
+        [ (visible_items.size.to_f / PER_PAGE).ceil, 1 ].max
+      end
+
+      def visible_items
+        owner? ? items.to_a : @guest_selection.items
+      end
+
+      def page_callback(number)
+        owner? ? "list_page:#{wishlist.id}:#{number}" : @guest_selection.page_callback(number)
+      end
+
+      def budget_hint
+        return if owner? || items.empty? || @guest_selection.budget == "a"
+
+        t("bot.guest_budget.hint", budget: @guest_selection.label, count: visible_items.size)
       end
 
       def owner?
