@@ -137,10 +137,16 @@ class PhotoGiftDraft < ApplicationRecord
   end
 
   # Technical screen metadata never advances the content/recognition version.
-  def remember_screen!(message_id)
+  def remember_screen!(message_id, photo: false)
     return unless message_id.is_a?(Integer) && message_id.positive?
 
-    with_lock { update!(result: result.merge("screen_message_id" => message_id)) }
+    with_lock { update!(result: result.merge("screen_message_id" => message_id, "screen_photo" => photo)) }
+  end
+
+  # The picture the draft's screens show, once Telegram has it as a photo
+  # (a file sent as a document is converted first)
+  def card_photo
+    photo_file_id if photo_file_id.present? && media_status == "ready"
   end
 
   def dismiss_intake!

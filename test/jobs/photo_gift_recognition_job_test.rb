@@ -16,6 +16,9 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     @api.stubs(:send_message).with { |params| @sent << params; true }
     @edited = []
     @api.stubs(:edit_message_text).with { |params| @edited << params; true }
+    @api.stubs(:edit_message_caption).with { |params| @edited << params.merge(text: params[:caption]); true }
+    @api.stubs(:send_photo).with { |params| @sent << params.merge(text: params[:caption]); true }
+      .returns(Telegram::Bot::Types::Message.new(message_id: 777, date: 1, chat: { id: 1, type: "private" }))
     Telegram::Bot::Client.stubs(:new).returns(stub(api: @api))
     @files = stub("files")
     @files.stubs(:download).returns("\xFF\xD8\xFFjpeg".b)
@@ -154,7 +157,7 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
   test "an undelivered review is retried and the result kept" do
     draft = start
     @reader.expects(:call).once.returns(Result.new(title: "Лампа", price: nil, description: nil))
-    @api.expects(:send_message).times(3).raises(Faraday::TimeoutError)
+    @api.expects(:send_photo).times(3).raises(Faraday::TimeoutError)
 
     recognize(draft.id, draft.version)
     assert_equal "ready", draft.reload.status
@@ -177,7 +180,7 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
       draft.reload.remove_photo!(expected_version: draft.version)
       assert draft.reload.recognition_stalled?
       context = Object.new.extend(Bot::Helpers)
-      assert_includes Bot::Presenters::PhotoGiftPresenter.new(draft, @owner, context).text, I18n.t("bot.photo_gift.review")
+      assert_includes Bot::Presenters::PhotoGiftPresenter.new(draft, @owner, context).text, I18n.t("bot.photo_gift.card_hint", list: "").split(". ").last
     end
   end
 
@@ -196,12 +199,12 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     assert_includes presenter.call.text, I18n.t("bot.photo_gift.recognizing")
 
     travel 3.minutes
-    assert_includes presenter.call.text, I18n.t("bot.photo_gift.review")
+    assert_includes presenter.call.text, I18n.t("bot.photo_gift.card_hint", list: "").split(". ").last
   end
 
   test "a list picked with the photo saves the gift on its own and edits the same message" do
     draft = start
-    draft.update!(result: draft.result.merge("intent" => "save", "screen_message_id" => 555))
+    draft.update!(result: draft.result.merge("intent" => "save", "screen_message_id" => 555, "screen_photo" => true))
     @reader.stubs(:call).returns(Result.new(title: "Ботинки BOSS", price: BigDecimal("20990"), description: "Детали: 43"))
 
     assert_difference("@list.items.count") { recognize(draft.id, draft.version) }
@@ -335,5 +338,17 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     draft.update!(status: "ready", result: draft.result.merge("intent" => "save", "title" => "Лампа"))
     ENV["PHOTO_GIFTS_ENABLED"] = "false"
     assert_no_difference("Item.count") { PhotoGiftAutoSaveJob.perform_now(draft.id, draft.version) }
+  end
+
+  test "a retried edit that already went through sends no second card" do
+    draft = start
+    draft.update!(result: draft.result.merge("screen_message_id" => 555, "screen_photo" => true))
+    @reader.stubs(:call).returns(Result.new(title: "Лампа", price: nil, description: nil))
+    @api.stubs(:edit_message_caption).raises(Telegram::Bot::Exceptions::ResponseError.new(
+      response: stub(status: 400, body: { ok: false, error_code: 400, description: "Bad Request: message is not modified" }.to_json)
+    ))
+
+    recognize(draft.id, draft.version)
+    assert_empty @sent
   end
 end

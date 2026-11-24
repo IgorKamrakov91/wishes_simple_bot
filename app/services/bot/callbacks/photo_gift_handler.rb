@@ -4,14 +4,15 @@ module Bot
       FIELD_KEYS = Presenters::PhotoGiftPresenter::FIELD_KEYS
       LISTS_PER_PAGE = 5
       INBOX_PER_PAGE = 8
-      CALLBACK_PATTERN = /\A(?:pg:[amstpdulxcrz]:\d+:\d+|pgl:\d+:\d+:\d+|pgw:\d+:\d+:\d+|pgb:\d+|pgi:\d+|pgo:\d+|ip:\d+)\z/
+      CALLBACK_PATTERN = /\A(?:pg:[aemstpdulxcrz]:\d+:\d+|pgl:\d+:\d+:\d+|pgw:\d+:\d+:\d+|pgb:\d+|pgi:\d+|pgo:\d+|ip:\d+)\z/
 
-      def show(id)
+      def show(id, menu: nil)
         draft = owned(id)
         clear_input_for(draft) unless draft.editable?
         UpdateDelivery.record_result("photo_gift", draft.id)
         klass = draft.editable? && draft.result["intake_open"] ? Presenters::PhotoGiftIntakePresenter : Presenters::PhotoGiftPresenter
         presenter = klass.new(draft, user, context)
+        presenter.menu = menu if presenter.respond_to?(:menu=)
         context.render_photo_gift(draft, presenter.text, presenter.keyboard)
       end
 
@@ -29,7 +30,7 @@ module Bot
 
           clear_input_for(draft)
           UpdateDelivery.record_result("photo_gift", draft.id)
-          return context.render(I18n.t("bot.photo_gift.deferred"), build_keyboard([
+          return context.render_photo_gift(draft, I18n.t("bot.photo_gift.deferred"), build_keyboard([
             [ inline_btn(I18n.t("bot.photo_gift.inbox", count: user.photo_gift_drafts.active.count), "pgi:0") ],
             [ inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ]
           ]))
@@ -41,8 +42,10 @@ module Bot
           return outdated(draft) unless draft.cancel!(expected_version: version)
 
           clear_input_for(draft)
-          return context.render(I18n.t("bot.commands.cancelled"))
+          return context.render_photo_gift(draft, I18n.t("bot.commands.cancelled"),
+            build_keyboard([ [ inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ] ]))
         when "s" then return save(draft)
+        when "e" then return show(draft.id, menu: :edit)
         else
           return edit(draft, FIELD_KEYS.fetch(action))
         end
@@ -193,7 +196,13 @@ module Bot
 
         first = user.onboarding?
         status, item = draft.save_gift!(expected_version: draft.version)
-        return show_saved(draft, first: first) if %i[saved already].include?(status) && item
+        if %i[saved already].include?(status) && item
+          return show_saved(draft, first: first) if first || draft.card_photo.nil?
+
+          # The card itself says what was saved, with the way to the list
+          presenter = Presenters::PhotoGiftAddedPresenter.new(draft.reload, user, context)
+          return context.render_photo_gift(draft, presenter.text, presenter.keyboard)
+        end
 
         if status == :photo_pending
           context.notice = I18n.t(draft.media_status == "failed" ? "bot.photo_gift.media_failed" : "bot.photo_gift.preparing")
