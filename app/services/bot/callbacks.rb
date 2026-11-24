@@ -3,7 +3,7 @@ module Bot
     extend Bot::Helpers
 
     CALLBACK_ROUTES = {
-      /\Apg:([amstpdulxcrz]):(\d+):(\d+)\z/ => "Callbacks::PhotoGiftHandler#action",
+      /\Apg:([aemstpdulxcrz]):(\d+):(\d+)\z/ => "Callbacks::PhotoGiftHandler#action",
       /\Apgl:(\d+):(\d+):(\d+)\z/ => "Callbacks::PhotoGiftHandler#lists",
       /\Apgw:(\d+):(\d+):(\d+)\z/ => "Callbacks::PhotoGiftHandler#select_list",
       /\Apgi:(\d+)\z/ => "Callbacks::PhotoGiftHandler#inbox",

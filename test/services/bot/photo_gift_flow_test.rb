@@ -15,7 +15,10 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     @api = stub
     @api.stubs(:send_message).with { |params| @screens << params; true }
     @api.stubs(:edit_message_text).with { |params| @screens << params; true }
-    @api.stubs(:send_photo).with { |params| @photos << params; true }
+    # A card is a photo with a caption: tests read its caption as the screen text
+    @api.stubs(:send_photo).with { |params| params[:caption] ? @screens << params.merge(text: params[:caption]) : @photos << params; true }
+      .returns(Telegram::Bot::Types::Message.new(message_id: 4242, date: 1, chat: { id: 1, type: "private" }))
+    @api.stubs(:edit_message_caption).with { |params| @screens << params.merge(text: params[:caption]); true }
     @api.stubs(:answer_callback_query).with { |params| @answers << params; true }
     @bot = stub(api: @api)
     @id = 9_791_000
@@ -52,7 +55,7 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     assert_includes text, I18n.t("bot.photo_gift.received")
     press("m", draft)
     assert_nil @owner.reload.photo_ai_consented_at
-    assert_includes text, I18n.t("bot.photo_gift.review")
+    assert_includes text, I18n.t("bot.photo_gift.card_hint", list: "").split(". ").last
     press("s", draft)
     assert_equal "editing_photo_gift", @owner.reload.bot_state
     say(text: "Lamp")
@@ -99,7 +102,7 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     press_data("main_menu")
     assert_equal "ready", draft.reload.status
     press_data("resume_input")
-    assert_includes text, I18n.t("bot.photo_gift.review")
+    assert_includes text, I18n.t("bot.photo_gift.card_hint", list: "").split(". ").last
   end
 
   test "a committed save with a failed reply recovers without repeating creation" do
@@ -189,7 +192,7 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     photo
     assert_equal "awaiting_consent", first.reload.status
     press("m", first)
-    assert_includes text, I18n.t("bot.photo_gift.review")
+    assert_includes text, I18n.t("bot.photo_gift.card_hint", list: "").split(". ").last
   end
 
   test "no guest or group can create a gift in the owner's list or access a private draft" do
@@ -319,7 +322,7 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     assert_includes callbacks, "pgo:#{draft.id}"
     press_data("pgo:#{draft.id}")
     assert_includes text, "Private lamp"
-    assert_includes text, I18n.t("bot.photo_gift.review")
+    assert_includes text, I18n.t("bot.photo_gift.card_hint", list: "").split(". ").last
     press_data("pgi:0", as: @guest)
     refute_includes callbacks, "pgo:#{draft.id}"
     press_data("pgo:#{draft.id}", as: @guest)
@@ -367,20 +370,31 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     refute_includes text, I18n.t("bot.photo_gift.inbox_title")
   end
 
-  test "bot message ids are stored after delivery and after a fallback send" do
-    @api.stubs(:send_message).with { |params| @screens << params; true }
-      .returns(Telegram::Bot::Types::Message.new(message_id: 321, date: 1, chat: { id: @owner.telegram_id, type: "private" }))
+  test "the draft is a photo card: sent once, then its caption changes in place" do
     photo
     draft = latest
-    assert_equal 321, draft.result["screen_message_id"]
+    assert_equal [ 4242, true ], draft.result.values_at("screen_message_id", "screen_photo")
+    assert_equal "photo-large", @screens.last[:photo]
     assert_equal 0, draft.version
-    @api.stubs(:edit_message_text)
-      .returns(Telegram::Bot::Types::Message.new(message_id: 1, date: 1, chat: { id: @owner.telegram_id, type: "private" }))
-    press("m", draft)
-    assert_equal 1, draft.reload.result["screen_message_id"]
-    @api.stubs(:edit_message_text).raises(Telegram::Bot::Exceptions::ResponseError.new(response: Faraday::Response.new(status: 400, body: '{"ok":false,"description":"not editable"}')))
-    press("x", draft)
-    assert_equal 321, draft.reload.result["screen_message_id"]
+
+    # A button on the card edits its caption
+    @id += 1
+    Bot::Dispatcher.dispatch(@bot, Telegram::Bot::Types::Update.new(update_id: @id, callback_query: {
+      id: @id.to_s, chat_instance: "chat", data: "pg:m:#{draft.id}:#{draft.version}",
+      from: { id: @owner.telegram_id, is_bot: false, first_name: "Owner" },
+      message: { message_id: 55, date: 1, chat: { id: @owner.telegram_id, type: "private" },
+                 photo: [ { file_id: "photo-large", file_unique_id: "large", width: 10, height: 10 } ] }
+    }))
+    assert_equal 55, @screens.last[:message_id]
+    assert_equal 55, draft.reload.result["screen_message_id"]
+
+    # A button on an old text screen can't turn it into a photo: a new card comes
+    press("e", draft)
+    assert_equal "photo-large", @screens.last[:photo]
+    assert_equal 4242, draft.reload.result["screen_message_id"]
+    assert_includes callbacks, "pg:t:#{draft.id}:#{draft.version}"
+    assert_includes callbacks, "pgb:#{draft.id}"
+    refute callbacks.any? { |data| data.start_with?("pg:s:") }
   end
 
   test "single and zero lists give an explicit destination without creating a list" do

@@ -33,17 +33,30 @@ class PhotoGiftReviewJob < ApplicationJob
 
   def show(draft, text, keyboard)
     api = Telegram::Bot::Client.new(ENV.fetch("TELEGRAM_BOT_TOKEN")).api
-    screen = { chat_id: draft.chat_id, text: text, reply_markup: keyboard, parse_mode: "HTML",
-               link_preview_options: no_link_preview }
+    photo = draft.card_photo
     if (message_id = draft.result["screen_message_id"])
       begin
-        return api.edit_message_text(**screen, message_id: message_id)
+        if draft.result["screen_photo"]
+          return api.edit_message_caption(chat_id: draft.chat_id, message_id: message_id, reply_markup: keyboard,
+                                          caption: text.truncate(Bot::Context::CAPTION_LIMIT), parse_mode: "HTML")
+        elsif !photo
+          return api.edit_message_text(chat_id: draft.chat_id, message_id: message_id, text: text, reply_markup: keyboard,
+                                       parse_mode: "HTML", link_preview_options: no_link_preview)
+        end
       rescue Telegram::Bot::Exceptions::ResponseError => e
         # Deleted, too old or otherwise not editable: send it below instead.
         # Throttling is retried as a whole.
         raise if e.error_code.to_i == 429
       end
     end
-    api.send_message(**screen)
+    # A text screen can't become a photo card: a new card replaces it
+    sent = if photo
+      api.send_photo(chat_id: draft.chat_id, photo: photo, caption: text.truncate(Bot::Context::CAPTION_LIMIT),
+                     reply_markup: keyboard, parse_mode: "HTML")
+    else
+      api.send_message(chat_id: draft.chat_id, text: text, reply_markup: keyboard, parse_mode: "HTML",
+                       link_preview_options: no_link_preview)
+    end
+    draft.remember_screen!(sent.message_id, photo: photo.present?) if sent.respond_to?(:message_id)
   end
 end

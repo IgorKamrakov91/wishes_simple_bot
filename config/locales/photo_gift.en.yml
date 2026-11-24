@@ -1,6 +1,12 @@
 en:
   bot:
     photo_gift:
+      no_name: "<i>No name yet — tap “Edit”</i>"
+      card_hint: "Goes to “%{list}”. Check the price — AI can make mistakes."
+      without_photo_note: "The photo won't be saved with the gift."
+      edit_hint: "What should change?"
+      edit: "✏️ Edit"
+      cancel_short: "✖️ Cancel"
       help: |
         Gift from a photo:
         • Send the bot a photo or screenshot of a product, for example with Share from a shop app. The bot fills in the card; you check and save it.
