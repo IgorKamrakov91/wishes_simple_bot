@@ -11,6 +11,13 @@ class ImageShrinkerTest < ActiveSupport::TestCase
     assert_equal "jpegload_buffer", image.get("vips-loader")
   end
 
+  test "transparent pictures get a white background" do
+    png = Vips::Image.black(10, 10, bands: 4).cast(:uchar).pngsave_buffer
+    image = Vips::Image.new_from_buffer(ImageShrinker.call(png, max_side: 2048, max_pixels: 40_000_000), "")
+    assert_equal 3, image.bands
+    assert_equal 255, image.avg.round
+  end
+
   test "keeps small pictures small and refuses huge or broken ones" do
     png = Vips::Image.black(800, 600).cast(:uchar).pngsave_buffer
     image = Vips::Image.new_from_buffer(ImageShrinker.call(png, max_side: 2048, max_pixels: 40_000_000), "")
