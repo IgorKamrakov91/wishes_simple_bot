@@ -40,11 +40,12 @@ class PhotoGiftDraftTest < ActiveSupport::TestCase
     refute draft.apply_recognition!(title: "Again", price: 1, description: nil, expected_version: 2)
   end
 
-  test "replacement cancellation and expiry reject late jobs" do
+  test "new photos retain older drafts while cancellation and expiry reject late jobs" do
     old = start
     old.consent!(expected_version: 0)
     start
-    assert_equal "cancelled", old.reload.status
+    assert_equal "pending", old.reload.status
+    old.cancel!(expected_version: 1)
     refute old.apply_recognition!(title: "Late", price: nil, description: nil, expected_version: 1)
     draft = start
     draft.consent!(expected_version: 0)
@@ -126,6 +127,69 @@ class PhotoGiftDraftTest < ActiveSupport::TestCase
     draft.fail_recognition!("timeout", expected_version: 3)
     refute draft.retry_recognition!(expected_version: 4)
     assert_equal "failed", draft.status
+  end
+
+  test "routing grants consent atomically only for an owned list and an expected version" do
+    draft = start
+    foreign = User.create!(telegram_id: 97903).wishlists.create!(title: "Foreign")
+    assert_raises(ActiveRecord::RecordNotFound) { draft.choose_destination!(foreign.id, expected_version: 0) }
+    assert_nil @user.reload.photo_ai_consented_at
+    refute draft.choose_destination!(@list.id, expected_version: 9)
+    assert_nil @user.reload.photo_ai_consented_at
+    assert draft.choose_destination!(@list.id, expected_version: 0)
+    assert @user.reload.photo_ai_consented_at
+    assert_equal [ "save", "pending", @list.id, false ],
+      [ draft.result["intent"], draft.status, draft.wishlist_id, draft.result["intake_open"] ]
+    refute draft.choose_destination!(0, expected_version: 0)
+  end
+
+  test "later keeps unconsented photos private and retained for thirty days" do
+    draft = start
+    assert_equal "later", draft.result["intent"]
+    assert_in_delta 30.days, draft.expires_at - draft.created_at, 1
+    draft.defer!(expected_version: 0)
+    assert_equal "awaiting_consent", draft.status
+    assert_nil @user.reload.photo_ai_consented_at
+    assert_equal "later", draft.result["intent"]
+    assert draft.consent!(expected_version: 1), "bulk consent remains possible"
+    assert_equal "pending", draft.status
+    assert_equal "later", draft.result["intent"]
+  end
+
+  test "list captions ignore case and emoji but never grant implicit consent" do
+    @list.update!(title: "🎂 День рождения ✨")
+    draft = start(caption: "  ДЕНЬ РОЖДЕНИЯ 🎁 ")
+    assert_equal "save", draft.result["intent"]
+    assert_equal @list.id, draft.wishlist_id
+    assert_nil draft.result["title"]
+    assert_nil draft.caption
+    assert_equal "awaiting_consent", draft.status
+    assert_nil @user.reload.photo_ai_consented_at
+    draft.choose_destination!(@list.id, expected_version: 0)
+    assert_equal "pending", start(caption: "День рождения").status
+  end
+
+  test "ambiguous or foreign list captions stay gift data" do
+    @list.update!(title: "🎁 Wishes")
+    @user.wishlists.create!(title: "WISHES")
+    User.create!(telegram_id: 97904).wishlists.create!(title: "Foreign")
+    %w[wishes Foreign].each do |caption|
+      draft = start(caption: caption)
+      assert_equal "later", draft.result["intent"]
+      assert_equal caption, draft.result["title"]
+    end
+    assert_nil PhotoGiftDraft.list_from_caption(@user, "🎁")
+  end
+
+  test "technical screen metadata preserves recognition fields without changing the version" do
+    draft = start
+    draft.consent!(expected_version: 0)
+    stale = PhotoGiftDraft.find(draft.id)
+    draft.apply_recognition!(title: "Lamp", price: 250, description: nil, expected_version: 1)
+    stale.remember_screen!(123)
+    assert_equal 2, draft.reload.version
+    assert_equal "Lamp", draft.result["title"]
+    assert_equal 123, draft.result["screen_message_id"]
   end
 
   private

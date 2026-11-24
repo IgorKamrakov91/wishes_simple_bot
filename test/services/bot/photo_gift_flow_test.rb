@@ -42,14 +42,14 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     ENV.delete("PHOTO_GIFTS_ENABLED")
     photo
     assert_nil @owner.reload.bot_state
-    assert_equal "cancelled", draft.reload.status
+    assert_equal "awaiting_consent", draft.reload.status
     assert_includes text, I18n.t("bot.commands.text_only")
   end
 
-  test "first photo asks consent and manual review saves a first gift only once" do
+  test "first photo offers destinations and manual review saves a first gift only once" do
     assert_no_difference("Item.count") { photo }
     draft = latest
-    assert_includes text, I18n.t("bot.photo_gift.consent")
+    assert_includes text, I18n.t("bot.photo_gift.received")
     press("m", draft)
     assert_nil @owner.reload.photo_ai_consented_at
     assert_includes text, I18n.t("bot.photo_gift.review")
@@ -81,11 +81,11 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     assert_equal "pending", draft.reload.status
     assert @owner.reload.photo_ai_consented_at
     assert_includes text, I18n.t("bot.photo_gift.recognizing")
-    assert_equal [ "pg:m:#{draft.id}:#{draft.version}", "pg:c:#{draft.id}:#{draft.version}" ], callbacks
+    assert_equal [ "pg:m:#{draft.id}:#{draft.version}", "pg:z:#{draft.id}:#{draft.version}", "pg:c:#{draft.id}:#{draft.version}" ], callbacks
     assert_enqueued_jobs(1, only: PhotoGiftRecognitionJob) { photo(caption: "https://example.com/gift") }
     assert_equal "pending", latest.status
     assert_equal "https://example.com/gift", latest.result["url"]
-    assert_equal "cancelled", draft.reload.status
+    assert_equal "pending", draft.reload.status
   end
 
   test "a newcomer's draft can resume from start and menu even without a list" do
@@ -176,20 +176,20 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     draft = latest
     photo(caption: "/cancel")
     assert_nil @owner.reload.bot_state
-    assert_equal "cancelled", draft.reload.status
+    assert_equal "awaiting_consent", draft.reload.status
     assert_equal 1, PhotoGiftDraft.count
   end
 
-  test "new photo cancels old draft and album photos produce only one hint" do
+  test "new photos retain old drafts and album photos produce only one hint" do
     photo(media_group_id: "album")
     first = latest
     2.times { photo(media_group_id: "album") }
     assert_equal 1, PhotoGiftDraft.count
     assert_equal 1, @screens.count { |screen| screen[:text].include?(I18n.t("bot.photo_gift.one_photo")) }
     photo
-    assert_equal "cancelled", first.reload.status
+    assert_equal "awaiting_consent", first.reload.status
     press("m", first)
-    assert_includes text, I18n.t("bot.photo_gift.unavailable")
+    assert_includes text, I18n.t("bot.photo_gift.review")
   end
 
   test "no guest or group can create a gift in the owner's list or access a private draft" do
@@ -255,7 +255,7 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     assert_equal "document", latest.media_kind
     assert_equal "pending", latest.media_status
     assert_nil latest.photo_file_id
-    assert_includes text, I18n.t("bot.photo_gift.consent")
+    assert_includes text, I18n.t("bot.photo_gift.received")
     count = PhotoGiftDraft.count
     press("c", latest)
     say(document: { file_id: "bad", file_unique_id: "other", mime_type: "application/pdf" })
@@ -270,7 +270,7 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     @api.stubs(:send_message).with { |params| @screens << params; true }
     photo(update_id: 9_799_000)
     assert_equal 1, PhotoGiftDraft.count
-    assert_includes text, I18n.t("bot.photo_gift.consent")
+    assert_includes text, I18n.t("bot.photo_gift.received")
     assert BotUpdateReceipt.find(9_799_000).delivered_at
   end
 
@@ -286,6 +286,115 @@ class BotPhotoGiftFlowTest < ActiveJob::TestCase
     end
     huge = 9_223_372_036_854_775_807
     assert_operator "pgw:#{huge}:2147483647:#{huge}".bytesize, :<, 64
+  end
+
+  test "destination buttons show the three most recent owned lists and imply consent" do
+    foreign = @guest.wishlists.create!(title: "Secret guest list")
+    lists = 4.times.map { |i| @owner.wishlists.create!(title: "Recent #{i}") }
+    photo
+    draft = latest
+    assert_includes text, I18n.t("bot.photo_gift.routing_consent")
+    destinations = callbacks.grep(/\Apgw:/)
+    assert_equal lists.last(3).reverse.map(&:id), destinations.map { |data| data.split(":").last.to_i }
+    refute_includes destinations, "pgw:#{draft.id}:#{draft.version}:#{foreign.id}"
+    assert_enqueued_jobs(1, only: PhotoGiftRecognitionJob) { press_data(destinations.first) }
+    assert_equal [ "pending", "save", lists.last.id ],
+      [ draft.reload.status, draft.result["intent"], draft.wishlist_id ]
+    assert @owner.reload.photo_ai_consented_at
+    refute_includes text, I18n.t("bot.photo_gift.routing_consent")
+    refute draft.choose_destination!(@list.id, expected_version: 0)
+  end
+
+  test "later stores the draft and menu links to a private paginated inbox" do
+    photo(caption: "Private lamp")
+    draft = latest
+    press("z", draft)
+    assert_equal "awaiting_consent", draft.reload.status
+    assert_equal "later", draft.result["intent"]
+    assert_nil @owner.reload.bot_state
+    assert_nil @owner.photo_ai_consented_at
+    say(text: "/start")
+    assert_includes callbacks, "pgi:0"
+    press_data("pgi:0")
+    assert_includes callbacks, "pgo:#{draft.id}"
+    press_data("pgo:#{draft.id}")
+    assert_includes text, "Private lamp"
+    assert_includes text, I18n.t("bot.photo_gift.review")
+    press_data("pgi:0", as: @guest)
+    refute_includes callbacks, "pgo:#{draft.id}"
+    press_data("pgo:#{draft.id}", as: @guest)
+    assert_equal "awaiting_consent", draft.reload.status
+  end
+
+  test "inbox pagination excludes saved cancelled expired and other people's drafts" do
+    10.times { |i| photo(caption: "Photo #{i}") }
+    saved = latest
+    press("m", saved)
+    press("s", saved)
+    cancelled = @owner.photo_gift_drafts.active.first
+    cancelled.cancel!(expected_version: cancelled.version)
+    expired = @owner.photo_gift_drafts.active.first
+    expired.update!(expires_at: 1.second.ago)
+    photo(as: @guest, caption: "Foreign")
+    3.times { photo }
+    press_data("pgi:0")
+    assert_equal 8, callbacks.grep(/\Apgo:/).size
+    assert_includes callbacks, "pgi:1"
+    press_data("pgi:1")
+    assert_equal 2, callbacks.grep(/\Apgo:/).size
+    assert_includes callbacks, "pgi:0"
+    press_data("pgi:999")
+    assert_equal 2, callbacks.grep(/\Apgo:/).size
+    [ saved, cancelled, expired, @guest.photo_gift_drafts.last ].each do |draft|
+      refute_includes callbacks, "pgo:#{draft.id}"
+    end
+  end
+
+  test "inbox is offered even with no lists and hidden when empty or feature disabled" do
+    @list.destroy!
+    photo
+    press("z", latest)
+    say(text: "/start")
+    assert_includes callbacks, "pgi:0"
+    latest.cancel!(expected_version: latest.version)
+    say(text: "/start")
+    refute_includes callbacks, "pgi:0"
+    photo
+    ENV["PHOTO_GIFTS_ENABLED"] = "false"
+    say(text: "/start")
+    refute_includes callbacks, "pgi:0"
+    press_data("pgi:0")
+    refute_includes text, I18n.t("bot.photo_gift.inbox_title")
+  end
+
+  test "bot message ids are stored after delivery and after a fallback send" do
+    @api.stubs(:send_message).with { |params| @screens << params; true }
+      .returns(Telegram::Bot::Types::Message.new(message_id: 321, date: 1, chat: { id: @owner.telegram_id, type: "private" }))
+    photo
+    draft = latest
+    assert_equal 321, draft.result["screen_message_id"]
+    assert_equal 0, draft.version
+    @api.stubs(:edit_message_text)
+      .returns(Telegram::Bot::Types::Message.new(message_id: 1, date: 1, chat: { id: @owner.telegram_id, type: "private" }))
+    press("m", draft)
+    assert_equal 1, draft.reload.result["screen_message_id"]
+    @api.stubs(:edit_message_text).raises(Telegram::Bot::Exceptions::ResponseError.new(response: Faraday::Response.new(status: 400, body: '{"ok":false,"description":"not editable"}')))
+    press("x", draft)
+    assert_equal 321, draft.reload.result["screen_message_id"]
+  end
+
+  test "single and zero lists give an explicit destination without creating a list" do
+    photo
+    assert_equal 1, callbacks.grep(/\Apgw:/).size
+    refute callbacks.any? { |data| data.start_with?("pgl:") }
+    assert_includes callbacks, "pgw:#{latest.id}:0:#{@list.id}"
+    @owner.wishlists.destroy_all
+    assert_no_difference("Wishlist.count") { photo }
+    assert_includes callbacks, "pgw:#{latest.id}:0:0"
+    press_data("pgw:#{latest.id}:0:0")
+    assert latest.result["new_list"]
+    assert_equal "save", latest.result["intent"]
+    assert_equal 0, @owner.wishlists.count
   end
 
   private

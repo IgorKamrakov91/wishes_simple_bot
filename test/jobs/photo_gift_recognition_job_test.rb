@@ -237,4 +237,40 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     assert_equal "ready", draft.reload.status
     assert_includes @sent.last[:text], "Лампа"
   end
+
+  test "a list picked while the model reads reuses the answer and saves once" do
+    draft = start
+    version = draft.version
+    @reader.expects(:call).once.with do
+      draft.reload.choose_destination!(@list.id, expected_version: draft.version)
+      true
+    end.returns(Result.new(title: "Лампа", price: BigDecimal("990"), description: nil))
+
+    assert_difference("@list.items.count", 1) do
+      PhotoGiftRecognitionJob.perform_now(draft.id, version)
+      # The job queued by the list choice finds its version already taken
+      perform_enqueued_jobs(only: [ PhotoGiftRecognitionJob, PhotoGiftReviewJob ])
+    end
+    assert_equal "saved", draft.reload.status
+    assert_includes @sent.last[:text], "Лампа"
+    assert_equal 1, AiCall.count
+  end
+
+  test "a newer version waits while an earlier job is still reading" do
+    draft = start
+    draft.update!(result: draft.result.merge("claimed_version" => draft.version, "claimed_at" => Time.current.iso8601))
+    draft.reload.choose_destination!(@list.id, expected_version: draft.version)
+    @reader.expects(:call).never
+
+    assert_enqueued_jobs(1, only: PhotoGiftRecognitionJob) { PhotoGiftRecognitionJob.perform_now(draft.id, draft.reload.version) }
+    later = enqueued_jobs.last
+    assert_equal [ draft.id, draft.version ], later[:args]
+    assert_operator Time.zone.parse(later["scheduled_at"]), :>, 10.seconds.from_now
+
+    travel 3.minutes
+    @reader.unstub(:call)
+    @reader.expects(:call).once.returns(Result.new(title: "Лампа", price: nil, description: nil))
+    PhotoGiftRecognitionJob.perform_now(draft.id, draft.version)
+    assert_equal "saved", draft.reload.status, "an earlier job that died doesn't block the work"
+  end
 end

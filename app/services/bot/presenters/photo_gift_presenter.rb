@@ -6,11 +6,11 @@ module Bot
 
       def text
         return t("bot.photo_gift.unavailable") unless draft.editable?
-        return t("bot.photo_gift.consent") if draft.status == "awaiting_consent"
         return t("bot.photo_gift.recognizing") if recognizing?
 
         values = draft.fields
         lines = [ t("bot.photo_gift.review") ]
+        lines << t("bot.photo_gift.routing_consent") unless draft.user.photo_ai_consented_at?
         if draft.status == "failed"
           lines << t(draft.error_code.in?(%w[limit user_limit disabled]) ? "bot.photo_gift.failed_limit" : "bot.photo_gift.failed")
         end
@@ -31,9 +31,7 @@ module Bot
       def keyboard
         return context.build_keyboard([]) unless draft.editable?
 
-        if draft.status == "awaiting_consent"
-          rows = [ [ button(t("bot.photo_gift.recognize"), "a"), button(t("bot.photo_gift.manual"), "m") ] ]
-        elsif recognizing?
+        if recognizing?
           rows = [ [ button(t("bot.photo_gift.manual"), "m") ] ]
         else
           rows = [ [ button(t("bot.photo_gift.save", list: list_title.truncate(35)), "s", style: "primary") ] ]
@@ -42,6 +40,7 @@ module Bot
           rows << [ button(t("bot.photo_gift.remove_photo"), "x") ] unless draft.result["without_photo"]
           rows << [ button(t("bot.photo_gift.retry"), "r") ] if draft.status == "failed" && !draft.result["retry_used"]
         end
+        rows << [ button(t("bot.photo_gift.later"), "z") ]
         rows << [ button(t("bot.buttons.cancel"), "c") ]
         context.build_keyboard(rows)
       end

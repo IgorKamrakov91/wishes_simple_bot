@@ -9,16 +9,27 @@ class PhotoGiftRecognitionJob < ApplicationJob
   # three worker threads always keep one for notifications and reminders.
   limits_concurrency to: 2, key: "gift_ideas", group: "gift_ideas", duration: 2.minutes
 
+  TAKEOVER_WAIT = 15.seconds
   LIMIT_CODES = { disabled: "disabled", global_limit: "limit", kind_limit: "limit", user_limit: "user_limit" }.freeze
 
   def perform(draft_id, version)
     draft = PhotoGiftDraft.find_by(id: draft_id)
-    return unless draft && claim(draft, version)
+    return unless draft
+
+    if reading_earlier_version?(draft, version)
+      # Usually that job takes this version over when it finishes; if it
+      # died, this one does the work a little later
+      return self.class.set(wait: TAKEOVER_WAIT).perform_later(draft_id, version)
+    end
+    return unless claim(draft, version)
 
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     outcome, shown_version = recognize(draft, version)
     log(draft, outcome, started)
     PhotoGiftReviewJob.perform_later(draft.id, shown_version) if shown_version
+  ensure
+    # No longer reading: a retry or newer version must not wait for this job
+    PhotoGiftDraft.where(id: draft.id).update_all("result = result - 'claimed_at'") if draft && outcome
   end
 
   private
@@ -30,8 +41,15 @@ class PhotoGiftRecognitionJob < ApplicationJob
       next false unless PhotoGiftDraft.enabled? && draft.editable? && draft.status == "pending" &&
         draft.version == version && draft.result["claimed_version"] != version
 
-      draft.update!(result: draft.result.merge("claimed_version" => version))
+      draft.update!(result: draft.result.merge("claimed_version" => version, "claimed_at" => Time.current.iso8601(3)))
     end
+  end
+
+  # Another job is still reading this photo for an older version of the draft
+  def reading_earlier_version?(draft, version)
+    claimed = draft.result["claimed_version"]
+    claimed_at = Time.zone.parse(draft.result["claimed_at"].to_s) rescue nil
+    claimed.is_a?(Integer) && claimed < version && claimed_at && claimed_at > PhotoGiftDraft::RECOGNITION_DEADLINE.ago
   end
 
   def recognize(draft, version)
@@ -42,11 +60,7 @@ class PhotoGiftRecognitionJob < ApplicationJob
     found = YandexAi::PhotoReader.new.call(image, caption: draft.caption)
     return fail(draft, "no_product", version) unless found
 
-    applied = draft.apply_recognition!(title: found.title, price: found.price&.to_s("F"),
-                                       description: found.description, expected_version: version)
-    return [ "stale", nil ] unless applied
-
-    save_if_list_chosen(draft, version + 1)
+    apply_latest(draft, version, found)
   rescue YandexAi::Client::Error => e
     fail(draft, e.code, version)
   rescue Bot::TelegramFile::Error => e
@@ -56,6 +70,24 @@ class PhotoGiftRecognitionJob < ApplicationJob
   rescue StandardError => e
     Rails.logger.error("Photo gift #{draft.id} recognition failed (#{e.class})")
     fail(draft, "error", version)
+  end
+
+  # Picking a list or "later" while the model reads moves the version on but
+  # keeps the draft pending. The answer still fits it: take the new version
+  # over (its own job then finds it claimed) instead of a second model call.
+  # Edits, cancellation or replacement leave the draft non-pending and win.
+  def apply_latest(draft, version, found)
+    3.times do
+      if draft.apply_recognition!(title: found.title, price: found.price&.to_s("F"),
+                                  description: found.description, expected_version: version)
+        return save_if_list_chosen(draft, version + 1)
+      end
+      draft.reload
+      return [ "stale", nil ] unless claim(draft, draft.version)
+
+      version = draft.version
+    end
+    [ "stale", nil ]
   end
 
   # The person picked a list when sending the photo: that choice is the

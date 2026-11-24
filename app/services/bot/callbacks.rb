@@ -3,9 +3,11 @@ module Bot
     extend Bot::Helpers
 
     CALLBACK_ROUTES = {
-      /\Apg:([amstpdulxcr]):(\d+):(\d+)\z/ => "Callbacks::PhotoGiftHandler#action",
+      /\Apg:([amstpdulxcrz]):(\d+):(\d+)\z/ => "Callbacks::PhotoGiftHandler#action",
       /\Apgl:(\d+):(\d+):(\d+)\z/ => "Callbacks::PhotoGiftHandler#lists",
       /\Apgw:(\d+):(\d+):(\d+)\z/ => "Callbacks::PhotoGiftHandler#select_list",
+      /\Apgi:(\d+)\z/ => "Callbacks::PhotoGiftHandler#inbox",
+      /\Apgo:(\d+)\z/ => "Callbacks::PhotoGiftHandler#open_review",
       /\Apgb:(\d+)\z/ => "Callbacks::PhotoGiftHandler#back",
       /\Apgu:(\d+)\z/ => "Callbacks::PhotoGiftResultHandler#undo",
       /\Apgd:s:(\d+)\z/ => "Callbacks::PhotoInboxHandler#save_all",

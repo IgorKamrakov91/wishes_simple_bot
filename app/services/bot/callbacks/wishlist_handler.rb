@@ -9,12 +9,15 @@ module Bot
         name = escape_html(user.first_name.presence || user.full_name)
         lists = user.wishlists.count
         shared = user.viewed_wishlists.distinct.count
+        inbox_count = PhotoGiftDraft.enabled? ? user.photo_gift_drafts.active.count : 0
+        inbox_rows = inbox_count.positive? ? [ [ inline_btn(I18n.t("bot.photo_gift.inbox", count: inbox_count), "pgi:0") ] ] : []
 
         # A newcomer gets how it works and one next step instead of zero counters
         if lists.zero? && shared.zero? && !InputPrompt.new(context).active?
           keyboard = context.build_keyboard([
             [ context.inline_btn(I18n.t("bot.buttons.create_first_list"), "new_list", style: "primary") ],
-            [ context.inline_btn(I18n.t("bot.demo.button"), "demo") ]
+            [ context.inline_btn(I18n.t("bot.demo.button"), "demo") ],
+            *inbox_rows
           ])
           return context.render(I18n.t("bot.screens.main.welcome", name: name), keyboard)
         end
@@ -41,6 +44,7 @@ module Bot
         lines = [ prompt.with_input_note(lines.first), *lines.drop(1) ] if draft
 
         keyboard = context.build_keyboard([
+          *inbox_rows,
           *(draft ? prompt.resume_rows : []),
           *([ first_gift_row ] if first_gift_row),
           [

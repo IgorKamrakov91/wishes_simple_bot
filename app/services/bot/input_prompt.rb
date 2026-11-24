@@ -31,6 +31,10 @@ module Bot
     end
 
     def render
+      if user.bot_state == "photo_gift"
+        return Callbacks::PhotoGiftHandler.new(context).show(payload[:photo_gift_draft_id])
+      end
+
       text, keyboard = prompt
       context.render(text, keyboard)
     end

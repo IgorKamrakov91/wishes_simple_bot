@@ -3,14 +3,16 @@ module Bot
     class PhotoGiftHandler < BaseHandler
       FIELD_KEYS = Presenters::PhotoGiftPresenter::FIELD_KEYS
       LISTS_PER_PAGE = 5
-      CALLBACK_PATTERN = /\A(?:pg:[amstpdulxcr]:\d+:\d+|pgl:\d+:\d+:\d+|pgw:\d+:\d+:\d+|pgb:\d+|ip:\d+)\z/
+      INBOX_PER_PAGE = 8
+      CALLBACK_PATTERN = /\A(?:pg:[amstpdulxcrz]:\d+:\d+|pgl:\d+:\d+:\d+|pgw:\d+:\d+:\d+|pgb:\d+|pgi:\d+|pgo:\d+|ip:\d+)\z/
 
       def show(id)
         draft = owned(id)
         clear_input_for(draft) unless draft.editable?
         UpdateDelivery.record_result("photo_gift", draft.id)
-        presenter = Presenters::PhotoGiftPresenter.new(draft, user, context)
-        context.render(presenter.text, presenter.keyboard)
+        klass = draft.editable? && draft.result["intake_open"] ? Presenters::PhotoGiftIntakePresenter : Presenters::PhotoGiftPresenter
+        presenter = klass.new(draft, user, context)
+        context.render_photo_gift(draft, presenter.text, presenter.keyboard)
       end
 
       def action(action, id, version)
@@ -19,7 +21,18 @@ module Bot
         return outdated(draft) unless draft.editable? && draft.version == version
 
         case action
-        when "a" then draft.consent!(expected_version: version)
+        when "a"
+          draft.choose_destination!(draft.wishlist_id || 0, expected_version: version)
+          user.reload
+        when "z"
+          return outdated(draft) unless draft.defer!(expected_version: version)
+
+          clear_input_for(draft)
+          UpdateDelivery.record_result("photo_gift", draft.id)
+          return context.render(I18n.t("bot.photo_gift.deferred"), build_keyboard([
+            [ inline_btn(I18n.t("bot.photo_gift.inbox", count: user.photo_gift_drafts.active.count), "pgi:0") ],
+            [ inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ]
+          ]))
         when "m" then draft.manual!(expected_version: version)
         when "r" then draft.retry_recognition!(expected_version: version)
         when "x" then draft.remove_photo!(expected_version: version)
@@ -52,13 +65,47 @@ module Bot
         rows << [ inline_btn(I18n.t("bot.photo_gift.new_list", list: I18n.t("bot.photo_gift.default_list")), "pgw:#{id}:#{version}:0") ]
         # Returning to review is separate from selecting a list.
         rows << [ inline_btn(I18n.t("bot.buttons.back"), "pgb:#{id}") ]
-        context.render(I18n.t("bot.photo_gift.choose_list"), build_keyboard(rows))
+        text = I18n.t("bot.photo_gift.choose_list")
+        text += "\n\n#{I18n.t("bot.photo_gift.routing_consent")}" unless user.photo_ai_consented_at?
+        context.render_photo_gift(draft, text, build_keyboard(rows))
       end
 
       def select_list(id, version, list_id)
         draft = owned(id)
-        draft.select_list!(list_id, expected_version: version)
+        return outdated(draft) unless draft.choose_destination!(list_id, expected_version: version)
+
+        user.reload
         show(draft.id)
+      end
+
+      def inbox(page = 0)
+        raise ActiveRecord::RecordNotFound unless PhotoGiftDraft.enabled?
+
+        scope = user.photo_gift_drafts.active.order(id: :desc)
+        count = scope.count
+        page = page.clamp(0, [ (count - 1) / INBOX_PER_PAGE, 0 ].max)
+        rows = scope.offset(page * INBOX_PER_PAGE).limit(INBOX_PER_PAGE).map do |draft|
+          title = draft.fields["title"].presence || I18n.t("bot.photo_gift.untitled")
+          [ inline_btn(title.truncate(50), "pgo:#{draft.id}") ]
+        end
+        pager = []
+        pager << inline_btn(I18n.t("bot.buttons.prev_page"), "pgi:#{page - 1}") if page.positive?
+        pager << inline_btn(I18n.t("bot.buttons.next_page"), "pgi:#{page + 1}") if count > (page + 1) * INBOX_PER_PAGE
+        rows << pager if pager.any?
+        rows << [ inline_btn(I18n.t("bot.buttons.back_to_menu"), "main_menu") ]
+        text = I18n.t(count.positive? ? "bot.photo_gift.inbox_title" : "bot.photo_gift.inbox_empty")
+        context.render(text, build_keyboard(rows))
+      end
+
+      def open_review(id)
+        draft = owned(id)
+        if draft.editable?
+          draft.dismiss_intake!
+          if user.bot_state.blank? || user.bot_state == "photo_gift"
+            user.update!(bot_state: "photo_gift", bot_payload: { "photo_gift_draft_id" => draft.id })
+          end
+        end
+        show(id)
       end
 
       def field_input
@@ -131,6 +178,10 @@ module Bot
       end
 
       def save(draft)
+        # Explicit manual saving does not require or grant AI consent.
+        if draft.status == "awaiting_consent"
+          return outdated(draft) unless draft.manual!(expected_version: draft.version)
+        end
         return edit(draft, "title") if draft.result["title"].blank?
 
         first = user.onboarding?
