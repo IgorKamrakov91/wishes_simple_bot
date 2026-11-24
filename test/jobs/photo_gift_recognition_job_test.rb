@@ -214,7 +214,7 @@ class PhotoGiftRecognitionJobTest < ActiveJob::TestCase
     assert_includes @edited.last[:text], "Ботинки BOSS"
     assert_includes @edited.last[:text], "Birthday"
     buttons = @edited.last[:reply_markup].inline_keyboard.flatten.map(&:callback_data)
-    assert_equal [ "open_item:#{item.id}", "pgu:#{draft.id}" ], buttons
+    assert_equal [ "open_list:#{@list.id}", "open_item:#{item.id}", "pgu:#{draft.id}", "main_menu" ], buttons
   end
 
   test "without a chosen list the review replaces the same message, or comes anew" do
