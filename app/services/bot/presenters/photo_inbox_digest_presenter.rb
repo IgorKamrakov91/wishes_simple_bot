@@ -25,9 +25,13 @@ module Bot
         context.build_keyboard(rows)
       end
 
-      # Drafts that already have a name and can be saved without questions
+      # Drafts that already have a name and can be saved without questions.
+      # Unfinished media stays in the inbox unless its photo was explicitly removed.
       def self.savable(drafts)
-        drafts.select { |draft| %w[ready failed].include?(draft.status) && draft.fields["title"].present? }
+        drafts.select do |draft|
+          %w[ready failed].include?(draft.status) && draft.fields["title"].present? &&
+            (draft.media_status == "ready" || draft.result["without_photo"])
+        end
       end
 
       private

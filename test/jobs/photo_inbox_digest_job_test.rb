@@ -83,6 +83,35 @@ class PhotoInboxDigestJobTest < ActiveJob::TestCase
     assert_includes @sent.last[:text], "осталось 1 фото"
   end
 
+  test "digest does not offer saving photos whose media is not ready" do
+    %w[pending processing failed].each do |media_status|
+      draft(fields: { "title" => "Waiting #{media_status}" }, media_status: media_status)
+    end
+
+    PhotoInboxDigestJob.perform_now(@owner.id)
+
+    assert_equal [ "pgi:0" ], buttons
+  end
+
+  test "saving all leaves unfinished media untouched but includes gifts saved without a photo" do
+    waiting = %w[pending processing failed].map do |media_status|
+      draft(fields: { "title" => "Waiting #{media_status}" }, media_status: media_status)
+    end
+    versions = waiting.map(&:version)
+    ready = draft(fields: { "title" => "Ready" })
+    without_photo = draft(status: "failed", media_status: "failed",
+      fields: { "title" => "Text only", "without_photo" => true })
+
+    assert_difference("@list.items.count", 2) { press("pgd:s:#{@list.id}") }
+
+    assert_equal versions, waiting.map { |photo| photo.reload.version }
+    assert waiting.all? { |photo| photo.status == "ready" }
+    assert_equal "saved", ready.reload.status
+    assert_equal "saved", without_photo.reload.status
+    assert_nil without_photo.item.photo_file_id
+    assert_includes @sent.last[:text], "осталось 3 фото"
+  end
+
   test "saving all without lists makes My wishes once" do
     @list.destroy!
     2.times { |i| draft(fields: { "title" => "Gift #{i}" }) }
