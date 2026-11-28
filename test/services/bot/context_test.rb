@@ -16,13 +16,13 @@ class BotContextTest < ActiveSupport::TestCase
     @user = users(:one)
   end
 
-  def callback_context
+  def callback_context(photo: [])
     callback = Telegram::Bot::Types::CallbackQuery.new(
       id: "1",
       from: { id: 12345, is_bot: false, first_name: "John" },
       chat_instance: "chat",
       data: "show_lists",
-      message: { message_id: 42, date: 1, chat: { id: 777, type: "private" }, text: "Old screen" }
+      message: { message_id: 42, date: 1, chat: { id: 777, type: "private" }, text: "Old screen", photo: photo }
     )
     Bot::Context.new(bot: @bot, user: @user, source: callback)
   end
@@ -39,8 +39,12 @@ class BotContextTest < ActiveSupport::TestCase
     Bot::Context.new(bot: @bot, user: @user, source: message)
   end
 
-  def response_error(description)
-    response = Struct.new(:body, :status).new({ ok: false, error_code: 400, description: description }.to_json, 400)
+  def photo_callback_context
+    callback_context(photo: [ { file_id: "photo", file_unique_id: "unique", width: 100, height: 100 } ])
+  end
+
+  def response_error(description, code: 400)
+    response = Struct.new(:body, :status).new({ ok: false, error_code: code, description: description }.to_json, code)
     Telegram::Bot::Exceptions::ResponseError.new(response: response)
   end
 
@@ -100,6 +104,41 @@ class BotContextTest < ActiveSupport::TestCase
     @api.expects(:send_message).with { |params| params[:chat_id] == 777 && params[:text] == "New screen" }
 
     callback_context.render("New screen")
+  end
+
+  test "render propagates rate limits without sending another message" do
+    error = response_error("Too Many Requests: retry after 30", code: 429)
+    @api.expects(:edit_message_text).raises(error)
+    @api.expects(:send_message).never
+
+    assert_same error, assert_raises(Telegram::Bot::Exceptions::ResponseError) { callback_context.render("New screen") }
+  end
+
+  test "photo cards propagate rate limits without sending another photo" do
+    error = response_error("Too Many Requests: retry after 30", code: 429)
+    @api.expects(:edit_message_caption).raises(error)
+    @api.expects(:send_photo).never
+
+    raised = assert_raises(Telegram::Bot::Exceptions::ResponseError) do
+      photo_callback_context.render_card("photo", "New screen", keyboard)
+    end
+    assert_same error, raised
+  end
+
+  test "photo cards still replace messages that cannot be edited" do
+    @api.expects(:edit_message_caption).raises(response_error("Bad Request: message can't be edited"))
+    @api.expects(:send_photo).with do |params|
+      params[:chat_id] == 777 && params[:photo] == "photo" && params[:caption] == "New screen"
+    end.returns(Struct.new(:message_id).new(43))
+
+    assert_equal 43, photo_callback_context.render_card("photo", "New screen", keyboard)
+  end
+
+  test "photo cards ignore unchanged captions without sending another photo" do
+    @api.expects(:edit_message_caption).raises(response_error("Bad Request: message is not modified"))
+    @api.expects(:send_photo).never
+
+    assert_equal 42, photo_callback_context.render_card("photo", "Same screen", keyboard)
   end
 
   test "render sends a new message for commands" do
