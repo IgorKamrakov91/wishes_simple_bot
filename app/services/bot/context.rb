@@ -78,6 +78,7 @@ module Bot
     rescue Telegram::Bot::Exceptions::ResponseError => e
       raise unless editable_message?
       return if e.message.include?("message is not modified")
+      raise if e.error_code.to_i == 429
 
       # Old messages can't be edited anymore, show the screen as a new one
       send_text(text, keyboard, parse_mode: "HTML", link_preview_options: link_preview_options)
@@ -128,6 +129,7 @@ module Bot
           return source.message.message_id
         rescue Telegram::Bot::Exceptions::ResponseError => e
           return source.message.message_id if e.message.include?("message is not modified")
+          raise if e.error_code.to_i == 429
         end
       end
       bot.api.send_photo(**{ chat_id: chat_id, photo: photo, caption: caption, reply_markup: keyboard,
